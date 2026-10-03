@@ -1,4 +1,4 @@
--- Attendance tables for mobile-development-course.
+-- Attendance tables for mobdev (mobile-development-course).
 -- Run once in Supabase → SQL Editor. No public access: only the server's secret key can read/write.
 create table if not exists public.attendance (
   n           bigint generated always as identity primary key,
