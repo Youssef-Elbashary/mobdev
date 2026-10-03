@@ -181,6 +181,39 @@ function apply(cls: string, s: RNStyle, ratio: { leading?: number; tracking?: nu
   return false;
 }
 
+/** Every class the preview understands, most useful first (used for editor autocomplete). */
+export function knownClasses(): string[] {
+  const out: string[] = [];
+  const add = (...c: string[]) => out.push(...c);
+  add(
+    'flex-1', 'flex-row', 'flex-col', 'flex-wrap', 'items-start', 'items-center', 'items-end', 'items-stretch',
+    'justify-start', 'justify-center', 'justify-end', 'justify-between', 'justify-around', 'justify-evenly',
+    'self-start', 'self-center', 'self-end', 'self-stretch', 'grow', 'shrink-0', 'absolute', 'relative', 'hidden', 'overflow-hidden', 'aspect-square',
+  );
+  const steps = ['0', '0.5', '1', '1.5', '2', '2.5', '3', '4', '5', '6', '8', '10', '12', '14', '16', '20', '24', '32', '40', '48', '64'];
+  for (const p of ['p', 'px', 'py', 'pt', 'pb', 'pl', 'pr', 'm', 'mx', 'my', 'mt', 'mb', 'ml', 'mr', 'gap', 'gap-x', 'gap-y']) for (const s of steps) add(`${p}-${s}`);
+  for (const p of ['w', 'h', 'size']) {
+    for (const s of steps) add(`${p}-${s}`);
+    add(`${p}-full`, `${p}-1/2`, `${p}-1/3`, `${p}-2/3`, `${p}-1/4`, `${p}-3/4`);
+  }
+  add('mx-auto', 'w-auto', 'h-auto', 'min-h-0', 'min-w-0');
+  for (const k of Object.keys(MAX_W)) add(`max-w-${k}`);
+  for (const k of Object.keys(FONT_SIZE)) add(`text-${k}`);
+  for (const k of Object.keys(FONT_WEIGHT)) add(`font-${k}`);
+  add('text-left', 'text-center', 'text-right', 'italic', 'underline', 'line-through', 'uppercase', 'lowercase', 'capitalize', 'font-mono');
+  for (const k of Object.keys(LEADING)) add(`leading-${k}`);
+  for (const k of Object.keys(TRACKING)) add(`tracking-${k}`);
+  add('bg-white', 'bg-black', 'bg-transparent', 'text-white', 'text-black', 'border-white', 'border-black', 'border-transparent');
+  for (const [name, shades] of Object.entries(palette)) for (const shade of Object.keys(shades)) add(`bg-${name}-${shade}`, `text-${name}-${shade}`, `border-${name}-${shade}`);
+  add('border', 'border-0', 'border-2', 'border-4', 'border-t', 'border-b', 'border-l', 'border-r', 'border-dashed');
+  for (const k of Object.keys(RADIUS)) add(k ? `rounded-${k}` : 'rounded');
+  add('rounded-t-xl', 'rounded-b-xl', 'rounded-t-2xl', 'rounded-b-2xl');
+  for (const k of Object.keys(SHADOW)) add(k ? `shadow-${k}` : 'shadow');
+  for (const o of [0, 10, 25, 50, 75, 90, 100]) add(`opacity-${o}`);
+  add('z-10', 'z-20', 'z-50', 'active:opacity-70', 'active:bg-slate-100', 'active:bg-slate-200');
+  return out;
+}
+
 const cache = new Map<string, ClassResult>();
 
 /** className → React Native style. `active:` classes apply while a Pressable is pressed. */

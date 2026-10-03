@@ -1,0 +1,211 @@
+---
+number: 2
+title: 'React & React Native — learn it, try it, get feedback'
+description: 'How a React app starts, components, props and hooks — then React Native components, input, styling with NativeWind and lists. Every concept is followed by an exercise you solve right here, with instant feedback.'
+difficulty: Beginner
+estimatedTime: 1.5 hours
+skills: [React, Components, Props, useState, useEffect, React Native, NativeWind, FlatList]
+roadmapStage: mobile-ui
+interactive: true
+objectives:
+  - Explain how a React app starts, and what components and props are
+  - Use **useState** to update the screen, and know when **useEffect** runs
+  - Build phone screens with `View`, `Text`, `Image`, `TextInput`, `Pressable` and `FlatList`
+  - Style with flexbox and **NativeWind** classes
+  - Combine everything into a small React Native feature
+prerequisites:
+  - Lab 01 done
+  - A laptop with Chrome, Edge or Firefox — everything runs on this page
+---
+
+<LabStart lab="Lab 02" />
+
+<Part n="1" title="How a React app starts" time="10 min" />
+
+### What is React?
+
+<Cards cols={3} items={[
+  { icon: 'layers', title: 'Components', text: 'You build the UI from small, reusable pieces — like LEGO.' },
+  { icon: 'sparkle', title: 'Describe, don’t draw', text: 'You say **what** the screen should show for the current data. React updates the screen for you.' },
+  { logos: ['react'], title: 'Learn once', text: 'React for the **web**, React Native for **phones** — same ideas, same code style.' },
+]} />
+
+### Where does my code start?
+
+<AppStartFlow />
+
+<Demo id="start" />
+
+<Demo id="expo" />
+
+<Exercise id="ex01" />
+
+<Part n="2" title="Components" time="10 min" />
+
+### A component is a function that returns UI
+
+```tsx title="Greeting.tsx"
+function Greeting() {
+  return <h2>Hello, React!</h2>;
+}
+
+// use it like a tag — as many times as you want:
+<Greeting />
+<Greeting />
+```
+
+<Cards compact items={[
+  { icon: 'check', title: 'Capital letter', text: '`Greeting`, never `greeting` — lowercase means an HTML tag.' },
+  { icon: 'check', title: 'Returns JSX', text: 'HTML-like code inside JavaScript, wrapped in **one** parent element.' },
+  { icon: 'check', title: 'Compose them', text: 'Components use other components: `App` → `Header`, `ProductCard`…' },
+]} />
+
+<ComponentTree />
+
+<Exercise id="ex02" />
+
+<Exercise id="ex03" />
+
+<Part n="3" title="Props & hooks" time="10 min" />
+
+### Props — data from parent to child
+
+<PropsFlow />
+
+<Demo id="props" />
+
+<Exercise id="ex04" />
+
+### State — React’s memory (`useState`)
+
+<StateLoop />
+
+### `useEffect` — do something *after* the screen is drawn
+
+<EffectTimeline />
+
+<Cards compact items={[
+  { icon: 'wrench', title: 'useRef', text: 'Keeps a value between renders without re-rendering.' },
+  { icon: 'flask', title: 'useMemo', text: 'Remembers a slow calculation.' },
+  { icon: 'link', title: 'useCallback', text: 'Remembers a function between renders.' },
+  { icon: 'users', title: 'useContext', text: 'Shares data with many components (e.g. the logged-in user).' },
+]} />
+
+> [!NOTE]
+> **Hooks** are functions starting with `use` that give components extra powers. Call them at the **top** of a component — never inside an `if` or a loop. Today you only need `useState` and `useEffect`.
+
+<Demo id="hooks" />
+
+<Exercise id="ex05" />
+
+<Exercise id="ex06" />
+
+<Part n="4" title="React Native components" time="10 min" />
+
+### Same React — native building blocks
+
+<RnMap />
+
+<Demo id="core" />
+
+<Exercise id="ex07" />
+
+<Exercise id="ex08" />
+
+<Part n="5" title="Inputs & state" time="10 min" />
+
+### A `TextInput` is controlled by state
+
+```tsx title="App.tsx"
+const [name, setName] = useState('');
+
+<TextInput value={name} onChangeText={setName} placeholder="Your name" />
+<Text>Hello, {name}!</Text>
+```
+
+<Cards compact items={[
+  { icon: 'arrow', title: 'value', text: 'What the box shows — it comes from **state**.' },
+  { icon: 'arrow', title: 'onChangeText', text: 'Called with the **new text** on every keystroke.' },
+  { icon: 'arrow', title: 'Show / hide', text: 'Pick the UI with a condition: `{name === \'\' ? <A /> : <B />}`' },
+]} />
+
+<Demo id="input" />
+
+<Exercise id="ex09" />
+
+<Exercise id="ex10" />
+
+<Part n="6" title="Styling & NativeWind" time="10 min" />
+
+### Styling in React Native
+
+<Cards cols={4} items={[
+  { title: 'No CSS files', text: 'Styles are JavaScript objects: `style={{ padding: 16 }}`.' },
+  { title: 'camelCase', text: '`backgroundColor`, not `background-color`.' },
+  { title: 'Plain numbers', text: '`16` = 16 density-independent pixels. No `px`.' },
+  { title: 'Flex by default', text: 'Every `View` is a flexbox **column**.' },
+]} />
+
+<FlexAxes />
+
+<Exercise id="ex11" />
+
+### NativeWind — Tailwind classes for React Native
+
+<Cards cols={2} items={[
+  { logos: ['nativewind', 'tailwind'], title: 'What it is', text: 'Write short utility classes in `className` — NativeWind turns them into React Native styles.' },
+  { icon: 'sparkle', title: 'Why use it', text: 'Faster to write, consistent spacing and colours, and you can read the design straight from the code.' },
+]} />
+
+<ClassMap classes="flex-row items-center gap-3 bg-white rounded-2xl p-4 shadow-md" />
+
+<Demo id="style" />
+
+> [!TIP]
+> In your own Expo project, follow the official [NativeWind install guide](https://www.nativewind.dev/docs/getting-started/installation) once (about 5 minutes) — then `className` works exactly like it does here.
+
+<Exercise id="ex12" />
+
+<Exercise id="ex13" />
+
+<Part n="7" title="Lists" time="10 min" />
+
+### Arrays → rows with `FlatList`
+
+<FlatListWindow />
+
+<Demo id="list" />
+
+<Exercise id="ex14" />
+
+<Exercise id="ex15" />
+
+<Part n="8" title="Putting it together" time="10 min" />
+
+### One more idea: function props
+
+A child can’t change the parent’s state — but the parent can **give it a function** to call.
+
+```tsx title="App.tsx → ContactCard.tsx"
+// parent (App): owns the state, passes a function down
+<ContactCard name={c.name} favourite={favs.includes(c.id)} onToggle={() => toggle(c.id)} />
+
+// child (ContactCard): calls it when tapped
+<Pressable onPress={onToggle}><Text>{favourite ? '★' : '☆'}</Text></Pressable>
+```
+
+<Cards cols={3} items={[
+  { title: 'Data goes down', text: 'Props carry values from parent to child.' },
+  { title: 'Events go up', text: 'Function props let the child tell the parent “I was tapped”.' },
+  { title: 'State lives on top', text: 'Keep state in the closest parent that needs it.' },
+]} />
+
+<Exercise id="ex16" />
+
+<Part n="9" title="Final challenge" time="10 min" />
+
+### Build a task list from scratch
+
+Everything you practised today, in one small feature. The **checklist** is your spec — it fills in as you meet each requirement. Hints unlock one at a time; there are no solutions to copy.
+
+<Exercise id="ex17" />

@@ -41,11 +41,30 @@ import GhToken from '@/components/lab/mock/GhToken.astro';
 import GcmDialog from '@/components/lab/mock/GcmDialog.astro';
 import GhPullRequest from '@/components/lab/mock/GhPullRequest.astro';
 import VsCode from '@/components/lab/mock/VsCode.astro';
+// interactive labs (Lab 02+): live exercises, demos and explanation visuals
+import Exercise from '@/components/lab/interactive/Exercise.astro';
+import Demo from '@/components/lab/interactive/Demo.astro';
+import LabStart from '@/components/lab/interactive/LabStart.astro';
+import LabProgress from '@/components/lab/interactive/LabProgress.astro';
+import AppStartFlow from '@/components/lab/interactive/AppStartFlow.astro';
+import ComponentTree from '@/components/lab/interactive/ComponentTree.astro';
+import PropsFlow from '@/components/lab/interactive/PropsFlow.astro';
+import StateLoop from '@/components/lab/interactive/StateLoop.astro';
+import EffectTimeline from '@/components/lab/interactive/EffectTimeline.astro';
+import RnMap from '@/components/lab/interactive/RnMap.astro';
+import FlexAxes from '@/components/lab/interactive/FlexAxes.astro';
+import FlatListWindow from '@/components/lab/interactive/FlatListWindow.astro';
+import ClassMap from '@/components/lab/interactive/ClassMap.astro';
+import { EXERCISES as LAB02_EXERCISES } from '@/lab/exercises/lab-02/meta';
 
 const components = {
   Part, Task, Checkpoint, Terminal, Explain, Cards, ToolGrid, TeamCards, Timeline, FileTree, AppPhone, BeforeAfter,
   GitFlow, BranchPerMember, ClickPath, SplitBar, GhSignup, GhNewRepo, GhQuickSetup, GhToken, GcmDialog, GhPullRequest, VsCode,
+  Exercise, Demo, LabStart, AppStartFlow, ComponentTree, PropsFlow, StateLoop, EffectTimeline, RnMap, FlexAxes, FlatListWindow, ClassMap,
 };
+
+/** exercise lists of interactive labs (by lab id) */
+const INTERACTIVE: Record<string, typeof LAB02_EXERCISES> = { 'lab-02': LAB02_EXERCISES };
 
 export async function getStaticPaths() {
   const labs = await getLabs();
@@ -55,9 +74,15 @@ const { lab, prev, next } = Astro.props;
 const d = lab.data;
 const { Content, headings } = await render(lab);
 
-const outline = parseLabOutline(lab.body);
+const exercises = d.interactive ? (INTERACTIVE[lab.id] ?? []) : [];
+const interactive = exercises.length > 0;
+// interactive labs: each <Part> (block) lists its exercises instead of <Task> checkboxes
+const outline = parseLabOutline(lab.body).map((p) =>
+  interactive ? { ...p, tasks: exercises.filter((e) => String(e.block) === p.n).map((e) => ({ n: String(e.n), title: e.title, id: `ex-${e.id}` })) } : p,
+);
 const tasks = outline.flatMap((p) => p.tasks);
 const isMission = tasks.length > 0;
+const unit = interactive ? 'exercises' : 'tasks';
 const totalMin = outline.reduce((a, p) => a + minutes(p.time), 0);
 const PART_COLORS = ['var(--accent)', '#7cb1ff', '#ffb547', '#ff8ad8', '#5ee0d2'];
 
@@ -97,9 +122,9 @@ const sections = [
             </div>
             <div class="dash-t">
               <p class="mono dash-k">Your progress</p>
-              <p class="dash-v"><b data-done>0</b> / {tasks.length} tasks</p>
-              <p class="dash-s mono">{outline.length} parts · {totalMin} min</p>
-              <button class="dash-reset mono" data-lab-reset type="button">reset</button>
+              <p class="dash-v"><b data-done>0</b> / {tasks.length} {unit}</p>
+              <p class="dash-s mono">{outline.length} {interactive ? 'blocks' : 'parts'} · {totalMin} min</p>
+              {!interactive && <button class="dash-reset mono" data-lab-reset type="button">reset</button>}
             </div>
           </div>
         ) : (
@@ -118,9 +143,9 @@ const sections = [
               <li style={`flex:${Math.max(minutes(p.time), 4)}; --c:${PART_COLORS[i % PART_COLORS.length]}; --i:${i}`}>
                 <a href={`#${p.id}`} data-plan-part={p.n}>
                   <span class="pb-fill" aria-hidden="true"></span>
-                  <span class="pb-n mono">PART {pad(Number(p.n))}</span>
+                  <span class="pb-n mono">{interactive ? 'BLOCK' : 'PART'} {pad(Number(p.n))}</span>
                   <span class="pb-t">{p.title}</span>
-                  <span class="pb-m mono">{p.time} · {p.tasks.length} tasks</span>
+                  <span class="pb-m mono">{p.time} · {p.tasks.length} {p.tasks.length === 1 ? unit.slice(0, -1) : unit}</span>
                 </a>
               </li>
             ))}
@@ -130,7 +155,8 @@ const sections = [
     </div>
   </header>
 
-  <div class="container doc" data-lab={lab.id} data-total={tasks.length}>
+  {interactive && <LabProgress />}
+  <div class:list={['container doc', { 'is-interactive': interactive }]} data-lab={lab.id} data-total={tasks.length} data-lab-interactive={interactive ? lab.id : undefined}>
     <article class="doc-main">
       {(d.objectives.length > 0 || d.prerequisites.length > 0) && (
         <section class="brief" data-reveal>
@@ -158,7 +184,7 @@ const sections = [
           <span class="db-ic" aria-hidden="true">🎉</span>
           <div>
             <p class="db-t">Lab {pad(d.number)} complete</p>
-            <p class="muted">All {tasks.length} tasks done. Nice work.</p>
+            <p class="muted">All {tasks.length} {unit} done. Nice work.</p>
           </div>
         </section>
       )}
@@ -369,6 +395,9 @@ const sections = [
   function init() {
     const root = document.querySelector<HTMLElement>('[data-lab]');
     if (!root) return;
+    legends();
+    // interactive labs track solved exercises themselves (src/lab/ui/progress.ts)
+    if (root.hasAttribute('data-lab-interactive')) return;
     const key = `lab-progress:${root.dataset.lab}`;
     const boxes = Array.from(document.querySelectorAll<HTMLInputElement>('[data-task-check]'));
     const total = boxes.length;
@@ -412,8 +441,10 @@ const sections = [
       update();
     });
     update();
+  }
 
-    // hovering a legend item highlights the matching numbered marker (and vice versa)
+  /** hovering a legend item highlights the matching numbered marker (and vice versa) */
+  function legends() {
     document.querySelectorAll<HTMLOListElement>('.mock-fig + ol, .legend-host + ol').forEach((ol) => {
       const fig = ol.previousElementSibling;
       if (!fig) return;

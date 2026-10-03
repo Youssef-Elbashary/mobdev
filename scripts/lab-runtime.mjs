@@ -4,12 +4,16 @@
 import { buildSync } from 'esbuild';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-const OUTFILE = 'public/lab-runtime/runtime.js';
+// absolute paths: works whatever folder the dev server / build is started from
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
+const OUTFILE = fileURLToPath(new URL('../public/lab-runtime/runtime.js', import.meta.url));
 
 export function buildLabRuntime() {
   buildSync({
-    entryPoints: ['src/lab/runtime/entry.ts'],
+    absWorkingDir: ROOT,
+    entryPoints: [fileURLToPath(new URL('../src/lab/runtime/entry.ts', import.meta.url))],
     outfile: OUTFILE,
     bundle: true,
     format: 'iife',

@@ -1,0 +1,23 @@
+---
+/** Name + student ID card at the top of an interactive lab (needed so /admin can show per-student progress). */
+interface Props { lab?: string }
+const { lab = 'this lab' } = Astro.props;
+---
+<section class="ls" id="lab-start" data-lab-start aria-label="Start the lab">
+  <div class="ls-in" data-ls-form>
+    <p class="ls-k mono">Before you start</p>
+    <h2>Who’s doing {lab}?</h2>
+    <p>Type your name and student ID once. Your work is saved on this device, and your instructor can see which exercises you solved.</p>
+    <form novalidate>
+      <label>Full name<input class="input" name="name" autocomplete="name" placeholder="e.g. Mariam Ahmed" required maxlength="60" /></label>
+      <label>Student ID<input class="input mono" name="studentId" autocomplete="off" placeholder="e.g. 236541" required maxlength="20" /></label>
+      <button class="btn btn-primary btn-lg" type="submit">Start →</button>
+    </form>
+    <p class="ls-err" data-ls-error role="alert"></p>
+  </div>
+  <div class="ls-signed" data-ls-signed hidden>
+    <span class="ls-ok" aria-hidden="true">✓</span>
+    <span>Signed in as <b data-ls-name></b> · <span class="mono" data-ls-id></span></span>
+    <button type="button" data-ls-change>not you? change</button>
+  </div>
+</section>

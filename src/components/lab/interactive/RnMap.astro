@@ -1,0 +1,50 @@
+---
+/** React (web) → React Native: same ideas, native building blocks. */
+const rows = [
+  { web: '<div>', rn: '<View>', what: 'a box / layout' },
+  { web: '<p>, <h1>, <span>', rn: '<Text>', what: 'all words live here' },
+  { web: '<img src>', rn: '<Image source>', what: 'pictures (give a size!)' },
+  { web: '<button onClick>', rn: '<Pressable onPress>', what: 'anything tappable' },
+  { web: '<input onChange>', rn: '<TextInput onChangeText>', what: 'typing' },
+  { web: 'CSS / className', rn: 'style={{ }} · NativeWind', what: 'styling' },
+];
+---
+<figure class="rm" data-reveal>
+  <div class="rm-head mono"><span>React · web</span><span></span><span>React Native · phone</span></div>
+  <ol>
+    {rows.map((r, i) => (
+      <li style={`--i:${i}`}>
+        <code class="rm-web">{r.web}</code>
+        <span class="rm-arrow" aria-hidden="true"></span>
+        <code class="rm-rn">{r.rn}</code>
+        <span class="rm-what">{r.what}</span>
+      </li>
+    ))}
+  </ol>
+  <figcaption>Components, props, state and hooks stay <b>exactly the same</b>. Only the building blocks change — and they become real native views on Android and iOS.</figcaption>
+</figure>
+
+<style>
+  .rm { margin: 24px 0 32px; display: grid; gap: 10px; padding: clamp(14px, 2vw, 22px); border-radius: var(--r-lg); border: 1px solid var(--line); background: linear-gradient(90deg, transparent 50%, var(--accent-soft)), var(--surface); }
+  .rm-head { display: grid; grid-template-columns: 1fr 60px 1fr 1fr; font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); }
+  .rm-head span:nth-child(3) { color: var(--accent-text); }
+  .rm ol { list-style: none; padding: 0 !important; margin: 0 !important; display: grid; gap: 8px; }
+  .rm li { display: grid; grid-template-columns: 1fr 60px 1fr 1fr; align-items: center; margin: 0 !important; opacity: 0; transform: translateY(6px); }
+  .rm code { justify-self: start; font-size: 12.5px; }
+  .rm-web { opacity: 0.75; }
+  .rm-rn { color: var(--accent-text) !important; border-color: color-mix(in oklab, var(--accent-text) 40%, var(--line)) !important; }
+  .rm-what { font-size: 13px; color: var(--text-3); }
+  .rm-arrow { height: 2px; margin: 0 10px; background: linear-gradient(90deg, var(--line-2), var(--accent-text)); transform-origin: left; transform: scaleX(0); position: relative; }
+  .rm-arrow::after { content: ''; position: absolute; right: -2px; top: -4px; border: 5px solid transparent; border-left-color: var(--accent-text); border-right: 0; }
+  .rm.in li { animation: rm-in 500ms var(--ease-out) forwards; animation-delay: calc(var(--i) * 140ms); }
+  .rm.in .rm-arrow { animation: rm-line 600ms var(--ease-out) forwards; animation-delay: calc(250ms + var(--i) * 140ms); }
+  @keyframes rm-in { to { opacity: 1; transform: none; } }
+  @keyframes rm-line { to { transform: scaleX(1); } }
+  @media (max-width: 680px) {
+    .rm-head { display: none; }
+    .rm li { grid-template-columns: auto 34px auto; row-gap: 2px; }
+    .rm-what { grid-column: 1 / -1; }
+  }
+  .rm figcaption { font-size: 14px; color: var(--text-2); }
+  @media (prefers-reduced-motion: reduce) { .rm li { opacity: 1; transform: none; } .rm-arrow { transform: none; } .rm.in li, .rm.in .rm-arrow { animation: none; } }
+</style>

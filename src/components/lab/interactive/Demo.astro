@@ -1,0 +1,15 @@
+---
+/** Placeholder for a live, editable demo: <Demo id="hooks" /> */
+import { demos } from '@/lab/exercises/lab-02/demos';
+interface Props { id: string }
+const { id } = Astro.props;
+const demo = demos[id];
+if (!demo) throw new Error(`<Demo id="${id}">: no such demo in demos.ts`);
+---
+<div class="demo-mount" data-demo={id}>
+  <div class="ex-loading">
+    <span class="mono">● LIVE DEMO</span>
+    <b>{demo.title}</b>
+    <span>Loading the editor and preview…</span>
+  </div>
+</div>

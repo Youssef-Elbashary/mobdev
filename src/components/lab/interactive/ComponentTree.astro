@@ -1,0 +1,43 @@
+---
+/** A screen as a component tree: one root, small reusable children (ProductCard used twice). */
+const kids = [
+  { n: 'Header', note: 'title + cart' },
+  { n: 'SearchBar', note: 'input' },
+  { n: 'ProductCard', note: 'props: 🎧 Headphones', same: true },
+  { n: 'ProductCard', note: 'props: ⌚ Smart watch', same: true },
+  { n: 'TabBar', note: 'navigation' },
+];
+---
+<figure class="ct" data-reveal>
+  <div class="ct-root mono">&lt;App /&gt;<small>the root component</small></div>
+  <div class="ct-bus" aria-hidden="true"></div>
+  <ol class="ct-kids">
+    {kids.map((k, i) => (
+      <li style={`--i:${i}`} class:list={[{ same: k.same }]}>
+        <b class="mono">&lt;{k.n} /&gt;</b>
+        <span>{k.note}</span>
+      </li>
+    ))}
+  </ol>
+  <figcaption><b>Same component, different data:</b> both product boxes are one <code>ProductCard</code> — the data they show comes in as <b>props</b>.</figcaption>
+</figure>
+
+<style>
+  .ct { margin: 24px 0 32px; display: grid; justify-items: center; gap: 0; padding: clamp(16px, 2.4vw, 26px); border-radius: var(--r-lg); border: 1px solid var(--line); background: radial-gradient(60% 80% at 50% 0%, var(--accent-soft), transparent 70%), var(--surface); }
+  .ct-root { display: grid; justify-items: center; padding: 10px 18px; border-radius: 14px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 15px; }
+  .ct-root small { font-family: var(--font-body); font-weight: 500; font-size: 11px; opacity: 0.75; }
+  .ct-bus { width: 2px; height: 22px; background: var(--line-2); }
+  .ct-kids { list-style: none; padding: 16px 0 0 !important; margin: 0 !important; display: grid; gap: 10px; width: 100%; position: relative; border-top: 2px solid var(--line-2); }
+  @media (min-width: 720px) { .ct-kids { grid-template-columns: repeat(5, 1fr); } }
+  .ct-kids li { position: relative; display: grid; gap: 2px; justify-items: center; text-align: center; margin: 0 !important; padding: 10px 8px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--bg-2); opacity: 0; transform: translateY(10px); }
+  .ct-kids li::before { content: ''; position: absolute; top: -18px; left: 50%; width: 2px; height: 16px; background: var(--line-2); }
+  .ct-kids li b { font-size: 12.5px; color: var(--text); }
+  .ct-kids li span { font-size: 11.5px; color: var(--text-3); }
+  .ct-kids li.same { border-color: #7cb1ff; background: color-mix(in oklab, #7cb1ff 12%, var(--bg-2)); }
+  .ct.in .ct-kids li { animation: ct-in 520ms var(--ease-out) forwards; animation-delay: calc(200ms + var(--i) * 110ms); }
+  .ct.in .ct-kids li.same { animation: ct-in 520ms var(--ease-out) forwards, ct-same 2.8s var(--ease-in-out) 1.4s infinite; }
+  @keyframes ct-in { to { opacity: 1; transform: none; } }
+  @keyframes ct-same { 0%, 100% { box-shadow: none; } 50% { box-shadow: 0 0 0 3px color-mix(in oklab, #7cb1ff 55%, transparent); } }
+  .ct figcaption { margin-top: 16px; font-size: 14px; color: var(--text-2); text-align: center; }
+  @media (prefers-reduced-motion: reduce) { .ct-kids li { opacity: 1; transform: none; } .ct.in .ct-kids li, .ct.in .ct-kids li.same { animation: none; } }
+</style>

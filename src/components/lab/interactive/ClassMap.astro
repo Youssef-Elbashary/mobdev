@@ -1,0 +1,34 @@
+---
+/** NativeWind: each class → the React Native style it creates (computed at build time by the same converter the preview uses). */
+import { classToStyle } from '@/lab/runtime/tw';
+interface Props { classes: string; el?: string }
+const { classes, el = 'View' } = Astro.props;
+const list = classes.split(/\s+/).filter(Boolean).map((c) => {
+  const s = classToStyle(c).style;
+  return { c, s: Object.entries(s).map(([k, v]) => `${k}: ${typeof v === 'string' ? `'${v}'` : typeof v === 'object' ? JSON.stringify(v) : v}`).join(', ') };
+});
+---
+<figure class="cm" data-reveal>
+  <code class="cm-line">&lt;{el} className="{list.map((x, i) => <span style={`--i:${i}`}>{x.c}</span>)}"&gt;</code>
+  <ol>
+    {list.map((x, i) => (
+      <li style={`--i:${i}`}><code class="cm-cls">{x.c}</code><span class="cm-arrow" aria-hidden="true">→</span><code class="cm-style">{x.s}</code></li>
+    ))}
+  </ol>
+</figure>
+
+<style>
+  .cm { margin: 20px 0 28px; display: grid; gap: 12px; padding: clamp(14px, 2vw, 20px); border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); }
+  .cm-line { justify-self: start; font-size: 13px; white-space: normal; overflow-wrap: anywhere; }
+  .cm-line span:not(:last-child)::after { content: ' '; }
+  .cm-line span { color: var(--accent-text); }
+  .cm ol { list-style: none; padding: 0 !important; margin: 0 !important; display: grid; gap: 6px; }
+  @media (min-width: 760px) { .cm ol { grid-template-columns: 1fr 1fr; column-gap: 18px; } }
+  .cm li { display: grid; grid-template-columns: auto auto 1fr; gap: 8px; align-items: center; margin: 0 !important; opacity: 0; transform: translateY(6px); }
+  .cm-cls { color: var(--accent-text) !important; font-size: 12px; }
+  .cm-arrow { color: var(--text-3); }
+  .cm-style { font-size: 11.5px; color: var(--cm-prop) !important; white-space: normal; overflow-wrap: anywhere; }
+  .cm.in li { animation: cm-in 450ms var(--ease-out) forwards; animation-delay: calc(var(--i) * 120ms); }
+  @keyframes cm-in { to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .cm li { opacity: 1; transform: none; } .cm.in li { animation: none; } }
+</style>

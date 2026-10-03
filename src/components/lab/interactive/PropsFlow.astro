@@ -1,0 +1,62 @@
+---
+/** Props flow from parent to child: same child component, different data → different cards. */
+const people = [
+  { name: 'Mariam', role: 'Student', c: '#7cb1ff' },
+  { name: 'Ali', role: 'Teaching assistant', c: '#ff8ad8' },
+  { name: 'Youssef', role: 'Instructor', c: '#c8ff4d' },
+];
+---
+<figure class="pf" data-reveal>
+  <div class="pf-col">
+    <p class="pf-k mono">PARENT · App</p>
+    {people.map((p, i) => (
+      <code class="pf-call" style={`--i:${i};--c:${p.c}`}>&lt;ProfileCard name="<b>{p.name}</b>" role="<b>{p.role}</b>" /&gt;</code>
+    ))}
+  </div>
+  <div class="pf-arrow" aria-hidden="true">
+    <span class="mono">props</span>
+    <svg viewBox="0 0 120 24"><path d="M2 12h108" /><path d="M102 5l8 7-8 7" /></svg>
+    <i></i><i></i><i></i>
+  </div>
+  <div class="pf-col">
+    <p class="pf-k mono">CHILD · ProfileCard</p>
+    <code class="pf-fn">function ProfileCard(<b>{'{ name, role }'}</b>)</code>
+    <div class="pf-cards">
+      {people.map((p, i) => (
+        <div class="pf-card" style={`--i:${i};--c:${p.c}`}><span class="pf-av" aria-hidden="true">{p.name[0]}</span><b>{p.name}</b><small>{p.role}</small></div>
+      ))}
+    </div>
+  </div>
+  <figcaption>The <b>parent decides the data</b>, the <b>child decides how it looks</b>. Props only flow down — a child can’t change its own props.</figcaption>
+</figure>
+
+<style>
+  .pf { margin: 24px 0 32px; display: grid; gap: 16px; align-items: center; padding: clamp(16px, 2.4vw, 24px); border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); }
+  @media (min-width: 860px) { .pf { grid-template-columns: 1.2fr auto 1fr; } .pf figcaption { grid-column: 1 / -1; } }
+  .pf-col { display: grid; gap: 8px; min-width: 0; }
+  .pf-k { font-size: 10.5px; letter-spacing: 0.12em; color: var(--text-3); margin: 0 !important; }
+  .pf-call, .pf-fn { display: block; padding: 8px 10px; border-radius: 10px; background: var(--code-bg); border: 1px solid var(--line); font-size: 12px; white-space: normal; overflow-wrap: anywhere; color: var(--text-2); }
+  .pf-call { border-left: 3px solid var(--c); opacity: 0; transform: translateX(-8px); }
+  .pf-call b { color: var(--c); font-weight: 700; }
+  :global(:root[data-theme='light']) .pf-call b { filter: brightness(0.55); }
+  .pf-fn b { color: var(--accent-text); }
+  .pf-arrow { position: relative; display: grid; justify-items: center; gap: 2px; color: var(--accent-text); }
+  .pf-arrow span { font-size: 11px; letter-spacing: 0.1em; }
+  .pf-arrow svg { width: 120px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+  .pf-arrow i { position: absolute; top: 25px; left: 0; width: 9px; height: 9px; border-radius: 50%; background: var(--accent-text); opacity: 0; }
+  .pf.in .pf-arrow i { animation: pf-dot 2.4s linear infinite; }
+  .pf.in .pf-arrow i:nth-of-type(2) { animation-delay: 0.8s; }
+  .pf.in .pf-arrow i:nth-of-type(3) { animation-delay: 1.6s; }
+  @keyframes pf-dot { 0% { left: 0; opacity: 0; } 10% { opacity: 1; } 85% { opacity: 1; } 100% { left: 110px; opacity: 0; } }
+  @media (max-width: 859px) { .pf-arrow svg { transform: rotate(90deg); margin: 22px 0; } .pf-arrow i { display: none; } }
+  .pf-cards { display: grid; gap: 6px; }
+  .pf-card { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: center; padding: 8px 10px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--bg-2); opacity: 0; transform: translateX(8px); }
+  .pf-card b { font-size: 14px; color: var(--text); }
+  .pf-card small { grid-column: 2; font-size: 12px; color: var(--text-3); }
+  .pf-av { grid-row: span 2; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--c); color: #0a0c0f; font-weight: 800; font-size: 13px; }
+  .pf.in .pf-call { animation: pf-in 500ms var(--ease-out) forwards; animation-delay: calc(150ms + var(--i) * 220ms); }
+  .pf.in .pf-card { animation: pf-in 500ms var(--ease-out) forwards; animation-delay: calc(900ms + var(--i) * 220ms); }
+  @keyframes pf-in { to { opacity: 1; transform: none; } }
+  .pf figcaption { font-size: 14px; color: var(--text-2); }
+  @media (prefers-reduced-motion: reduce) { .pf-call, .pf-card { opacity: 1; transform: none; } .pf.in .pf-call, .pf.in .pf-card, .pf.in .pf-arrow i { animation: none; } }
+</style>

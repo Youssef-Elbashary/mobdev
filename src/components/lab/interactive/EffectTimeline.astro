@@ -1,0 +1,43 @@
+---
+/** When does useEffect run? Three dependency styles across the same 4 renders. */
+const renders = ['first render', 'count changed', 'name changed', 'count changed'];
+const rows = [
+  { code: 'useEffect(fn)', note: 'no array → after every render', runs: [1, 1, 1, 1] },
+  { code: 'useEffect(fn, [])', note: 'empty → once, after the first render', runs: [1, 0, 0, 0] },
+  { code: 'useEffect(fn, [count])', note: 'first render + whenever count changes', runs: [1, 1, 0, 1] },
+];
+---
+<figure class="et" data-reveal>
+  <div class="et-grid" role="table" aria-label="When useEffect runs">
+    <div class="et-row et-head" role="row">
+      <span role="columnheader"></span>
+      {renders.map((r, i) => <span role="columnheader" class="mono" style={`--i:${i}`}>render {i + 1}<small>{r}</small></span>)}
+    </div>
+    {rows.map((row, ri) => (
+      <div class="et-row" role="row">
+        <span role="rowheader"><code>{row.code}</code><small>{row.note}</small></span>
+        {row.runs.map((on, i) => (
+          <span role="cell" class:list={['et-cell', { on: !!on }]} style={`--i:${i};--r:${ri}`} aria-label={on ? 'runs' : 'skipped'}>{on ? '●' : '–'}</span>
+        ))}
+      </div>
+    ))}
+  </div>
+  <figcaption>An effect runs <b>after</b> React draws the screen. The dependency array decides <b>when it runs again</b>. Use it for “side effects”: timers, fetching data, logging.</figcaption>
+</figure>
+
+<style>
+  .et { margin: 24px 0 32px; display: grid; gap: 12px; padding: clamp(14px, 2vw, 22px); border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); overflow-x: auto; }
+  .et-grid { display: grid; gap: 6px; min-width: 620px; }
+  .et-row { display: grid; grid-template-columns: 1.7fr repeat(4, 1fr); gap: 6px; align-items: center; }
+  .et-head span { font-size: 11px; color: var(--text-3); text-align: center; display: grid; }
+  .et-head small { font-family: var(--font-body); font-size: 11px; color: var(--text-2); }
+  .et-row > span:first-child { display: grid; gap: 2px; }
+  .et-row > span:first-child small { font-size: 11.5px; color: var(--text-3); }
+  .et-row code { font-size: 12px; justify-self: start; }
+  .et-cell { display: grid; place-items: center; height: 40px; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--line); color: var(--text-3); font-size: 18px; }
+  .et-cell.on { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); transform: scale(0.6); opacity: 0; }
+  .et.in .et-cell.on { animation: et-pop 450ms var(--ease-out) forwards; animation-delay: calc(300ms + var(--i) * 420ms + var(--r) * 60ms); }
+  @keyframes et-pop { to { transform: none; opacity: 1; } }
+  .et figcaption { font-size: 14px; color: var(--text-2); }
+  @media (prefers-reduced-motion: reduce) { .et-cell.on { transform: none; opacity: 1; } .et.in .et-cell.on { animation: none; } }
+</style>
