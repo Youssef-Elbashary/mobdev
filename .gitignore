@@ -6,3 +6,4 @@ dist/
 .env*
 .claude/
 *.log
+public/lab-runtime/
