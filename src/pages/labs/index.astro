@@ -1,0 +1,100 @@
+---
+import Base from '@/layouts/Base.astro';
+import PageHeader from '@/components/PageHeader.astro';
+import EmptyState from '@/components/EmptyState.astro';
+import Icon from '@/components/Icon.astro';
+import { getLabs, pad, slug } from '@/lib/content';
+const labs = await getLabs();
+const levels = ['Beginner', 'Intermediate', 'Advanced'].filter((d) => labs.some((l) => l.data.difficulty === d));
+---
+<Base title="Labs" description="Hands-on, step-by-step labs for the Mobile Development course.">
+  <PageHeader eyebrow="Labs" title="Learn by <span class='accent'>building.</span>" lead="Hands-on sessions that take you from your first running screen to a complete app. Each lab follows the same structure, so you always know where to look." crumbs={[{ label: 'labs' }]}>
+    {labs.length > 0 && (
+      <div class="lf" role="toolbar" aria-label="Filter labs by difficulty">
+        <button class="chip" aria-pressed="true" data-lf="all">All <span class="count">{labs.length}</span></button>
+        {levels.map((d) => (
+          <button class="chip" aria-pressed="false" data-lf={d}>{d} <span class="count">{labs.filter((l) => l.data.difficulty === d).length}</span></button>
+        ))}
+      </div>
+    )}
+  </PageHeader>
+
+  <section class="container labs-wrap">
+    {labs.length === 0 ? (
+      <EmptyState title="Labs are coming soon." body="The first lab will appear here as soon as it's published. Check back after the first lecture." path="labs/" />
+    ) : (
+      <ol class="lab-grid" data-lab-list>
+        {labs.map((l, i) => (
+          <li data-level={l.data.difficulty} data-reveal style={`--d:${(i % 3) * 60}ms`}>
+            <a href={`/labs/${l.id}`} class="lab-card">
+              <div class="lc-top">
+                <span class="lc-no mono">LAB <b>{pad(l.data.number)}</b></span>
+                <span class={`badge badge-${l.data.difficulty.toLowerCase()}`}><span class="dot"></span>{l.data.difficulty}</span>
+              </div>
+              <h2 class="lc-title">{l.data.title}</h2>
+              <p class="lc-desc">{l.data.description}</p>
+              <ul class="lc-skills">{l.data.skills.slice(0, 4).map((s) => <li class="tag">{slug(s)}</li>)}</ul>
+              <div class="lc-foot">
+                <span class="mono"><Icon name="clock" size={14} /> {l.data.estimatedTime}</span>
+                <span class="mono">{l.data.objectives.length} objectives</span>
+                <span class="lc-open">Open lab <Icon name="arrow" size={16} /></span>
+              </div>
+            </a>
+          </li>
+        ))}
+        <li class="soon" data-reveal aria-hidden="true">
+          <div class="soon-in">
+            <span class="soon-ic mono">+</span>
+            <p class="soon-t">Next lab unlocks soon</p>
+            <p class="soon-d">New labs appear here as the course goes on.</p>
+          </div>
+        </li>
+      </ol>
+    )}
+  </section>
+</Base>
+
+<style>
+  .lf { display: flex; flex-wrap: wrap; gap: 8px; }
+  .labs-wrap { padding-block: 48px var(--section-y); }
+  .lab-grid { list-style: none; padding: 0; display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+  @media (min-width: 720px) { .lab-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1100px) { .lab-grid { grid-template-columns: repeat(3, 1fr); } }
+  .lab-grid li { background: var(--bg); }
+  .lab-grid li[hidden] { display: none; }
+  .soon { display: grid; }
+  .soon-in { display: grid; align-content: center; justify-items: start; gap: 8px; padding: 28px; min-height: 240px; background: repeating-linear-gradient(135deg, transparent 0 14px, color-mix(in oklab, var(--line) 55%, transparent) 14px 15px); }
+  .soon-ic { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; border: 1.5px dashed var(--line-2); color: var(--text-3); font-size: 22px; animation: soon-pulse 2.4s ease-in-out infinite; }
+  @keyframes soon-pulse { 50% { border-color: var(--accent-text); color: var(--accent-text); } }
+  .soon-t { font-family: var(--font-display); font-weight: 600; font-size: var(--fs-lg); color: var(--text-2); }
+  .soon-d { font-size: 14px; color: var(--text-3); }
+  .lab-card { position: relative; height: 100%; display: flex; flex-direction: column; gap: 14px; padding: 28px; transition: background var(--t-med); }
+  .lab-card::before { content: ''; position: absolute; left: 0; top: 0; height: 2px; width: 100%; background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform 500ms var(--ease-out); }
+  .lab-card:hover { background: var(--surface); }
+  .lab-card:hover::before { transform: scaleX(1); }
+  .lc-top { display: flex; justify-content: space-between; align-items: center; }
+  .lc-no { font-size: 11px; letter-spacing: 0.1em; color: var(--text-3); }
+  .lc-no b { font-family: var(--font-display); font-size: 36px; font-weight: 600; color: var(--text); letter-spacing: -0.04em; margin-left: 4px; }
+  .lc-title { font-size: var(--fs-lg); margin-top: 12px; }
+  .lc-desc { color: var(--text-3); font-size: 14.5px; }
+  .lc-skills { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+  .lc-foot { margin-top: auto; padding-top: 18px; border-top: 1px dashed var(--line-2); display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 12px; color: var(--text-3); }
+  .lc-foot .mono { display: inline-flex; align-items: center; gap: 6px; }
+  .lc-open { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 550; color: var(--text); }
+  .lc-open :global(svg) { transition: transform var(--t-med) var(--ease-out); }
+  .lab-card:hover .lc-open :global(svg) { transform: translateX(4px); color: var(--accent-text); }
+</style>
+
+<script>
+  document.addEventListener('astro:page-load', () => {
+    const btns = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-lf]'));
+    btns.forEach((b) =>
+      b.addEventListener('click', () => {
+        btns.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+        document.querySelectorAll<HTMLElement>('[data-lab-list] > li').forEach((li) => {
+          li.hidden = b.dataset.lf !== 'all' && li.dataset.level !== b.dataset.lf;
+        });
+      }),
+    );
+  });
+</script>

@@ -1,0 +1,52 @@
+---
+/**
+ * Animated timeline. <Timeline items={[{ when: 'Week 6', title: 'Phase 1', marks: 30, text: '…' }]} unit="marks" />
+ */
+import { inline } from '@/lib/content';
+interface Item { when: string; title: string; text?: string; marks?: number }
+interface Props { items: Item[]; unit?: string }
+const { items, unit = 'marks' } = Astro.props;
+---
+<figure class="tline" data-reveal style={`--n:${items.length}`}>
+  <div class="tl-track" aria-hidden="true"><i></i></div>
+  <ol class="tl-list">
+    {items.map((it, i) => (
+      <li class="tl-item" style={`--i:${i}`}>
+        <span class="tl-node" aria-hidden="true"><span>{i + 1}</span></span>
+        <span class="tl-when mono">{it.when}</span>
+        <span class="tl-title">{it.title}</span>
+        {it.text && <span class="tl-text" set:html={inline(it.text)} />}
+        {typeof it.marks === 'number' && <span class="tl-marks mono"><b data-count={it.marks} data-count-delay={String(600 + i * 250)}>{it.marks}</b> {unit}</span>}
+      </li>
+    ))}
+  </ol>
+</figure>
+
+<style>
+  .tline { position: relative; margin-inline: 0; margin-bottom: 0; padding-top: 6px; }
+  .tl-list { list-style: none; padding: 0 !important; margin: 0 !important; display: grid; gap: 16px; position: relative; z-index: 1; }
+  .tl-item { position: relative; display: grid; align-content: start; gap: 4px; padding: 0 0 0 48px !important; margin: 0 !important; }
+  .tl-node { position: absolute; left: 0; top: 0; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--bg); border: 2px solid var(--line-2); font: 700 12px/1 var(--font-mono); color: var(--text-3); }
+  .tl-when { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-text); }
+  .tl-title { font-family: var(--font-display); font-weight: 650; font-size: 1.15rem; color: var(--text); letter-spacing: -0.02em; }
+  .tl-text { font-size: 14px; color: var(--text-2); }
+  .tl-marks { justify-self: start; margin-top: 6px; padding: 4px 10px; border-radius: 999px; background: var(--accent-soft); border: 1px solid color-mix(in oklab, var(--accent-text) 35%, transparent); color: var(--accent-text); font-size: 12px; }
+  .tl-marks b { font-size: 15px; }
+  .tl-track { position: absolute; left: 15px; top: 20px; bottom: 20px; width: 2px; background: var(--line); }
+  .tl-track i { position: absolute; inset: 0; background: var(--accent); transform-origin: top; transform: scaleY(0); }
+  @media (min-width: 760px) {
+    .tl-list { grid-template-columns: repeat(var(--n), 1fr); gap: 16px; }
+    .tl-item { padding: 52px 8px 0 0 !important; }
+    .tl-node { top: 0; }
+    .tl-track { left: 16px; right: calc(100% / var(--n) - 16px); top: 21px; bottom: auto; height: 2px; width: auto; }
+    .tl-track i { transform-origin: left; transform: scaleX(0); }
+  }
+  /* motion */
+  .tline .tl-item { opacity: 0; transform: translateY(10px); }
+  .tline.in .tl-item { animation: tlm-in 600ms var(--ease-out) forwards; animation-delay: calc(200ms + var(--i) * 250ms); }
+  .tline.in .tl-track i { transition: transform 1.4s var(--ease-out) 150ms; transform: none; }
+  .tline.in .tl-node { animation: tlm-node 600ms var(--ease-out) forwards; animation-delay: calc(350ms + var(--i) * 250ms); }
+  @keyframes tlm-in { to { opacity: 1; transform: none; } }
+  @keyframes tlm-node { 60% { transform: scale(1.2); } to { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .tline .tl-item { opacity: 1; transform: none; animation: none; } .tl-track i { transform: none !important; } }
+</style>

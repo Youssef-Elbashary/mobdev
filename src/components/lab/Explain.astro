@@ -1,0 +1,52 @@
+---
+/**
+ * Command anatomy — every part of a command, colour-coded with its meaning.
+ * <Explain parts={[['npx', 'run a package'], ['create-expo-app', 'the project generator']]} />
+ */
+import { inline } from '@/lib/content';
+interface Props { parts: [string, string][] }
+const { parts } = Astro.props;
+const COLORS = ['#c8ff4d', '#7cb1ff', '#ffb547', '#ff8ad8', '#5ee0d2', '#b69cff'];
+const cmd = parts.map(([t]) => t).join(' ');
+---
+<figure class="xp" data-reveal>
+  <div class="xp-cmd mono">
+    <span class="xp-p" aria-hidden="true">$</span>
+    <span class="xp-line">
+      {parts.map(([t], i) => <span class="xp-tok" style={`--c:${COLORS[i % COLORS.length]}; --i:${i}`}>{t}</span>)}
+    </span>
+    <button class="copy-btn" data-copy data-copy-text={cmd} aria-label={`Copy: ${cmd}`}>
+      <span class="idle" style="display:inline-flex;gap:6px;align-items:center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" /></svg><span class="hide-sm">Copy</span></span>
+      <span class="ok" style="gap:6px;align-items:center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7" /></svg>Copied</span>
+    </button>
+  </div>
+  <ol class="xp-legend">
+    {parts.map(([t, m], i) => (
+      <li style={`--c:${COLORS[i % COLORS.length]}; --i:${i}`}>
+        <code class="xp-k">{t}</code>
+        <span class="xp-m" set:html={inline(m)} />
+      </li>
+    ))}
+  </ol>
+</figure>
+
+<style>
+  .xp { margin-inline: 0; margin-bottom: 0; border-radius: var(--r-md); border: 1px solid #2a2f38; background: #0c0f13; overflow: hidden; }
+  .xp-cmd { display: flex; align-items: center; gap: 12px; padding: 14px 8px 14px 16px; font-size: 15px; border-bottom: 1px solid #1d2229; }
+  .xp-p { color: #c8ff4d; }
+  .xp-line { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+  .xp-tok { position: relative; color: var(--c); font-weight: 500; padding-bottom: 5px; }
+  .xp-tok::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 2px; background: var(--c); transform: scaleX(0); transform-origin: left; transition: transform 600ms var(--ease-out); transition-delay: calc(200ms + var(--i) * 140ms); }
+  .xp.in .xp-tok::after { transform: scaleX(1); }
+  .xp .copy-btn { color: #7c8594; align-self: flex-start; }
+  .xp .copy-btn:hover { background: #232932; color: #eceef1; }
+  .xp-legend { list-style: none; padding: 12px !important; margin: 0 !important; display: grid; gap: 8px; }
+  @media (min-width: 720px) { .xp-legend { grid-template-columns: 1fr 1fr; } }
+  .xp-legend li { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 10px; padding: 9px 12px !important; margin: 0 !important; border-radius: 8px; background: #13171d; border-left: 3px solid var(--c); color: #aab1bd; font-size: 14px; }
+  .xp-k { background: none !important; border: 0 !important; padding: 0 !important; color: var(--c) !important; font-size: 13px !important; white-space: nowrap; }
+  .xp-m :global(code) { background: #1b2028; border-color: #262c36; color: #eceef1; }
+  .xp .xp-legend li { opacity: 0; transform: translateY(8px); }
+  .xp.in .xp-legend li { animation: xp-in 500ms var(--ease-out) forwards; animation-delay: calc(350ms + var(--i) * 140ms); }
+  @keyframes xp-in { to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .xp .xp-legend li { opacity: 1; transform: none; animation: none; } .xp-tok::after { transform: scaleX(1); } }
+</style>

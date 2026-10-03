@@ -1,0 +1,22 @@
+# CI: every push and pull request runs the attendance tests and a full build.
+# CD is Vercel's Git integration: pushes to main go live on https://mobdev.vercel.app,
+# other branches and pull requests get their own preview link.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build

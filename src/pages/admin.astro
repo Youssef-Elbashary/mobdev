@@ -1,0 +1,236 @@
+---
+/**
+ * /admin — password-protected live attendance list.
+ * Shows (1) what's missing if the database or password isn't set up yet,
+ * (2) the login form, or (3) the live table.
+ */
+import Base from '@/layouts/Base.astro';
+import { getStore, isAdmin, setupStatus } from '@/lib/attendance/server';
+import type { Entry } from '@/lib/attendance/core';
+
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'no-store, max-age=0');
+
+const status = setupStatus();
+const ready = status.database && status.password;
+const admin = ready && isAdmin(Astro.cookies);
+const error = Astro.url.searchParams.get('e');
+
+let entries: Entry[] = [];
+let loadFailed = false;
+if (admin) {
+  try {
+    entries = (await getStore()?.list(0)) ?? [];
+  } catch (err) {
+    console.error('[attendance] could not load list', err);
+    loadFailed = true;
+  }
+}
+const last = entries.length ? entries[entries.length - 1].n : 0;
+const newestFirst = [...entries].reverse();
+const time = (iso: string) => {
+  const d = new Date(iso);
+  return isNaN(+d) ? '' : d.toISOString();
+};
+---
+<Base title="Attendance admin" noindex>
+  <section class="adm container">
+    {!ready ? (
+      <div class="adm-card setup">
+        <p class="adm-k mono">Attendance · setup</p>
+        <h1 class="adm-h">Almost ready</h1>
+        <p class="muted">Two settings are needed in your Vercel project before attendance can run:</p>
+        <ol class="setup-list">
+          <li class:list={[{ ok: status.database }]}>
+            <span class="st" aria-hidden="true">{status.database ? '✓' : '1'}</span>
+            <div>
+              <b>Database {status.database ? 'connected' : 'not connected'}</b>
+              {!status.database && <p>In Supabase, run <code>supabase/attendance.sql</code> in the <b>SQL Editor</b>. Then in Vercel → <b>Settings</b> → <b>Environment Variables</b> add <code>SUPABASE_URL</code> and <code>SUPABASE_SECRET_KEY</code>.</p>}
+            </div>
+          </li>
+          <li class:list={[{ ok: status.password }]}>
+            <span class="st" aria-hidden="true">{status.password ? '✓' : '2'}</span>
+            <div>
+              <b>Admin password {status.password ? 'set' : 'not set'}</b>
+              {!status.password && <p>Vercel → project → <b>Settings</b> → <b>Environment Variables</b> → add <code>ADMIN_PASSWORD</code> with the password you want → <b>Save</b>.</p>}
+            </div>
+          </li>
+        </ol>
+        <p class="faint small">Then redeploy the project so the new settings take effect. This page turns into the login screen by itself.</p>
+      </div>
+    ) : !admin ? (
+      <form class="adm-card login" method="post" action="/api/admin/login">
+        <p class="adm-k mono">Attendance · admin</p>
+        <h1 class="adm-h">Log in</h1>
+        <label class="fld">
+          <span class="fld-l">Password</span>
+          <input class="input fld-i" type="password" name="password" autocomplete="current-password" required autofocus />
+        </label>
+        {error === 'wrong' && <p class="form-e" role="alert">Wrong password. Try again.</p>}
+        {error === 'wait' && <p class="form-e" role="alert">Too many tries. Wait 10 minutes and try again.</p>}
+        <button class="btn btn-primary btn-lg" type="submit">Log in</button>
+      </form>
+    ) : (
+      <div class="board" data-board data-last={last}>
+        <header class="board-head">
+          <div>
+            <p class="adm-k mono">Attendance</p>
+            <h1 class="board-count"><b data-count-now>{entries.length}</b> <span>checked in</span></h1>
+          </div>
+          <div class="board-actions">
+            <span class="live mono" data-live>connecting…</span>
+            <form method="post" action="/api/admin/logout"><button class="btn btn-ghost btn-sm" type="submit">Log out</button></form>
+          </div>
+        </header>
+        {loadFailed && <p class="form-e" role="alert">Couldn't load the list. Refresh the page.</p>}
+        <div class="table-wrap board-table">
+          <table class="table">
+            <thead><tr><th scope="col">#</th><th scope="col">Name</th><th scope="col">Student ID</th><th scope="col">Time</th></tr></thead>
+            <tbody data-rows>
+              {newestFirst.map((e, i) => (
+                <tr data-n={e.n}><td class="mono faint">{entries.length - i}</td><td>{e.name}</td><td class="mono">{e.id}</td><td class="mono faint" data-time={time(e.at)}></td></tr>
+              ))}
+            </tbody>
+          </table>
+          <p class="empty-row" data-empty hidden={entries.length > 0}>Waiting for the first check-in…</p>
+        </div>
+      </div>
+    )}
+  </section>
+</Base>
+
+<style>
+  .adm { padding-top: calc(var(--nav-h) + 56px); padding-bottom: 96px; min-height: 80dvh; }
+  .adm-card { width: min(100%, 520px); margin-inline: auto; display: grid; gap: 16px; padding: clamp(24px, 5vw, 36px); border-radius: var(--r-xl); border: 1px solid var(--line-2); background: var(--surface); box-shadow: var(--shadow-md); }
+  .adm-k { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-text); }
+  .adm-h { font-size: var(--fs-2xl); letter-spacing: -0.04em; }
+  .fld { display: grid; gap: 8px; }
+  .fld-l { font-size: 13px; font-weight: 600; }
+  .fld-i { padding-left: 16px; height: 52px; font-size: 16px; border-radius: 14px; }
+  .form-e { font-size: 13.5px; color: var(--danger); padding: 10px 12px; border-radius: 10px; background: var(--danger-soft); border: 1px solid color-mix(in oklab, var(--danger) 40%, transparent); }
+  .small { font-size: 13px; }
+
+  .setup-list { list-style: none; padding: 0; display: grid; gap: 10px; }
+  .setup-list li { display: grid; grid-template-columns: 32px 1fr; gap: 12px; padding: 14px; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--bg); }
+  .setup-list li p { margin-top: 6px; font-size: 14px; color: var(--text-2); }
+  .setup-list .st { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 700 13px var(--font-mono); background: var(--warn-soft); color: var(--warn); border: 1px solid color-mix(in oklab, var(--warn) 45%, transparent); }
+  .setup-list li.ok .st { background: var(--ok); color: #fff; border-color: var(--ok); }
+
+  .board { display: grid; gap: 20px; }
+  .board-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .board-count { font-size: clamp(2.2rem, 1.6rem + 3vw, 3.4rem); letter-spacing: -0.04em; margin-top: 6px; }
+  .board-count b { color: var(--accent-text); font-variant-numeric: tabular-nums; }
+  .board-count span { font-size: 0.45em; color: var(--text-2); font-weight: 500; letter-spacing: -0.01em; }
+  .board-actions { display: flex; align-items: center; gap: 10px; }
+  .live { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line-2); font-size: 12px; color: var(--text-3); }
+  .live::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
+  .live.on { color: var(--ok); border-color: color-mix(in oklab, var(--ok) 45%, transparent); }
+  .live.on::before { background: var(--ok); animation: pulse-ring 2s infinite; }
+  .board-table .table { min-width: 0; }
+  /* :global — rows added live by the script don't carry this page's scoped attribute */
+  .board-table :global(td), .board-table :global(th) { white-space: nowrap; }
+  .board-table :global(td:nth-child(2)) { white-space: normal; font-weight: 550; }
+  :global(tr.fresh) { animation: row-in 2.2s var(--ease-out); }
+  @keyframes row-in { 0% { background: var(--accent-soft); transform: translateY(-6px); opacity: 0; } 15% { opacity: 1; transform: none; } 100% { background: transparent; } }
+  .empty-row { padding: 28px 16px; text-align: center; color: var(--text-3); font-size: 14px; }
+  @media (max-width: 560px) { .board-table :global(th:first-child), .board-table :global(td:first-child) { display: none; } }
+</style>
+
+<script>
+  type Entry = { n: number; name: string; id: string; at: string };
+  let es: EventSource | null = null;
+  let poll: number | undefined;
+
+  function fmt(iso: string) {
+    const d = new Date(iso);
+    if (isNaN(+d)) return '';
+    const today = new Date().toDateString() === d.toDateString();
+    return today
+      ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      : d.toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function init() {
+    const board = document.querySelector<HTMLElement>('[data-board]');
+    if (!board) return;
+    const rows = board.querySelector<HTMLTableSectionElement>('[data-rows]')!;
+    const countEl = board.querySelector<HTMLElement>('[data-count-now]')!;
+    const live = board.querySelector<HTMLElement>('[data-live]')!;
+    const empty = board.querySelector<HTMLElement>('[data-empty]')!;
+    let last = Number(board.dataset.last) || 0;
+
+    rows.querySelectorAll<HTMLElement>('[data-time]').forEach((td) => (td.textContent = fmt(td.dataset.time!)));
+
+    const add = (e: Entry) => {
+      if (e.n <= last) return;
+      last = e.n;
+      const tr = document.createElement('tr');
+      tr.dataset.n = String(e.n);
+      tr.className = 'fresh';
+      const position = rows.children.length + 1;
+      for (const [text, cls] of [[String(position), 'mono faint'], [e.name, ''], [e.id, 'mono'], [fmt(e.at), 'mono faint']] as const) {
+        const td = document.createElement('td');
+        td.textContent = text;
+        if (cls) td.className = cls;
+        tr.appendChild(td);
+      }
+      rows.prepend(tr);
+      countEl.textContent = String(rows.children.length);
+      empty.hidden = true;
+    };
+    const setLive = (on: boolean, text: string) => {
+      live.classList.toggle('on', on);
+      live.textContent = text;
+    };
+
+    // Fallback: ask for new entries every 1.5 s (used only if streaming is unavailable).
+    const startPolling = () => {
+      es?.close();
+      es = null;
+      if (poll) return;
+      const tick = async () => {
+        try {
+          const res = await fetch(`/api/admin/entries?from=${last}`, { cache: 'no-store' });
+          if (res.status === 401) return location.reload();
+          if (!res.ok) throw new Error(String(res.status));
+          ((await res.json()).entries as Entry[]).forEach(add);
+          setLive(true, 'live');
+        } catch {
+          setLive(false, 'reconnecting…');
+        }
+      };
+      tick();
+      poll = window.setInterval(tick, 1500);
+    };
+
+    // Live stream (Server-Sent Events); reconnects by itself every ~50 s.
+    let opened = false;
+    let failures = 0;
+    es = new EventSource(`/api/admin/stream?from=${last}`);
+    es.addEventListener('open', () => {
+      opened = true;
+      failures = 0;
+      setLive(true, 'live');
+    });
+    es.addEventListener('entry', (ev) => add(JSON.parse((ev as MessageEvent).data)));
+    es.addEventListener('error', async () => {
+      setLive(false, 'reconnecting…');
+      if (++failures >= 3) {
+        const res = await fetch(`/api/admin/entries?from=${last}`, { cache: 'no-store' }).catch(() => null);
+        if (res?.status === 401) return location.reload();
+        startPolling();
+      }
+    });
+    // If the stream never opens (e.g. a proxy buffers it), switch to polling.
+    setTimeout(() => { if (!opened) startPolling(); }, 6000);
+  }
+
+  function cleanup() {
+    es?.close();
+    es = null;
+    if (poll) clearInterval(poll);
+    poll = undefined;
+  }
+  document.addEventListener('astro:page-load', init);
+  document.addEventListener('astro:before-swap', cleanup);
+</script>

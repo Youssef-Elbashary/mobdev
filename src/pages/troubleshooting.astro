@@ -1,0 +1,91 @@
+---
+import Base from '@/layouts/Base.astro';
+import PageHeader from '@/components/PageHeader.astro';
+import ProblemList from '@/components/ProblemList.astro';
+import EmptyState from '@/components/EmptyState.astro';
+import Icon from '@/components/Icon.astro';
+import { groupBy, slug, getData } from '@/lib/content';
+const items = await getData('troubleshooting');
+const groups = [...groupBy(items, (i) => i.data.category)];
+---
+<Base title="Troubleshooting" description="Common Mobile Development errors — causes, fixes and commands.">
+  <PageHeader eyebrow="Troubleshooting center" title="Something broke?<br/><span class='accent'>Start here.</span>" lead="Problems organised by where they happen — from installation to networking. Each entry explains the cause, the fix, and the exact commands to run." crumbs={[{ label: 'troubleshooting' }]}>
+    <div class="ts-search">
+      <div class="input-wrap">
+        <Icon name="search" />
+        <input class="input" type="search" placeholder="Paste an error message or describe the problem…" aria-label="Filter problems" data-ts-q data-local-search autocomplete="off" />
+      </div>
+    </div>
+  </PageHeader>
+
+  <div class="container ts-layout">
+    <nav class="ts-flow" aria-label="Problem categories">
+      <p class="toc-title">Categories</p>
+      <ol>
+        {groups.map(([cat, list], i) => (
+          <li><a href={`#${slug(cat)}`}><span class="mono">{String(i + 1).padStart(2, '0')}</span>{cat}<span class="mono faint ts-c">{list.length}</span></a></li>
+        ))}
+      </ol>
+    </nav>
+    <div class="ts-main">
+      {items.length === 0 && <EmptyState title="No problems documented yet." body="Add entries to src/content/data/troubleshooting.yaml." path="troubleshooting.yaml" />}
+      {groups.map(([cat, list]) => (
+        <section class="ts-group" id={slug(cat)} data-ts-group>
+          <h2 class="h-3 ts-h">{cat}</h2>
+          <div data-ts-list>
+            <ProblemList items={list.map((p) => ({ id: p.id, ...p.data }))} />
+          </div>
+        </section>
+      ))}
+      <div data-ts-empty hidden>
+        <EmptyState title="No results found." body="Nothing matches that error yet. Try fewer words, or ask on the course forum and we'll add it here." />
+      </div>
+    </div>
+  </div>
+</Base>
+<style>
+  .ts-search { max-width: 720px; }
+  .ts-search .input { height: 56px; border-radius: var(--r-lg); font-size: 16px; }
+  .ts-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; padding-block: 48px var(--section-y); }
+  @media (min-width: 1024px) { .ts-layout { grid-template-columns: 260px minmax(0, 1fr); gap: 64px; } .ts-flow { position: sticky; top: calc(var(--nav-h) + 32px); align-self: start; } }
+  .ts-flow ol { list-style: none; padding: 0; position: relative; display: grid; gap: 2px; }
+  .ts-flow a { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--r-md); font-size: 14.5px; color: var(--text-2); transition: background var(--t-fast), color var(--t-fast); }
+  .ts-flow a:hover { background: var(--surface); color: var(--text); }
+  .ts-flow a .mono:first-child { font-size: 11px; color: var(--accent-text); }
+  .ts-c { margin-left: auto; font-size: 11px; }
+  @media (max-width: 1023px) { .ts-flow ol { display: flex; overflow-x: auto; scrollbar-width: none; gap: 6px; } .ts-flow a { white-space: nowrap; border: 1px solid var(--line-2); border-radius: 999px; padding: 8px 14px; } .ts-flow .toc-title { display: none; } }
+  .ts-group { scroll-margin-top: calc(var(--nav-h) + 24px); }
+  .ts-group + .ts-group { margin-top: 56px; }
+  .ts-group[hidden] { display: none; }
+  .ts-h { margin-bottom: 12px; }
+  :global(.ts-main .acc-item[hidden]) { display: none; }
+</style>
+<script>
+  document.addEventListener('astro:page-load', () => {
+    const q = document.querySelector<HTMLInputElement>('[data-ts-q]');
+    if (!q) return;
+    const groups = Array.from(document.querySelectorAll<HTMLElement>('[data-ts-group]'));
+    const empty = document.querySelector<HTMLElement>('[data-ts-empty]')!;
+    const apply = () => {
+      const terms = q.value.toLowerCase().split(/\s+/).filter((t) => t.length > 1);
+      let any = 0;
+      groups.forEach((g) => {
+        let n = 0;
+        g.querySelectorAll<HTMLDetailsElement>('.acc-item').forEach((d) => {
+          const ok = terms.every((t) => (d.textContent || '').toLowerCase().includes(t));
+          d.hidden = !ok;
+          if (ok) n++;
+          if (terms.length && ok && n === 1) d.open = true;
+        });
+        g.hidden = n === 0;
+        any += n;
+      });
+      empty.hidden = any > 0;
+    };
+    q.addEventListener('input', apply);
+    // open entry from hash (e.g. search result)
+    const h = location.hash.slice(1);
+    const target = h && document.getElementById(h);
+    if (target instanceof HTMLDetailsElement) target.open = true;
+  });
+</script>

@@ -1,0 +1,203 @@
+---
+/** /attendance — students check in once per device (name + student ID). */
+import Base from '@/layouts/Base.astro';
+import { course } from '@/site.config';
+---
+<Base title="Attendance" description={`Check in to your ${course.name} lab.`} noindex>
+  <section class="att">
+    <div class="att-bg" aria-hidden="true"><div class="grid-bg att-grid"></div><div class="att-glow"></div></div>
+    <div class="container att-wrap">
+      <div class="att-card" data-att>
+        <div class="att-head">
+          <span class="att-badge mono"><span class="att-dot"></span>{course.code} · Attendance</span>
+          <h1 class="att-title">Check in</h1>
+          <p class="att-sub">Type your name and student ID, then press <b>Submit</b>. Each device can check in only once.</p>
+        </div>
+
+        <form class="att-form" data-att-form novalidate>
+          <label class="fld">
+            <span class="fld-l">Full name</span>
+            <input class="input fld-i" name="name" type="text" autocomplete="name" maxlength="60" required placeholder="e.g. Mariam Ahmed" />
+            <span class="fld-e" data-err="name"></span>
+          </label>
+          <label class="fld">
+            <span class="fld-l">Student ID</span>
+            <input class="input fld-i mono" name="studentId" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="20" required placeholder="e.g. 236541" />
+            <span class="fld-e" data-err="studentId"></span>
+          </label>
+          <p class="form-e" data-err="form" role="alert"></p>
+          <button class="btn btn-primary btn-lg att-btn" type="submit" data-att-submit>
+            <span class="lbl">Submit</span><span class="spin" aria-hidden="true"></span>
+          </button>
+        </form>
+
+        <div class="att-done" data-att-done hidden>
+          <span class="done-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7" /></svg>
+          </span>
+          <p class="done-t">Thanks, <span data-done-first></span>!</p>
+          <p class="done-m" data-done-msg role="status">You're checked in.</p>
+          <dl class="done-dl">
+            <div><dt>Name</dt><dd data-done-name></dd></div>
+            <div><dt>Student ID</dt><dd class="mono" data-done-id></dd></div>
+            <div><dt>Checked in</dt><dd class="mono" data-done-time></dd></div>
+          </dl>
+          <p class="done-note">This device can't be used to check in again.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .att { position: relative; min-height: calc(100dvh - 40px); display: grid; align-items: center; padding: calc(var(--nav-h) + 40px) 0 64px; overflow: hidden; }
+  .att-bg { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+  .att-grid { position: absolute; inset: 0; mask-image: radial-gradient(ellipse 60% 55% at 50% 45%, #000 15%, transparent 75%); }
+  .att-glow { position: absolute; left: 50%; top: 42%; width: 760px; height: 760px; translate: -50% -50%; border-radius: 50%; background: radial-gradient(circle, var(--accent-glow), transparent 62%); opacity: 0.35; filter: blur(30px); }
+  .att-wrap { display: grid; justify-items: center; }
+  .att-card { width: min(100%, 480px); padding: clamp(24px, 5vw, 36px); border-radius: var(--r-xl); border: 1px solid var(--line-2); background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: var(--shadow-lg); animation: att-in 700ms var(--ease-out) both; }
+  @keyframes att-in { from { opacity: 0; transform: translateY(14px) scale(0.98); } }
+  .att-head { display: grid; gap: 10px; margin-bottom: 28px; }
+  .att-badge { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-text); }
+  .att-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse-ring 2s infinite; }
+  .att-title { font-size: clamp(2.6rem, 2rem + 3vw, 3.6rem); letter-spacing: -0.045em; font-weight: 700; }
+  .att-sub { color: var(--text-2); }
+  .is-done .att-sub { display: none; }
+  .att-sub b { color: var(--text); }
+
+  .att-form { display: grid; gap: 18px; }
+  .fld { display: grid; gap: 8px; }
+  .fld-l { font-size: 13px; font-weight: 600; color: var(--text); }
+  .fld-i { padding-left: 16px; height: 54px; font-size: 16px; border-radius: 14px; }
+  .fld-i[aria-invalid='true'] { border-color: var(--danger); box-shadow: 0 0 0 4px var(--danger-soft); }
+  .fld-e, .form-e { font-size: 13px; color: var(--danger); min-height: 0; }
+  .fld-e:empty, .form-e:empty { display: none; }
+  .form-e { padding: 10px 12px; border-radius: 10px; background: var(--danger-soft); border: 1px solid color-mix(in oklab, var(--danger) 40%, transparent); }
+  .att-btn { width: 100%; margin-top: 4px; }
+  .att-btn .spin { display: none; width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid rgb(0 0 0 / 0.25); border-top-color: var(--accent-ink); animation: spin 0.8s linear infinite; }
+  .att-btn[aria-busy='true'] .lbl { display: none; }
+  .att-btn[aria-busy='true'] .spin { display: block; }
+  .att-btn:disabled { opacity: 0.7; cursor: default; }
+
+  .att-done { display: grid; justify-items: center; text-align: center; gap: 10px; }
+  .att-done:not([hidden]) { animation: att-in 600ms var(--ease-out) both; }
+  .done-ic { width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; background: var(--ok); color: #fff; margin-bottom: 6px; animation: done-ring 1.6s var(--ease-out) 200ms; }
+  .done-ic svg { width: 38px; height: 38px; stroke-dasharray: 24; stroke-dashoffset: 24; animation: done-draw 600ms var(--ease-out) 250ms forwards; }
+  @keyframes done-draw { to { stroke-dashoffset: 0; } }
+  @keyframes done-ring { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--ok) 55%, transparent); } 100% { box-shadow: 0 0 0 22px transparent; } }
+  .done-t { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 650; letter-spacing: -0.03em; }
+  .done-m { color: var(--text-2); }
+  .done-dl { width: 100%; margin-top: 14px; display: grid; gap: 1px; border-radius: var(--r-md); overflow: hidden; border: 1px solid var(--line); background: var(--line); text-align: left; }
+  .done-dl > div { display: flex; justify-content: space-between; gap: 16px; padding: 12px 14px; background: var(--surface); }
+  .done-dl dt { font-size: 12px; color: var(--text-3); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; }
+  .done-dl dd { font-weight: 600; color: var(--text); text-align: right; overflow-wrap: anywhere; }
+  .done-note { font-size: 12.5px; color: var(--text-3); margin-top: 8px; }
+  @media (prefers-reduced-motion: reduce) { .done-ic svg { stroke-dashoffset: 0; } }
+</style>
+
+<script>
+  const LS_DEVICE = 'att-device';
+  const LS_ENTRY = 'att-entry';
+  type Entry = { n: number; name: string; id: string; at: string };
+
+  const ls = {
+    get(k: string) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k: string, v: string) { try { localStorage.setItem(k, v); } catch {} },
+  };
+
+  function cookie(name: string) {
+    return document.cookie.split('; ').find((c) => c.startsWith(name + '='))?.split('=')[1] ?? null;
+  }
+
+  function newId() {
+    if (crypto.randomUUID) return crypto.randomUUID();
+    return Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  /** A random ID for this browser, kept in localStorage and a cookie. */
+  function deviceId() {
+    let id = ls.get(LS_DEVICE) || cookie('att_device');
+    if (!id || !/^[A-Za-z0-9_-]{16,64}$/.test(id)) id = newId();
+    ls.set(LS_DEVICE, id);
+    const secure = location.protocol === 'https:' ? '; secure' : '';
+    document.cookie = `att_device=${id}; max-age=${60 * 60 * 24 * 365 * 5}; path=/; samesite=lax${secure}`;
+    return id;
+  }
+
+  function fmtTime(iso: string) {
+    const d = new Date(iso);
+    return isNaN(+d) ? '' : d.toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function init() {
+    const root = document.querySelector<HTMLElement>('[data-att]');
+    if (!root) return;
+    const form = root.querySelector<HTMLFormElement>('[data-att-form]')!;
+    const done = root.querySelector<HTMLElement>('[data-att-done]')!;
+    const btn = root.querySelector<HTMLButtonElement>('[data-att-submit]')!;
+    const errEl = (k: string) => root.querySelector<HTMLElement>(`[data-err="${k}"]`)!;
+    const device = deviceId();
+
+    const showDone = (entry: Entry, msg: string) => {
+      root.classList.add('is-done');
+      form.hidden = true;
+      done.hidden = false;
+      root.querySelector('[data-done-first]')!.textContent = entry.name.split(' ')[0];
+      root.querySelector('[data-done-name]')!.textContent = entry.name;
+      root.querySelector('[data-done-id]')!.textContent = entry.id;
+      root.querySelector('[data-done-time]')!.textContent = fmtTime(entry.at);
+      root.querySelector('[data-done-msg]')!.textContent = msg;
+    };
+
+    const saved = ls.get(LS_ENTRY);
+    if (saved) {
+      try { return showDone(JSON.parse(saved), 'You already checked in on this device.'); } catch {}
+    }
+
+    const clearErrors = () => {
+      for (const k of ['name', 'studentId', 'form']) errEl(k).textContent = '';
+      form.querySelectorAll('input').forEach((i) => i.removeAttribute('aria-invalid'));
+    };
+    const fieldErrors = (errors: Record<string, string>) => {
+      for (const [k, msg] of Object.entries(errors)) {
+        const input = form.querySelector<HTMLInputElement>(`[name="${k}"]`);
+        if (input) { errEl(k).textContent = msg; input.setAttribute('aria-invalid', 'true'); }
+        else errEl('form').textContent = msg;
+      }
+      form.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus();
+    };
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearErrors();
+      const data = new FormData(form);
+      const payload = { name: String(data.get('name') ?? ''), studentId: String(data.get('studentId') ?? ''), deviceId: device };
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+      try {
+        const res = await fetch('/api/attendance', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+        const body = await res.json().catch(() => ({}));
+        if (res.status === 201 && body.entry) {
+          ls.set(LS_ENTRY, JSON.stringify(body.entry));
+          return showDone(body.entry, "You're checked in.");
+        }
+        if (body.error === 'device') {
+          if (body.entry) {
+            ls.set(LS_ENTRY, JSON.stringify(body.entry));
+            return showDone(body.entry, 'This device was already used to check in.');
+          }
+          errEl('form').textContent = body.message || 'This device was already used to check in.';
+          return;
+        }
+        if (body.errors) return fieldErrors(body.errors);
+        errEl('form').textContent = body.message || 'Something went wrong. Please try again.';
+      } catch {
+        errEl('form').textContent = "Couldn't send. Check your internet connection and try again.";
+      } finally {
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+      }
+    });
+  }
+  document.addEventListener('astro:page-load', init);
+</script>

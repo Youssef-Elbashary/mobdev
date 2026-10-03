@@ -1,0 +1,39 @@
+---
+/**
+ * "Where to click" path — chips light up one after another.
+ * <ClickPath steps={['Profile picture', 'Settings', 'Developer settings']} />
+ */
+interface Props { steps: string[]; label?: string }
+const { steps, label = 'Click' } = Astro.props;
+---
+<nav class="cpath" data-reveal aria-label={`${label}: ${steps.join(' then ')}`}>
+  <span class="cp-lbl mono" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M5 3l14 8-6 1.5L10 19Z" /></svg>{label}
+  </span>
+  <ol>
+    {steps.map((s, i) => (
+      <li style={`--i:${i}`}>
+        {i > 0 && <span class="cp-arrow" aria-hidden="true">→</span>}
+        <span class:list={['cp-chip', { last: i === steps.length - 1 }]}><span class="cp-n mono">{i + 1}</span>{s}</span>
+      </li>
+    ))}
+  </ol>
+</nav>
+
+<style>
+  .cpath { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 12px 14px; border-radius: var(--r-md); border: 1px dashed var(--line-2); background: var(--surface); }
+  .cp-lbl { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-text); }
+  .cpath ol { list-style: none; padding: 0 !important; margin: 0 !important; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .cpath li { display: inline-flex; align-items: center; gap: 8px; margin: 0 !important; padding: 0 !important; }
+  .cp-arrow { color: var(--text-3); font-family: var(--font-mono); }
+  .cp-chip { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px 5px 5px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--bg); font-size: 13.5px; font-weight: 550; color: var(--text); white-space: nowrap; }
+  .cp-n { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-3); color: var(--text-2); font-size: 10.5px; font-weight: 700; }
+  .cp-chip.last { border-color: var(--accent-text); }
+  /* motion: each chip "gets clicked" in order */
+  .cpath li { opacity: 0.35; }
+  .cpath.in li { animation: cp-on 450ms var(--ease-out) forwards; animation-delay: calc(200ms + var(--i) * 260ms); }
+  .cpath.in .cp-n { animation: cp-n 450ms var(--ease-out) forwards; animation-delay: calc(200ms + var(--i) * 260ms); }
+  @keyframes cp-on { 0% { opacity: 0.35; transform: scale(0.96); } 60% { transform: scale(1.04); } 100% { opacity: 1; transform: none; } }
+  @keyframes cp-n { to { background: var(--accent); color: var(--accent-ink); } }
+  @media (prefers-reduced-motion: reduce) { .cpath li { opacity: 1; animation: none; } }
+</style>

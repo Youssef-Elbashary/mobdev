@@ -1,0 +1,94 @@
+# RESOURCES — category must be one of:
+# Official Docs | Tutorials | Videos | Articles | Tools | References | Cheat Sheets
+- id: rn-docs
+  title: React Native Documentation
+  href: https://reactnative.dev/docs/getting-started
+  category: Official Docs
+  source: reactnative.dev
+  description: Core components, APIs and guides.
+- id: expo-docs
+  title: Expo Documentation
+  href: https://docs.expo.dev
+  category: Official Docs
+  source: docs.expo.dev
+  description: Tooling, SDK modules, routing and builds.
+- id: expo-go
+  title: Expo Go
+  href: https://expo.dev/go
+  category: Official Docs
+  source: expo.dev
+  description: Download the right Expo Go for your SDK.
+- id: nativewind-docs
+  title: NativeWind Documentation
+  href: https://www.nativewind.dev
+  category: Official Docs
+  source: nativewind.dev
+  description: Tailwind-style styling for React Native (optional).
+- id: github-docs
+  title: GitHub — Get started
+  href: https://docs.github.com/en/get-started
+  category: Official Docs
+  source: docs.github.com
+- id: android-docs
+  title: Android Developers
+  href: https://developer.android.com/docs
+  category: Official Docs
+  source: developer.android.com
+- id: apple-docs
+  title: Apple Developer Documentation
+  href: https://developer.apple.com/documentation
+  category: Official Docs
+  source: developer.apple.com
+- id: expo-tutorial
+  title: Expo — Build your first app tutorial
+  href: https://docs.expo.dev/tutorial/introduction/
+  category: Tutorials
+  source: docs.expo.dev
+  description: Step-by-step tutorial that complements Lab 01.
+- id: rn-components
+  title: React Native — Core Components
+  href: https://reactnative.dev/docs/components-and-apis
+  category: References
+  source: reactnative.dev
+  description: View, Text, Image, TextInput, Pressable and the rest.
+- id: git-book
+  title: Pro Git (free book)
+  href: https://git-scm.com/book/en/v2
+  category: References
+  source: git-scm.com
+- id: mdn-js
+  title: JavaScript Guide
+  href: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide
+  category: References
+  source: MDN
+- id: flexbox-froggy
+  title: Flexbox Froggy
+  href: https://flexboxfroggy.com
+  category: Tools
+  description: A game for learning Flexbox — the layout model mobile UIs use.
+- id: jsonplaceholder
+  title: JSONPlaceholder
+  href: https://jsonplaceholder.typicode.com
+  category: Tools
+  description: Free fake REST API for practising data fetching.
+- id: git-cheatsheet
+  title: GitHub Git Cheat Sheet
+  href: https://education.github.com/git-cheat-sheet-education.pdf
+  category: Cheat Sheets
+  source: GitHub Education
+- id: github-flow
+  title: GitHub Flow (branches + pull requests)
+  href: https://docs.github.com/en/get-started/using-github/github-flow
+  category: Articles
+  source: docs.github.com
+  description: The branch → commit → PR → merge workflow used in Lab 01.
+- id: video-placeholder
+  title: '[Add a recommended video]'
+  href: '#'
+  category: Videos
+  description: Placeholder — add lecture recordings or recommended videos here.
+- id: article-placeholder
+  title: '[Add a recommended article]'
+  href: '#'
+  category: Articles
+  description: Placeholder — add reading material here.

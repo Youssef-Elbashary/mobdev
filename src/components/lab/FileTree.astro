@@ -1,0 +1,59 @@
+---
+/**
+ * Visual folder tree. Indent with 2 spaces per level. "# note" adds a note,
+ * a trailing " *" highlights the row, " -" dims it.
+ * <FileTree title="my-first-app" lines={['app/', '  index.tsx # your screen *', 'README.md']} />
+ */
+interface Props { lines: string[]; title?: string }
+const { lines, title } = Astro.props;
+const rows = lines.map((raw) => {
+  const depth = (raw.match(/^ */)?.[0].length ?? 0) / 2;
+  let s = raw.trim();
+  let hl = false, dim = false;
+  if (s.endsWith(' *')) { hl = true; s = s.slice(0, -2); }
+  if (s.endsWith(' -')) { dim = true; s = s.slice(0, -2); }
+  const [name, ...note] = s.split(' # ');
+  const folder = name.trim().endsWith('/');
+  return { depth, name: name.trim(), note: note.join(' # '), folder, hl, dim };
+});
+---
+<figure class="ftree" data-reveal>
+  {title && <figcaption class="ft-cap mono"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" /></svg>{title}</figcaption>}
+  <ul>
+    {rows.map((r, i) => (
+      <li class:list={['ft-row', { hl: r.hl, dim: r.dim }]} style={`--d:${r.depth}; --i:${i}`}>
+        <span class="ft-ic" aria-hidden="true">
+          {r.folder
+            ? <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" /></svg>
+            : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" /><path d="M14 3v5h5" /></svg>}
+        </span>
+        <span class="ft-name mono">{r.name}</span>
+        {r.note && <span class="ft-note">{r.note}</span>}
+      </li>
+    ))}
+  </ul>
+</figure>
+
+<style>
+  .ftree { margin-inline: 0; margin-bottom: 0; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface); overflow: hidden; }
+  .ft-cap { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--surface-2); font-size: 12.5px; color: var(--text-2); }
+  .ftree ul { list-style: none; padding: 8px !important; margin: 0 !important; }
+  .ft-row { position: relative; display: grid; grid-template-columns: 18px auto 1fr; align-items: center; gap: 8px; padding: 6px 10px 6px calc(10px + var(--d) * 22px) !important; margin: 0 !important; border-radius: 8px; font-size: 13.5px; }
+  .ft-row::before { content: ''; position: absolute; left: calc(18px + (var(--d) - 1) * 22px); top: 0; bottom: 0; width: 1px; background: var(--line-2); opacity: calc(var(--d) * 1); }
+  .ft-ic { width: 16px; height: 16px; color: var(--text-3); }
+  .ft-ic svg { width: 16px; height: 16px; }
+  .ft-name { color: var(--text); white-space: nowrap; font-size: 13px; }
+  .ft-note { color: var(--text-3); font-size: 13px; min-width: 0; }
+  .ft-note::before { content: '← '; opacity: 0.6; }
+  .ft-row.hl { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent-text); }
+  .ft-row.hl .ft-name { color: var(--accent-text); font-weight: 600; }
+  .ft-row.hl .ft-note { color: var(--text-2); }
+  .ft-row.dim { opacity: 0.55; }
+  .ftree .ft-row { opacity: 0; transform: translateX(-8px); }
+  .ftree.in .ft-row { animation: ft-in 450ms var(--ease-out) forwards; animation-delay: calc(150ms + var(--i) * 70ms); }
+  .ftree.in .ft-row.dim { animation-name: ft-in-dim; }
+  @keyframes ft-in { to { opacity: 1; transform: none; } }
+  @keyframes ft-in-dim { to { opacity: 0.55; transform: none; } }
+  @media (max-width: 560px) { .ft-row { grid-template-columns: 18px 1fr; } .ft-note { grid-column: 2; } }
+  @media (prefers-reduced-motion: reduce) { .ftree .ft-row { opacity: 1; transform: none; animation: none; } .ftree .ft-row.dim { opacity: 0.55; } }
+</style>

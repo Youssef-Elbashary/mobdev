@@ -1,0 +1,65 @@
+---
+/**
+ * Task card. Students tick "Done"; progress is saved per lab in localStorage.
+ * <Task n="3.2" title="Create the project" time="5 min"> …markdown… </Task>
+ */
+interface Props { n: string; title: string; time?: string }
+const { n, title, time } = Astro.props;
+const id = `task-${String(n).replace(/\./g, '-')}`;
+---
+<article class="task" id={id} data-task={n} data-reveal>
+  <header class="task-head">
+    <span class="task-n mono">TASK <b>{n}</b></span>
+    <h3 class="task-title">{title}</h3>
+    {time && <span class="task-time mono">{time}</span>}
+    <label class="task-done">
+      <input type="checkbox" class="sr-only" data-task-check value={n} aria-label={`Mark task ${n} as done`} />
+      <span class="box" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7" /></svg></span>
+      <span class="lbl">Done</span>
+    </label>
+  </header>
+  <div class="task-body">
+    <slot />
+  </div>
+</article>
+
+<style>
+  .task {
+    position: relative; margin-block: 20px !important; border: 1px solid var(--line); border-radius: var(--r-lg);
+    background: var(--bg); scroll-margin-top: calc(var(--nav-h) + 24px);
+    transition: border-color var(--t-med), box-shadow var(--t-med);
+  }
+  .task::before { content: ''; position: absolute; left: -1px; top: 18px; bottom: 18px; width: 3px; border-radius: 3px; background: var(--line-2); transition: background var(--t-med); }
+  .task:hover { border-color: var(--line-2); }
+  .task.is-done { border-color: color-mix(in oklab, var(--ok) 45%, var(--line)); }
+  .task.is-done::before { background: var(--ok); }
+  .task-head {
+    display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 8px 14px;
+    padding: 16px 18px; border-bottom: 1px solid var(--line);
+    background: linear-gradient(90deg, var(--surface), transparent 80%);
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+  }
+  .task-n { font-size: 11px; letter-spacing: 0.12em; color: var(--text-3); }
+  .task-n b { color: var(--accent-text); font-weight: 600; }
+  .task-title { font-family: var(--font-display); font-size: var(--fs-lg); letter-spacing: -0.02em; color: var(--text); margin: 0 !important; line-height: 1.2; }
+  .task-time { font-size: 11.5px; color: var(--text-3); padding: 3px 8px; border: 1px solid var(--line-2); border-radius: 999px; white-space: nowrap; }
+  .task-done { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px 10px 6px 6px; border-radius: 999px; border: 1px solid var(--line-2); font-size: 13px; font-weight: 550; color: var(--text-2); transition: all var(--t-fast); user-select: none; }
+  .task-done:hover { border-color: var(--text-3); color: var(--text); }
+  .task-done .box { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--line-2); display: grid; place-items: center; color: transparent; transition: all 300ms var(--ease-out); }
+  .task-done .box svg { width: 12px; height: 12px; stroke-dasharray: 24; stroke-dashoffset: 24; transition: stroke-dashoffset 300ms var(--ease-out) 80ms; }
+  .task-done:has(input:checked) { border-color: var(--ok); color: var(--ok); background: var(--ok-soft); }
+  .task-done input:checked + .box { background: var(--ok); border-color: var(--ok); color: #fff; transform: scale(1.08); }
+  .task-done input:checked + .box svg { stroke-dashoffset: 0; }
+  .task-done input:focus-visible + .box { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+  .task-body { padding: 18px 20px 22px; }
+  .task-body > :global(* + *) { margin-top: 16px !important; }
+  .task-body > :global(:first-child) { margin-top: 0 !important; }
+  @media (max-width: 640px) {
+    .task-head { grid-template-columns: 1fr auto; }
+    .task-n { grid-column: 1; }
+    .task-title { grid-column: 1 / -1; grid-row: 2; }
+    .task-time { grid-column: 2; grid-row: 1; justify-self: end; }
+    .task-done { grid-column: 1 / -1; grid-row: 3; justify-self: start; }
+    .task-body { padding: 16px 14px 18px; }
+  }
+</style>

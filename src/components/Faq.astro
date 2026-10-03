@@ -1,0 +1,13 @@
+---
+import { inline } from '@/lib/content';
+interface Props { items: { q: string; a: string }[] }
+const { items } = Astro.props;
+---
+<div class="acc">
+  {items.map((f) => (
+    <details class="acc-item">
+      <summary><span>{f.q}</span><span class="plus" aria-hidden="true"></span></summary>
+      <div class="acc-body"><p set:html={inline(f.a)} /></div>
+    </details>
+  ))}
+</div>

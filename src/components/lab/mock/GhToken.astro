@@ -1,0 +1,44 @@
+---
+/** Personal access token (classic): the form, or (done) the "copy it now" result. */
+import MockFrame from './MockFrame.astro';
+interface Props { done?: boolean }
+const { done = false } = Astro.props;
+---
+{!done ? (
+  <MockFrame url="github.com/settings/tokens/new" label="GitHub New personal access token (classic) form: Note, Expiration, scopes, Generate token">
+    <div class="gh-grid">
+      <div>
+        <p class="gh-h">New personal access token (classic)</p>
+        <p class="gh-sub">Personal access tokens (classic) function like ordinary OAuth access tokens. They can be used instead of a password for Git over HTTPS.</p>
+      </div>
+      <hr class="gh-sep" style="margin:0" />
+      <div class="gh-field mk-host" style="max-width:360px"><span class="gh-label">Note</span><span class="gh-input focus">mobile-dev-laptop</span><span class="gh-hint">What's this token for?</span><i class="mk" style="--n:0">1</i></div>
+      <div class="gh-field mk-host"><span class="gh-label">Expiration</span><div class="gh-row" style="align-items:center"><span class="gh-select" style="min-width:130px">90 days</span><span class="gh-hint">The token will expire in 90 days</span></div><i class="mk" style="--n:1">2</i></div>
+      <div class="gh-field mk-host">
+        <span class="gh-label">Select scopes</span>
+        <span class="gh-hint">Scopes define the access for personal tokens.</span>
+        <div class="gh-grid" style="gap:0;border:1px solid var(--gh-bd);border-radius:6px;overflow:hidden">
+          <span class="gh-check on" style="padding:9px 12px;background:color-mix(in oklab, var(--gh-blue) 10%, transparent)"><i></i><span><b>repo</b><span>Full control of private repositories</span></span></span>
+          <span class="gh-check on" style="padding:5px 12px 5px 38px;font-size:12px"><i></i><span>repo:status · repo_deployment · public_repo · repo:invite · security_events</span></span>
+          <span class="gh-check" style="padding:9px 12px;border-top:1px solid var(--gh-bd)"><i></i><span><b>workflow</b><span>Update GitHub Action workflows</span></span></span>
+          <span class="gh-check" style="padding:9px 12px;border-top:1px solid var(--gh-bd)"><i></i><span><b>write:packages</b><span>Upload packages to GitHub Package Registry</span></span></span>
+          <span class="gh-check" style="padding:9px 12px;border-top:1px solid var(--gh-bd)"><i></i><span><b>delete_repo</b><span>Delete repositories</span></span></span>
+        </div>
+        <i class="mk" style="--n:2">3</i>
+      </div>
+      <div><span class="gh-btn green mk-host">Generate token<i class="mk" style="--n:3">4</i></span></div>
+    </div>
+  </MockFrame>
+) : (
+  <MockFrame url="github.com/settings/tokens" label="GitHub shows the new token once, with a copy button">
+    <div class="gh-grid">
+      <p class="gh-h">Personal access tokens (classic)</p>
+      <div class="gh-flash-ok mk-host">Make sure to copy your personal access token now. You won't be able to see it again!<i class="mk" style="--n:0">1</i></div>
+      <div class="gh-row" style="align-items:center;padding:12px;border:1px solid var(--gh-bd);border-radius:6px;flex-wrap:nowrap">
+        <span style="color:#3fb950">✓</span>
+        <span class="gh-mono" style="flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">ghp_x8K2••••••••••••••••••••••••Qa1</span>
+        <span class="gh-btn mk-host" style="padding:0 10px">⧉<i class="mk" style="--n:1">2</i></span>
+      </div>
+    </div>
+  </MockFrame>
+)}

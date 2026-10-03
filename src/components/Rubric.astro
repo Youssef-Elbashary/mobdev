@@ -1,0 +1,46 @@
+---
+/**
+ * Grading / evaluation table.
+ * weight: number → marks (bar relative to the largest item, total shown in footer)
+ * weight: "25%"  → percentage bar · "[XX]%" → TBA
+ */
+interface Props { items: { criterion: string; weight: string | number; detail?: string }[] }
+const { items } = Astro.props;
+const marks = items.every((i) => typeof i.weight === 'number');
+const max = marks ? Math.max(...items.map((i) => i.weight as number)) : 100;
+const total = marks ? items.reduce((a, i) => a + (i.weight as number), 0) : null;
+const pct = (w: string | number) => { const n = typeof w === 'number' ? w : parseFloat(w); return isNaN(n) ? null : n; };
+---
+<div class="table-wrap">
+  <table class="table rubric">
+    <thead><tr><th scope="col">Criterion</th><th scope="col">{marks ? 'Marks' : 'Weight'}</th></tr></thead>
+    <tbody>
+      {items.map((r) => {
+        const p = pct(r.weight);
+        return (
+          <tr>
+            <td><strong>{r.criterion}</strong>{r.detail && <p class="faint rb-d">{r.detail}</p>}</td>
+            <td class="rb-w">
+              <span class="mono">{p === null ? 'TBA' : marks ? `${p} marks` : r.weight}</span>
+              <span class="rb-bar" aria-hidden="true"><i style={`--p:${p === null ? 0 : p / max}`}></i></span>
+            </td>
+          </tr>
+        );
+      })}
+    </tbody>
+    {total !== null && (
+      <tfoot><tr><td><strong>Total</strong></td><td class="mono rb-total">{total} marks</td></tr></tfoot>
+    )}
+  </table>
+</div>
+<style>
+  .rubric td strong { font-weight: 600; color: var(--text); }
+  .rb-d { font-size: 13.5px; margin-top: 2px; }
+  .rb-w { width: 180px; }
+  .rb-w .mono { font-size: 13px; }
+  .rb-bar { display: block; height: 4px; margin-top: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+  .rb-bar i { display: block; height: 100%; background: var(--accent); transform-origin: left; transform: scaleX(var(--p)); }
+  :global(:root[data-theme='light']) .rb-bar i { background: var(--accent-text); }
+  tfoot td { padding: 12px 16px; border-top: 1px solid var(--line-2); background: var(--surface-2); }
+  .rb-total { color: var(--accent-text); font-weight: 600; }
+</style>

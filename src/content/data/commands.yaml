@@ -1,0 +1,447 @@
+# COMMAND HANDBOOK
+# Add a command by appending an entry. `id` must be unique.
+# Categories appear automatically in the order they're first used.
+# `related` lists other command ids.
+# Placeholders in angle brackets (<like-this>) are highlighted automatically.
+
+# ---------- Terminal ----------
+- id: cd
+  command: cd <folder>
+  title: Change directory
+  description: Move into another folder. Use `..` to go up one level.
+  category: Terminal
+  examples:
+    - { code: cd my-first-app }
+    - { code: cd .., note: Up one folder }
+  notes: Press Tab to autocomplete folder names — it prevents typos.
+  commonMistakes:
+    - Folder names with spaces need quotes, e.g. cd "Mobile Development"
+  related: [ls, pwd, mkdir]
+- id: ls
+  command: ls
+  title: List files
+  description: Show the files and folders in the current directory.
+  category: Terminal
+  examples:
+    - { code: ls -la, note: Include hidden files like .gitignore (macOS / Linux / Git Bash) }
+    - { code: dir, note: Windows Command Prompt equivalent }
+  related: [cd, pwd]
+- id: pwd
+  command: pwd
+  title: Print working directory
+  description: Show the full path of the folder you are currently in.
+  category: Terminal
+  related: [cd, ls]
+- id: mkdir
+  command: mkdir <folder-name>
+  title: Create a folder
+  description: Make a new directory.
+  category: Terminal
+  examples:
+    - { code: mkdir -p mobile-dev/labs, note: Create nested folders at once }
+  related: [cd]
+- id: code-dot
+  command: code .
+  title: Open folder in editor
+  description: Open the current folder in VS Code.
+  category: Terminal
+  commonMistakes:
+    - '"code" is not recognised → in VS Code run: Shell Command: Install "code" command in PATH'
+  related: [cd]
+
+- id: code-install-ext
+  command: code --install-extension <extension-id>
+  title: Install a VS Code extension
+  description: Install an editor extension from the terminal.
+  category: Terminal
+  examples:
+    - { code: code --install-extension dbaeumer.vscode-eslint }
+    - { code: code --install-extension usernamehw.errorlens }
+  related: [code-dot]
+# ---------- Git ----------
+- id: git-clone
+  command: git clone <repository-url>
+  title: Clone a repository
+  description: Download a copy of a remote repository, including its full history.
+  category: Git
+  examples:
+    - { code: git clone https://github.com/<username>/mobile-dev-labs.git }
+    - { code: git clone <repository-url> my-folder, note: Clone into a folder with a different name }
+  notes: Run it from the folder where you want the project to live — Git creates a new sub-folder.
+  commonMistakes:
+    - Cloning inside another Git repository by accident
+    - Using the page URL instead of the .git URL for private repos
+  related: [git-status, git-pull]
+- id: git-status
+  command: git status
+  title: Check repository status
+  description: See which files changed, which are staged and which branch you are on.
+  category: Git
+  notes: Run this before every commit. It is the single most useful Git command.
+  related: [git-add, git-commit]
+- id: git-init
+  command: git init
+  title: Start a repository
+  description: Turn the current folder into a Git repository. Only needed if `git status` says "not a git repository".
+  category: Git
+  commonMistakes:
+    - Running it in your home folder instead of the project folder
+  related: [git-status, git-remote-add]
+- id: git-config
+  command: git config --global user.name "<Your Name>"
+  title: Set your Git identity
+  description: Tell Git who you are. Every commit is labelled with this name and email.
+  category: Git
+  examples:
+    - { code: 'git config --global user.email "<you@bue.edu.eg>"', note: Use the email of your GitHub account }
+  notes: Do this once per laptop. Wrong identity = your commits don't count as yours on GitHub.
+  related: [git-commit]
+- id: git-add
+  command: git add <file>
+  title: Stage changes
+  description: Choose which changes go into the next commit.
+  category: Git
+  examples:
+    - { code: git add ., note: Stage everything in the current folder }
+    - { code: git add App.tsx components/ }
+  commonMistakes:
+    - Staging node_modules — make sure it is in .gitignore
+  related: [git-status, git-commit]
+- id: git-commit
+  command: git commit -m "<message>"
+  title: Commit changes
+  description: Save a snapshot of staged changes with a message.
+  category: Git
+  examples:
+    - { code: 'git commit -m "Add task list screen"' }
+  notes: Write messages in the imperative — "Add login form", not "added stuff".
+  related: [git-add, git-push, git-log]
+- id: git-push
+  command: git push
+  title: Push to remote
+  description: Upload your local commits to GitHub.
+  category: Git
+  examples:
+    - { code: git push -u origin main, note: First push of a new branch }
+  commonMistakes:
+    - "Rejected push: pull first with git pull --rebase"
+  related: [git-pull, git-commit]
+- id: git-branch-main
+  command: git branch -M main
+  title: Rename the branch to main
+  description: Make sure your first branch is called `main` before the first push.
+  category: Git
+  related: [git-push, git-remote-add]
+- id: git-remote-add
+  command: git remote add origin <repository-url>
+  title: Link to a GitHub repo
+  description: Connect your local repository to the empty repo you created on GitHub.
+  category: Git
+  examples:
+    - { code: git remote -v, note: Check which URL origin points to }
+    - { code: git remote set-url origin <repository-url>, note: Fix a wrong URL }
+  commonMistakes:
+    - '"remote origin already exists" → use set-url instead of add'
+  related: [git-push, git-branch-main]
+- id: git-pull
+  command: git pull
+  title: Pull latest changes
+  description: Download and merge commits from the remote branch.
+  category: Git
+  examples:
+    - { code: git pull --rebase origin main }
+  related: [git-push, git-clone]
+- id: git-branch
+  command: git switch -c <branch-name>
+  title: Create and switch branch
+  description: Start a new branch for a feature or lab without touching main.
+  category: Git
+  examples:
+    - { code: git switch main, note: Go back to main }
+    - { code: git branch, note: List branches }
+  related: [git-status]
+- id: git-branch-list
+  command: git branch
+  title: List branches
+  description: Show local branches. The `*` marks the one you're on — check it before every commit.
+  category: Git
+  examples:
+    - { code: git branch -a, note: Include remote branches }
+  related: [git-branch, git-switch]
+- id: git-switch
+  command: git switch <branch-name>
+  title: Switch branch
+  description: Move to an existing branch.
+  category: Git
+  examples:
+    - { code: git switch main }
+  commonMistakes:
+    - Switching with uncommitted changes — commit or stash first
+  related: [git-branch, git-branch-list]
+- id: git-merge
+  command: git merge <branch-name>
+  title: Merge a branch
+  description: Bring the commits from another branch into the branch you're on (usually main).
+  category: Git
+  examples:
+    - { code: git switch main && git pull && git merge ali }
+  notes: In a team, prefer merging through a GitHub Pull Request so everyone can review.
+  commonMistakes:
+    - Merging while on the wrong branch — check `git branch` first
+  related: [git-switch, gh-pr-create, git-pull]
+- id: git-log
+  command: git log --oneline --graph --all
+  title: View history
+  description: Compact, visual list of commits on every branch — see who merged what.
+  category: Git
+  related: [git-commit]
+- id: git-restore
+  command: git restore <file>
+  title: Discard local changes
+  description: Throw away uncommitted changes to a file and return it to the last commit.
+  category: Git
+  commonMistakes:
+    - This cannot be undone — changes that were never committed are lost.
+  related: [git-status]
+
+# ---------- GitHub ----------
+- id: gh-repo-create
+  command: gh repo create <name> --public --source=. --push
+  title: Create a GitHub repo from a folder
+  description: Using the GitHub CLI, create a remote repository and push your current project in one step.
+  category: GitHub
+  notes: Requires the GitHub CLI and `gh auth login` once.
+  related: [gh-auth, git-push]
+- id: gh-auth
+  command: gh auth login
+  title: Sign in to GitHub CLI
+  description: Authenticate the GitHub CLI with your account through the browser.
+  category: GitHub
+  related: [gh-repo-create]
+
+- id: gh-pr-create
+  command: gh pr create --fill
+  title: Open a Pull Request
+  description: Open a Pull Request from your current branch to main. On the website, use the **Compare & pull request** button instead.
+  category: GitHub
+  related: [git-merge, git-push]
+# ---------- Package Management ----------
+- id: npm-install
+  command: npm install
+  title: Install dependencies
+  description: Install every package listed in package.json into node_modules.
+  category: Package Management
+  examples:
+    - { code: npm install <package-name> }
+    - { code: npm ci, note: Clean install exactly from package-lock.json }
+  commonMistakes:
+    - Committing node_modules to Git
+    - Mixing npm and yarn in the same project
+  related: [expo-install, npm-run]
+- id: npm-install-dev
+  command: npm install -D <package-name>
+  title: Install a dev dependency
+  description: Install a tool the project needs only during development (linters, test tools).
+  category: Package Management
+  related: [npm-install]
+- id: npx-run
+  command: npx <package>
+  title: Run a package (npx)
+  description: npx = Node Package eXecute. It runs a package's command without installing it globally. npm installs, npx runs.
+  category: Package Management
+  examples:
+    - { code: npx -v, note: Check npx is available }
+    - { code: npx create-expo-app@latest my-app }
+  related: [npm-install, create-app]
+- id: npm-run
+  command: npm run <script>
+  title: Run a package script
+  description: Run a script defined in the "scripts" section of package.json.
+  category: Package Management
+  examples:
+    - { code: npm run android }
+  related: [npm-install]
+- id: node-version
+  command: node -v
+  title: Check Node.js version
+  description: Print the installed Node.js version — the first thing to check when tooling misbehaves.
+  category: Package Management
+  examples:
+    - { code: npm -v }
+  related: [npm-install]
+
+# ---------- Mobile Development ----------
+- id: create-app
+  command: npx create-expo-app@latest <app-name>
+  title: Create a new app
+  description: Scaffold a new mobile project from the official template.
+  category: Mobile Development
+  examples:
+    - { code: npx create-expo-app@latest my-first-app }
+  related: [expo-start]
+- id: reset-project
+  command: npm run reset-project
+  title: Reset the starter project
+  description: Clear the demo screens from a new Expo app and leave a blank `app/index.tsx`. Answer `Y` to keep the old files in `app-example/`.
+  category: Mobile Development
+  notes: Run it once, right after creating the project and cd-ing into it.
+  commonMistakes:
+    - 'Typing npx run reset-project — it is npm run (npm runs scripts from package.json)'
+    - 'Running it outside the project folder → "Missing script"'
+  related: [create-app, npm-run, expo-start]
+- id: expo-start
+  command: npx expo start
+  title: Start the dev server
+  description: Start Metro and show a QR code to open the app on a device.
+  category: Mobile Development
+  examples:
+    - { code: npx expo start --tunnel, note: Use when phone and laptop are on different networks }
+    - { code: npx expo start -c, note: Clear the bundler cache }
+  notes: 'Shortcuts while running: a = Android, i = iOS simulator, r = reload, m = dev menu.'
+  commonMistakes:
+    - Running the command outside the project folder
+  related: [create-app, expo-install]
+- id: expo-install
+  command: npx expo install <package>
+  title: Install a compatible package
+  description: Install a library at the version that matches your SDK.
+  category: Mobile Development
+  notes: Prefer this over npm install for native libraries.
+  related: [npm-install]
+- id: expo-doctor
+  command: npx expo-doctor
+  title: Diagnose project problems
+  description: Check the project for version mismatches and common configuration issues.
+  category: Mobile Development
+  related: [expo-start]
+
+- id: expo-install-fix
+  command: npx expo install --fix
+  title: Fix package versions
+  description: Update installed packages to the versions your Expo SDK expects. Run it after expo-doctor reports a mismatch.
+  category: Mobile Development
+  related: [expo-doctor, expo-install]
+- id: expo-version
+  command: npx expo --version
+  title: Check Expo version
+  description: Print the Expo CLI version. Useful when Expo Go says the project is incompatible.
+  category: Mobile Development
+  related: [expo-start]
+- id: nativewind-install
+  command: npx expo install nativewind
+  title: Add NativeWind
+  description: Install NativeWind (Tailwind classes for React Native). Then follow the official setup guide for the version installed.
+  category: Mobile Development
+  notes: Setup differs between major versions — check package.json, then nativewind.dev.
+  related: [expo-install]
+# ---------- Android ----------
+- id: adb-devices
+  command: adb devices
+  title: List connected Android devices
+  description: Show emulators and USB devices visible to the Android Debug Bridge.
+  category: Android
+  commonMistakes:
+    - '"unauthorized" → accept the USB debugging prompt on the phone'
+  related: [adb-logcat, emulator-list]
+- id: adb-logcat
+  command: adb logcat *:E
+  title: Show Android error logs
+  description: Stream device logs, filtered to errors only.
+  category: Android
+  related: [adb-devices]
+- id: emulator-list
+  command: emulator -list-avds
+  title: List virtual devices
+  description: Print the names of every Android Virtual Device you created.
+  category: Android
+  examples:
+    - { code: emulator -avd <avd-name>, note: Boot one from the terminal }
+  related: [adb-devices]
+
+# ---------- iOS ----------
+- id: simctl-list
+  command: xcrun simctl list devices
+  title: List iOS simulators
+  description: Show available iOS simulators and their state (macOS only).
+  category: iOS
+  platform: macOS
+  related: [expo-start]
+
+# ---------- Build ----------
+- id: eas-build
+  command: eas build --platform android --profile preview
+  title: Build an installable app
+  description: Create an APK/AAB in the cloud that you can install or share.
+  category: Build
+  notes: Requires `npm i -g eas-cli` and `eas login`.
+  related: [expo-start]
+- id: gradle-clean
+  command: cd android && ./gradlew clean
+  title: Clean Android build
+  description: Remove cached native build output when builds fail for no clear reason.
+  category: Build
+  platform: macOS / Linux
+  examples:
+    - { code: cd android && gradlew.bat clean, note: Windows }
+  related: [expo-doctor]
+
+# ---------- Debugging ----------
+- id: kill-port
+  command: npx kill-port 8081
+  title: Free a busy port
+  description: Stop whatever process is holding the Metro bundler port.
+  category: Debugging
+  related: [expo-start]
+- id: clear-cache
+  command: npx expo start --clear
+  title: Clear bundler cache
+  description: Fix stale or strange bundling errors by resetting the cache.
+  category: Debugging
+  related: [expo-start, kill-port]
+
+# ---------- Networking ----------
+- id: curl-get
+  command: curl -i <api-url>
+  title: Test an API endpoint
+  description: Send a GET request and print the status, headers and body.
+  category: Networking
+  examples:
+    - { code: curl -i https://jsonplaceholder.typicode.com/todos/1 }
+  notes: If it fails here, it will fail in your app too — test the API first.
+  related: [ipconfig]
+- id: ipconfig
+  command: ipconfig
+  title: Find your local IP address
+  description: Show your computer's network addresses — needed when a phone must reach a local server.
+  category: Networking
+  platform: Windows
+  examples:
+    - { code: ifconfig | grep inet, note: macOS / Linux }
+  related: [curl-get]
+
+# ---------- Shortcuts ----------
+- id: sc-interrupt
+  command: Ctrl + C
+  title: Stop a running process
+  description: Stop the dev server or any command running in the terminal.
+  category: Shortcuts
+- id: sc-history
+  command: ↑ / ↓
+  title: Command history
+  description: Cycle through previously typed commands in the terminal.
+  category: Shortcuts
+- id: sc-terminal
+  command: Ctrl + `
+  title: Open VS Code terminal
+  description: Toggle the integrated terminal in VS Code (Cmd + ` on macOS).
+  category: Shortcuts
+- id: sc-expo-keys
+  command: Ctrl + C · a · r · j
+  title: Expo dev server keys
+  description: While npx expo start is running — a opens Android, r reloads, j opens the debugger, Ctrl + C stops.
+  category: Shortcuts
+- id: sc-palette
+  command: Ctrl + Shift + P
+  title: Editor command palette
+  description: Open VS Code's command palette (Cmd + Shift + P on macOS).
+  category: Shortcuts

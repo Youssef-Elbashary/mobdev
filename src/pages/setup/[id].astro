@@ -1,0 +1,93 @@
+---
+/** SETUP GUIDE TEMPLATE — every file in src/content/setup renders here. */
+import { render, getEntry } from 'astro:content';
+import Base from '@/layouts/Base.astro';
+import Icon from '@/components/Icon.astro';
+import Toc from '@/components/Toc.astro';
+import CmdLine from '@/components/CmdLine.astro';
+import ProblemList from '@/components/ProblemList.astro';
+import { getSetup, pad, inline } from '@/lib/content';
+
+export async function getStaticPaths() {
+  const guides = await getSetup();
+  return guides.map((g, i) => ({ params: { id: g.id }, props: { guide: g, all: guides, prev: guides[i - 1], next: guides[i + 1] } }));
+}
+const { guide, all, prev, next } = Astro.props;
+const d = guide.data;
+const { Content, headings } = await render(guide);
+const tool = d.tool ? await getEntry('tools', d.tool) : undefined;
+const sections = [
+  d.requirements.length && { depth: 2, slug: 'requirements', text: 'Requirements' },
+  ...headings.filter((h) => h.depth === 2),
+  d.verify.length && { depth: 2, slug: 'verification', text: 'Verification' },
+  d.troubleshooting.length && { depth: 2, slug: 'common-errors', text: 'Common errors' },
+].filter(Boolean) as { depth: number; slug: string; text: string }[];
+---
+<Base title={`Setup ${pad(d.step)} — ${d.title}`} description={d.summary}>
+  <header class="page-head">
+    <div class="grid-bg" aria-hidden="true"></div>
+    <div class="container">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="/">~</a><span aria-hidden="true">/</span><a href="/setup">setup</a><span aria-hidden="true">/</span><span aria-current="page">{guide.id}</span></nav>
+      <ol class="sg-dots" aria-label="Setup progress">
+        {all.map((g) => (
+          <li><a href={`/setup/${g.id}`} class:list={[{ on: g.data.step <= d.step, cur: g.id === guide.id }]} aria-current={g.id === guide.id ? 'step' : undefined} aria-label={`Step ${g.data.step}: ${g.data.title}`}></a></li>
+        ))}
+      </ol>
+      <p class="eyebrow mt-6" data-reveal>Step {pad(d.step)} of {pad(all.length)}</p>
+      <h1 class="h-1 mt-4 sg-title" data-reveal style="--d:60ms">{d.title}</h1>
+      <p class="lead mt-6" data-reveal style="--d:120ms">{d.summary}</p>
+      <div class="flex wrap gap-3 mt-8 items-center" data-reveal style="--d:180ms">
+        {d.estimatedTime && <span class="badge"><Icon name="clock" size={13} /> {d.estimatedTime}</span>}
+        {tool && <a href={`/tools/${tool.id}`} class="badge badge-accent">Tool: {tool.data.name} →</a>}
+      </div>
+    </div>
+  </header>
+
+  <div class="container doc">
+    <article class="doc-main">
+      {d.requirements.length > 0 && (
+        <section class="block">
+          <h2 class="block-title" id="requirements">Requirements</h2>
+          <ul class="check-list">{d.requirements.map((r) => <li set:html={inline(r)} />)}</ul>
+        </section>
+      )}
+      <section class="block prose"><Content /></section>
+      {d.verify.length > 0 && (
+        <section class="block">
+          <h2 class="block-title" id="verification">Verification</h2>
+          <p class="muted" style="margin-bottom:16px">Run each command in a <strong>new</strong> terminal window.</p>
+          <div class="vf">
+            {d.verify.map((v) => (
+              <div class="vf-row">
+                <CmdLine cmd={v.command} />
+                <p class="vf-exp mono"><span class="accent">→ expect</span> {v.expect}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+      {d.troubleshooting.length > 0 && (
+        <section class="block">
+          <h2 class="block-title" id="common-errors">Common errors</h2>
+          <ProblemList items={d.troubleshooting} />
+        </section>
+      )}
+      <nav class="pn" aria-label="Setup navigation">
+        {prev ? <a href={`/setup/${prev.id}`} class="pn-a"><span class="mono faint">← Step {pad(prev.data.step)}</span><span>{prev.data.title}</span></a> : <a href="/setup" class="pn-a"><span class="mono faint">← Overview</span><span>Setup center</span></a>}
+        {next ? <a href={`/setup/${next.id}`} class="pn-a next"><span class="mono faint">Step {pad(next.data.step)} →</span><span>{next.data.title}</span></a> : <a href="/labs" class="pn-a next"><span class="mono faint">All set →</span><span>Start the labs</span></a>}
+      </nav>
+    </article>
+    <aside class="doc-aside"><Toc items={sections} /></aside>
+  </div>
+</Base>
+<style>
+  .sg-dots { list-style: none; padding: 0; display: flex; gap: 6px; }
+  .sg-dots a { display: block; width: 28px; height: 6px; border-radius: 6px; background: var(--line-2); transition: all var(--t-med) var(--ease-out); }
+  .sg-dots a.on { background: color-mix(in oklab, var(--accent) 60%, var(--line-2)); }
+  .sg-dots a.cur { background: var(--accent); width: 48px; }
+  .sg-dots a:hover { background: var(--text-3); }
+  .sg-title { max-width: 18ch; font-size: clamp(2.2rem, 1.4rem + 3vw, 4rem); }
+  .vf { display: grid; gap: 14px; }
+  .vf-row { display: grid; gap: 6px; }
+  .vf-exp { font-size: 12.5px; color: var(--text-3); padding-left: 4px; }
+</style>

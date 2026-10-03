@@ -1,0 +1,95 @@
+---
+import { getData } from '@/lib/content';
+/** Interactive setup checklist. Progress persists in localStorage ("setup-checklist"). */
+const items = await getData('checklist');
+const C = 2 * Math.PI * 34;
+---
+<div class="cl panel" data-checklist id="checklist">
+  <div class="cl-head">
+    <div class="cl-ring" aria-hidden="true">
+      <svg viewBox="0 0 80 80" width="80" height="80"><circle cx="40" cy="40" r="34" class="cl-rb" /><circle cx="40" cy="40" r="34" class="cl-rf" style={`stroke-dasharray:${C};stroke-dashoffset:${C}`} data-cl-ring data-c={C} /></svg>
+      <span class="mono" data-cl-pct>0%</span>
+    </div>
+    <div>
+      <h2 class="h-4">Setup checklist</h2>
+      <p class="muted cl-msg" data-cl-msg aria-live="polite">Tick each item as you finish it. Progress is saved in this browser.</p>
+    </div>
+  </div>
+  <ul class="cl-list">
+    {items.map((it) => (
+      <li>
+        <label class="cl-item">
+          <input type="checkbox" value={it.id} data-cl-box class="sr-only" />
+          <span class="cl-box" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7" /></svg></span>
+          <span class="cl-text">
+            <span class="cl-label">{it.data.label}</span>
+            {it.data.hint && <span class="cl-hint">{it.data.hint}</span>}
+          </span>
+        </label>
+        {it.data.guide && <a href={`/setup/${it.data.guide}`} class="cl-guide mono" aria-label={`Guide for ${it.data.label}`}>guide →</a>}
+      </li>
+    ))}
+  </ul>
+  <div class="cl-foot">
+    <span class="mono faint" data-cl-count>0 / {items.length} complete</span>
+    <button class="btn btn-ghost btn-sm" data-cl-reset>Reset</button>
+  </div>
+</div>
+
+<style>
+  .cl { padding: 0; overflow: hidden; }
+  .cl-head { display: flex; align-items: center; gap: 20px; padding: 24px; border-bottom: 1px solid var(--line); }
+  .cl-ring { position: relative; flex: none; width: 80px; height: 80px; display: grid; place-items: center; }
+  .cl-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+  .cl-ring .mono { font-size: 15px; font-weight: 600; }
+  .cl-rb { fill: none; stroke: var(--line); stroke-width: 6; }
+  .cl-rf { fill: none; stroke: var(--accent); stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 700ms var(--ease-out); }
+  :global(:root[data-theme='light']) .cl-rf { stroke: var(--accent-text); }
+  .cl-msg { font-size: 14px; margin-top: 4px; }
+  .cl.done .cl-msg { color: var(--ok); font-weight: 550; }
+  .cl-list { list-style: none; padding: 8px; }
+  .cl-list li { display: flex; align-items: center; gap: 8px; border-radius: var(--r-md); transition: background var(--t-fast); }
+  .cl-list li:hover { background: var(--surface-2); }
+  .cl-item { flex: 1; display: flex; align-items: center; gap: 14px; padding: 14px 12px; cursor: pointer; min-height: 56px; }
+  .cl-box { flex: none; width: 24px; height: 24px; border-radius: 7px; border: 1.5px solid var(--line-2); display: grid; place-items: center; color: transparent; transition: all 300ms var(--ease-out); }
+  .cl-box svg { width: 14px; height: 14px; stroke-dasharray: 24; stroke-dashoffset: 24; transition: stroke-dashoffset 300ms var(--ease-out) 80ms; }
+  .cl-item input:checked + .cl-box { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); transform: scale(1.06); }
+  .cl-item input:checked + .cl-box svg { stroke-dashoffset: 0; }
+  .cl-item input:focus-visible + .cl-box { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+  .cl-text { display: grid; gap: 2px; }
+  .cl-label { font-weight: 550; transition: color var(--t-med); }
+  .cl-item input:checked ~ .cl-text .cl-label { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--line-2); }
+  .cl-hint { font-size: 13px; color: var(--text-3); }
+  .cl-guide { flex: none; font-size: 12px; color: var(--text-3); padding: 8px 12px; border-radius: 6px; }
+  .cl-guide:hover { color: var(--accent-text); }
+  .cl-foot { display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; border-top: 1px solid var(--line); font-size: 12px; }
+</style>
+
+<script>
+  const KEY = 'setup-checklist';
+  function init() {
+    const root = document.querySelector<HTMLElement>('[data-checklist]');
+    if (!root) return;
+    const boxes = Array.from(root.querySelectorAll<HTMLInputElement>('[data-cl-box]'));
+    let saved: string[] = [];
+    try { saved = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch {}
+    boxes.forEach((b) => (b.checked = saved.includes(b.value)));
+    const ring = root.querySelector<SVGCircleElement>('[data-cl-ring]')!;
+    const C = Number(ring.dataset.c);
+    const update = (persist = true) => {
+      const done = boxes.filter((b) => b.checked).map((b) => b.value);
+      const p = boxes.length ? done.length / boxes.length : 0;
+      ring.style.strokeDashoffset = String(C * (1 - p));
+      root.querySelector('[data-cl-pct]')!.textContent = `${Math.round(p * 100)}%`;
+      root.querySelector('[data-cl-count]')!.textContent = `${done.length} / ${boxes.length} complete`;
+      root.classList.toggle('done', p === 1);
+      root.querySelector('[data-cl-msg]')!.textContent =
+        p === 1 ? '✓ Your computer is ready for Mobile Development.' : 'Tick each item as you finish it. Progress is saved in this browser.';
+      if (persist) try { localStorage.setItem(KEY, JSON.stringify(done)); } catch {}
+    };
+    boxes.forEach((b) => b.addEventListener('change', () => update()));
+    root.querySelector('[data-cl-reset]')?.addEventListener('click', () => { boxes.forEach((b) => (b.checked = false)); update(); });
+    update(false);
+  }
+  document.addEventListener('astro:page-load', init);
+</script>

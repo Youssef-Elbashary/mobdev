@@ -1,0 +1,52 @@
+# LEARNING ROADMAP — the journey through the course, in order.
+# Labs link themselves to a stage via `roadmapStage: <id>` in their frontmatter.
+- id: getting-started
+  order: 1
+  title: Getting Started
+  summary: Teaching team, coursework, why React Native + Expo, your first app and the team Git workflow.
+  topics: [React Native vs native vs Flutter, Expo, UI basics, Git branches]
+  links: [{ label: Teaching team, href: '/#team' }, { label: Coursework, href: /coursework }]
+- id: environment
+  order: 2
+  title: Development Environment
+  summary: Editor, SDK, emulator and Git — a setup you can trust for the rest of the term.
+  topics: [Editor, SDK & emulator, Git & GitHub]
+  links: [{ label: Setup center, href: /setup }, { label: Tools, href: /tools }]
+- id: mobile-ui
+  order: 3
+  title: Mobile UI
+  summary: Components, layout with Flexbox, styling, images and touch interactions.
+  topics: [Components, Flexbox, Styling, Lists]
+- id: logic
+  order: 4
+  title: Application Logic
+  summary: State, events, forms and organising code so it stays readable as the app grows.
+  topics: [State, Hooks, Forms & validation]
+- id: navigation
+  order: 5
+  title: Navigation
+  summary: Stacks, tabs, parameters and deep links between screens.
+  topics: [Stack, Tabs, Params, Deep links]
+- id: data
+  order: 6
+  title: Data & APIs
+  summary: Fetching from REST APIs, loading and error states, and storing data on the device.
+  topics: [fetch & async, REST, Local storage]
+  links: [{ label: Networking commands, href: '/commands?c=Networking' }]
+- id: debugging
+  order: 7
+  title: Debugging & Testing
+  summary: Reading errors, using dev tools, logging and writing your first tests.
+  topics: [Dev tools, Logs, Unit tests]
+  links: [{ label: Troubleshooting, href: /troubleshooting }]
+- id: advanced
+  order: 8
+  title: Advanced Concepts
+  summary: Device APIs, performance, animations and preparing a build for release.
+  topics: [Device APIs, Performance, Builds]
+- id: project
+  order: 9
+  title: Course Project
+  summary: Plan, build and present a complete mobile application.
+  topics: [Planning, Build, Presentation]
+  links: [{ label: Project brief, href: /project }]

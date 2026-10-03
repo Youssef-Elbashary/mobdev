@@ -1,0 +1,69 @@
+---
+/** VS Code window with numbered parts: Explorer, Editor, Terminal, Source Control, Extensions. */
+interface Props { folder?: string; cwd?: string }
+const { folder = 'MY-FIRST-APP', cwd = 'C:\\Users\\you\\my-first-app' } = Astro.props;
+const files: [string, number, boolean?][] = [['app', 0], ['_layout.tsx', 1], ['index.tsx', 1, true], ['app-example', 0], ['assets', 0], ['.gitignore', 0], ['app.json', 0], ['package.json', 0], ['README.md', 0]];
+---
+<figure class="mock-fig vsc" data-reveal role="img" aria-label="VS Code window: Explorer on the left, Editor in the middle, Terminal at the bottom, Source Control and Extensions icons on the far left">
+  <div class="mock-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="mock-url" style="border:0;background:none;justify-content:center">{folder.toLowerCase()} — Visual Studio Code</span></div>
+  <div class="vsc-body">
+    <div class="vsc-act" aria-hidden="true">
+      <span class="on">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" /><path d="M14 3v5h5" /></svg>
+      </span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg></span>
+      <span class="mk-host"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="5" r="2.5" /><circle cx="6" cy="19" r="2.5" /><circle cx="18" cy="7" r="2.5" /><path d="M6 7.5v9M18 9.5c0 4-4 5-8 6.5" /></svg><i class="mk" style="--n:3;top:-4px;right:-10px">4</i></span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 4v16l13-8Z" /></svg></span>
+      <span class="mk-host"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg><i class="mk" style="--n:4;top:-4px;right:-10px">5</i></span>
+    </div>
+    <div class="vsc-side mk-host">
+      <p class="vsc-h">EXPLORER</p>
+      <p class="vsc-h2">▾ {folder}</p>
+      {files.map(([f, d, on]) => <p class:list={['vsc-f', { on }]} style={`padding-left:${14 + d * 12}px`}>{f.includes('.') ? '▤' : '▸'} {f}</p>)}
+      <i class="mk" style="--n:0;top:6px;right:8px">1</i>
+    </div>
+    <div class="vsc-main">
+      <div class="vsc-ed mk-host">
+        <div class="vsc-tabs"><span class="on">index.tsx</span><span>README.md</span></div>
+        <pre class="vsc-code"><span class="k">import</span> {'{'} Text, View {'}'} <span class="k">from</span> <span class="s">"react-native"</span>;{'\n\n'}<span class="k">export default function</span> <span class="f">Index</span>() {'{'}{'\n'}  <span class="k">return</span> (…);{'\n'}{'}'}</pre>
+        <i class="mk" style="--n:1;top:40px;right:10px">2</i>
+      </div>
+      <div class="vsc-term mk-host">
+        <div class="vsc-tabs sm"><span>PROBLEMS</span><span>OUTPUT</span><span class="on">TERMINAL</span></div>
+        <pre class="vsc-code">PS {cwd}&gt; <span class="c">▍</span></pre>
+        <i class="mk" style="--n:2;top:6px;right:10px">3</i>
+      </div>
+    </div>
+  </div>
+</figure>
+
+<style>
+  .vsc { --gh-bg: #1f1f1f; --gh-bg2: #181818; --gh-bd: #2b2b2b; --gh-tx: #cccccc; --gh-mu: #9d9d9d; }
+  :global(:root[data-theme='light']) .vsc { --gh-bg: #1f1f1f; --gh-bg2: #181818; --gh-bd: #2b2b2b; --gh-tx: #cccccc; --gh-mu: #9d9d9d; }
+  .vsc { background: #1f1f1f; color: #cccccc; }
+  .vsc-body { display: grid; grid-template-columns: 44px 170px 1fr; min-height: 300px; font-size: 12px; }
+  .vsc-act { display: flex; flex-direction: column; align-items: center; gap: 18px; padding-top: 12px; background: #181818; border-right: 1px solid #2b2b2b; }
+  .vsc-act span { position: relative; width: 22px; height: 22px; color: #858585; }
+  .vsc-act span.on { color: #fff; }
+  .vsc-act svg { width: 22px; height: 22px; }
+  .vsc-side { position: relative; background: #181818; border-right: 1px solid #2b2b2b; padding: 8px 0; overflow: hidden; }
+  .vsc-h { font-size: 10.5px; letter-spacing: 0.08em; color: #9d9d9d; padding: 0 12px 6px; }
+  .vsc-h2 { font-weight: 700; font-size: 11px; padding: 2px 8px; color: #cccccc; }
+  .vsc-f { padding: 2px 8px; white-space: nowrap; color: #cccccc; font-family: var(--font-mono); font-size: 11.5px; }
+  .vsc-f.on { background: #04395e; color: #fff; }
+  .vsc-main { display: grid; grid-template-rows: 1fr auto; min-width: 0; }
+  .vsc-ed { position: relative; min-width: 0; }
+  .vsc-tabs { display: flex; background: #181818; border-bottom: 1px solid #2b2b2b; }
+  .vsc-tabs span { padding: 7px 12px; color: #9d9d9d; border-right: 1px solid #2b2b2b; white-space: nowrap; }
+  .vsc-tabs span.on { background: #1f1f1f; color: #fff; box-shadow: inset 0 1px 0 #0078d4; }
+  .vsc-tabs.sm span { font-size: 10.5px; letter-spacing: 0.05em; border-right: 0; }
+  .vsc-tabs.sm span.on { box-shadow: inset 0 -1px 0 #0078d4; background: transparent; }
+  .vsc-code { margin: 0; padding: 12px 14px; font-family: var(--font-mono); font-size: 12px; line-height: 1.7; color: #cccccc; white-space: pre; overflow: hidden; }
+  .vsc-code .k { color: #c586c0; } .vsc-code .s { color: #ce9178; } .vsc-code .f { color: #dcdcaa; } .vsc-code .c { color: #cccccc; animation: blink 1s steps(1) infinite; }
+  .vsc-term { position: relative; border-top: 1px solid #2b2b2b; }
+  @media (max-width: 640px) {
+    .vsc-body { grid-template-columns: 36px 120px 1fr; }
+    .vsc-f { font-size: 10.5px; }
+    .vsc-code { font-size: 10.5px; padding: 10px; }
+  }
+</style>

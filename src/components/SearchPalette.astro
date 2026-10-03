@@ -1,0 +1,81 @@
+---
+import Icon from './Icon.astro';
+---
+<div class="sp" data-search hidden>
+  <div class="sp-backdrop" data-search-close></div>
+  <div class="sp-dialog" role="dialog" aria-modal="true" aria-label="Search the course">
+    <div class="sp-input">
+      <Icon name="search" size={18} />
+      <input
+        type="search"
+        data-search-input
+        placeholder="Search labs, commands, tools, errors…"
+        aria-label="Search"
+        aria-controls="sp-results"
+        aria-autocomplete="list"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button class="kbd sp-esc" data-search-close aria-label="Close search">esc</button>
+    </div>
+    <div class="sp-filters" role="toolbar" aria-label="Filter results" data-search-filters></div>
+    <div class="sp-body" id="sp-results" role="listbox" data-search-results aria-live="polite"></div>
+    <div class="sp-foot mono">
+      <span><kbd class="kbd">↑</kbd><kbd class="kbd">↓</kbd> navigate</span>
+      <span><kbd class="kbd">↵</kbd> open</span>
+      <span class="hide-sm"><kbd class="kbd">/</kbd> or <kbd class="kbd" data-mod-key>Ctrl</kbd><kbd class="kbd">K</kbd> anywhere</span>
+    </div>
+  </div>
+</div>
+
+<style is:global>
+  .sp { position: fixed; inset: 0; z-index: 300; display: grid; justify-items: center; align-items: start; padding: min(12vh, 120px) 16px 16px; }
+  .sp[hidden] { display: none; }
+  .sp-backdrop { position: absolute; inset: 0; background: rgb(5 6 8 / 0.6); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: sp-fade 200ms ease-out; }
+  :root[data-theme='light'] .sp-backdrop { background: rgb(30 30 20 / 0.28); }
+  .sp-dialog {
+    position: relative; width: min(680px, 100%); max-height: min(640px, 78dvh); display: flex; flex-direction: column;
+    background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-xl);
+    box-shadow: var(--shadow-lg), 0 0 0 6px rgb(0 0 0 / 0.04); overflow: hidden;
+    animation: sp-in 320ms var(--ease-out);
+  }
+  @keyframes sp-in { from { opacity: 0; transform: translateY(-10px) scale(0.98); } }
+  @keyframes sp-fade { from { opacity: 0; } }
+  .sp-input { display: flex; align-items: center; gap: 12px; padding: 0 16px 0 20px; height: 62px; border-bottom: 1px solid var(--line); color: var(--text-3); }
+  .sp-input input { flex: 1; height: 100%; background: none; border: 0; outline: none; font-size: 17px; color: var(--text); }
+  .sp-input input::placeholder { color: var(--text-3); }
+  .sp-input input::-webkit-search-cancel-button { display: none; }
+  .sp-esc { cursor: pointer; height: 24px; }
+  .sp-filters { display: flex; gap: 6px; padding: 10px 16px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+  .sp-filters:empty { display: none; }
+  .sp-filters .chip { min-height: 28px; font-size: 12px; padding: 0 10px; flex: none; }
+  .sp-body { flex: 1; overflow-y: auto; padding: 8px; overscroll-behavior: contain; }
+  .sp-group { padding: 12px 12px 6px; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+  .sp-item {
+    display: grid; grid-template-columns: 36px 1fr auto; align-items: center; gap: 12px;
+    padding: 10px 12px; border-radius: var(--r-md); color: var(--text-2); cursor: pointer;
+  }
+  .sp-item .ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--line); color: var(--text-2); }
+  .sp-item .ic svg { width: 17px; height: 17px; }
+  .sp-item .t { color: var(--text); font-weight: 500; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sp-item .t code { font-size: 0.9em; }
+  .sp-item .d { font-size: 12.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sp-item .meta { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+  .sp-item mark { background: none; color: var(--accent-text); font-weight: 600; }
+  .sp-item[aria-selected='true'] { background: var(--surface-2); box-shadow: inset 2px 0 0 var(--accent-text); }
+  .sp-item[aria-selected='true'] .ic { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .sp-foot { display: flex; gap: 18px; padding: 10px 18px; border-top: 1px solid var(--line); font-size: 11px; color: var(--text-3); }
+  .sp-foot span { display: inline-flex; align-items: center; gap: 4px; }
+  .sp-foot .kbd { height: 20px; min-width: 20px; font-size: 10px; }
+  .sp-empty { padding: 48px 20px; text-align: center; color: var(--text-2); display: grid; gap: 8px; justify-items: center; }
+  .sp-empty .glyph { font-family: var(--font-mono); font-size: 12.5px; color: var(--text-3); }
+  .sp-empty .glyph b { color: var(--danger); font-weight: 500; }
+  .sp-loading { padding: 16px; display: grid; gap: 10px; }
+  .sp-loading div { height: 48px; border-radius: var(--r-md); background: linear-gradient(90deg, var(--surface-2), var(--surface-3), var(--surface-2)); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+  @media (max-width: 719px) {
+    .sp { padding: 0; align-items: stretch; }
+    .sp-dialog { max-height: none; height: 100dvh; border-radius: 0; border: 0; }
+    .sp-foot { display: none; }
+  }
+</style>

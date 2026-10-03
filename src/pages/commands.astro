@@ -1,0 +1,196 @@
+---
+import Base from '@/layouts/Base.astro';
+import PageHeader from '@/components/PageHeader.astro';
+import CmdLine from '@/components/CmdLine.astro';
+import EmptyState from '@/components/EmptyState.astro';
+import Icon from '@/components/Icon.astro';
+import { groupBy, slug, inline, getData } from '@/lib/content';
+
+const commands = await getData('commands');
+const byId = new Map(commands.map((c) => [c.id, c]));
+const groups = [...groupBy(commands, (c) => c.data.category)];
+---
+<Base title="Command Handbook" description="Searchable, copyable reference of every command used in the Mobile Development course.">
+  <PageHeader eyebrow="Command handbook" title="Every command,<br/><span class='accent'>one click away.</span>" lead="Terminal, Git, packages, Android, iOS, builds and debugging. Search, filter by category, and copy with one click." crumbs={[{ label: 'commands' }]}>
+    <div class="ch-search">
+      <div class="input-wrap">
+        <Icon name="search" />
+        <input class="input ch-input" type="search" placeholder={`Filter ${commands.length} commands… try "push" or "emulator"`} aria-label="Filter commands" data-ch-q data-local-search autocomplete="off" spellcheck="false" />
+        <span class="ch-kbd kbd hide-sm" aria-hidden="true">/</span>
+      </div>
+      <div class="ch-cats" role="toolbar" aria-label="Filter by category">
+        <button class="chip" aria-pressed="true" data-ch-cat="all">All <span class="count">{commands.length}</span></button>
+        {groups.map(([cat, items]) => <button class="chip" aria-pressed="false" data-ch-cat={cat}>{cat} <span class="count">{items.length}</span></button>)}
+      </div>
+    </div>
+  </PageHeader>
+
+  <div class="container ch-layout">
+    <aside class="ch-side" aria-label="Categories">
+      <p class="toc-title">Categories</p>
+      <ul>
+        {groups.map(([cat, items]) => (
+          <li><a href={`#cat-${slug(cat)}`} data-ch-jump={cat}><span>{cat}</span><span class="mono faint">{items.length}</span></a></li>
+        ))}
+      </ul>
+    </aside>
+
+    <div class="ch-main">
+      <p class="ch-status mono faint" aria-live="polite" data-ch-status></p>
+      {commands.length === 0 && <EmptyState title="The handbook is empty." body="Add commands to src/content/data/commands.yaml." path="commands.yaml" />}
+      {groups.map(([cat, items]) => (
+        <section class="ch-group" id={`cat-${slug(cat)}`} data-ch-group={cat}>
+          <h2 class="ch-cat-title"><span class="mono">{String(items.length).padStart(2, '0')}</span>{cat}</h2>
+          <div class="ch-list">
+            {items.map((c) => (
+              <article
+                class="cmd"
+                id={`cmd-${c.id}`}
+                data-ch-item
+                data-cat={cat}
+                data-text={[c.data.command, c.data.title, c.data.description, c.data.notes ?? '', ...c.data.examples.map((e) => e.code)].join(' ').toLowerCase()}
+              >
+                <header class="cmd-head">
+                  <h3 class="cmd-title">{c.data.title}</h3>
+                  {c.data.platform && <span class="badge">{c.data.platform}</span>}
+                </header>
+                <CmdLine cmd={c.data.command} class="cmd-main" />
+                <p class="cmd-desc" set:html={inline(c.data.description)} />
+                {c.data.examples.length > 0 && (
+                  <div class="cmd-sub">
+                    <p class="cmd-k mono">Examples</p>
+                    {c.data.examples.map((e) => (
+                      <div class="cmd-ex">
+                        <CmdLine cmd={e.code} />
+                        {e.note && <p class="faint cmd-note" set:html={inline(e.note)} />}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {c.data.notes && <aside class="callout callout-tip"><p class="callout-title">Note</p><p set:html={inline(c.data.notes)} /></aside>}
+                {c.data.commonMistakes.length > 0 && (
+                  <div class="cmd-sub">
+                    <p class="cmd-k mono warn">Common mistakes</p>
+                    <ul class="cmd-mistakes">{c.data.commonMistakes.map((m) => <li set:html={inline(m)} />)}</ul>
+                  </div>
+                )}
+                {c.data.related.length > 0 && (
+                  <div class="cmd-rel">
+                    <span class="mono faint">Related</span>
+                    {c.data.related.filter((r) => byId.has(r)).map((r) => <a href={`#cmd-${r}`} class="cmd-rel-a mono">{byId.get(r)!.data.command}</a>)}
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
+      ))}
+      <div data-ch-empty hidden>
+        <EmptyState title="No results found." body="No command matches that search. Try a shorter word, or clear the category filter.">
+          <button class="btn btn-ghost btn-sm" data-ch-reset>Clear filters</button>
+        </EmptyState>
+      </div>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .ch-search { display: grid; gap: 16px; max-width: 760px; }
+  .ch-input { height: 56px; font-size: 16px; border-radius: var(--r-lg); padding-right: 48px; }
+  .ch-kbd { position: absolute; right: 16px; top: 50%; translate: 0 -50%; }
+  .ch-cats { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter); }
+  .ch-cats .chip { flex: none; }
+  @media (min-width: 720px) { .ch-cats { flex-wrap: wrap; overflow: visible; margin-inline: 0; padding-inline: 0; } }
+
+  .ch-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 48px; padding-block: 48px var(--section-y); }
+  @media (min-width: 1024px) { .ch-layout { grid-template-columns: 220px minmax(0, 1fr); gap: 64px; } }
+  .ch-side { display: none; }
+  @media (min-width: 1024px) { .ch-side { display: block; position: sticky; top: calc(var(--nav-h) + 32px); align-self: start; } }
+  .ch-side ul { list-style: none; padding: 0; border-left: 1px solid var(--line); }
+  .ch-side a { display: flex; justify-content: space-between; padding: 6px 0 6px 14px; margin-left: -1px; border-left: 1px solid transparent; font-size: 14px; color: var(--text-3); transition: color var(--t-fast), border-color var(--t-fast); }
+  .ch-side a:hover { color: var(--text); }
+  .ch-side a.active { color: var(--text); border-left-color: var(--accent-text); }
+  .ch-side a.dim { opacity: 0.35; }
+  .ch-status { font-size: 12px; margin-bottom: 16px; min-height: 18px; }
+  .ch-group { scroll-margin-top: calc(var(--nav-h) + 24px); }
+  .ch-group + .ch-group { margin-top: 56px; }
+  .ch-group[hidden] { display: none; }
+  .ch-cat-title { display: flex; align-items: baseline; gap: 12px; font-size: var(--fs-xl); padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+  .ch-cat-title .mono { font-size: 12px; color: var(--accent-text); font-weight: 500; letter-spacing: 0; }
+  .ch-list { display: grid; }
+  .cmd { display: grid; gap: 12px; padding: 28px 0; border-bottom: 1px solid var(--line); scroll-margin-top: calc(var(--nav-h) + 24px); }
+  .cmd[hidden] { display: none; }
+  .cmd:target { animation: target-flash 1.8s var(--ease-out); }
+  .cmd-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .cmd-title { font-size: var(--fs-md); font-family: var(--font-body); font-weight: 600; letter-spacing: -0.01em; }
+  .cmd-main :global(code) { font-size: 14.5px; }
+  .cmd-desc { color: var(--text-2); max-width: 70ch; }
+  .cmd-sub { display: grid; gap: 8px; margin-top: 4px; }
+  .cmd-k { font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); }
+  .cmd-k.warn { color: var(--warn); }
+  .cmd-ex { display: grid; gap: 4px; }
+  .cmd-ex :global(.cmd-line) { min-height: 42px; font-size: 13px; }
+  .cmd-note { font-size: 13px; padding-left: 4px; }
+  .cmd-mistakes { list-style: none; padding: 0; display: grid; gap: 6px; }
+  .cmd-mistakes li { position: relative; padding-left: 22px; color: var(--text-2); font-size: 14.5px; }
+  .cmd-mistakes li::before { content: '✕'; position: absolute; left: 0; color: var(--warn); font-size: 12px; top: 2px; }
+  .cmd .callout { margin-block: 4px; }
+  .cmd-rel { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; margin-top: 4px; }
+  .cmd-rel-a { padding: 3px 9px; border: 1px solid var(--line-2); border-radius: 6px; color: var(--text-2); font-size: 12px; transition: all var(--t-fast); }
+  .cmd-rel-a:hover { color: var(--accent-text); border-color: var(--accent-text); }
+</style>
+
+<script>
+  function init() {
+    const q = document.querySelector<HTMLInputElement>('[data-ch-q]');
+    if (!q) return;
+    const items = Array.from(document.querySelectorAll<HTMLElement>('[data-ch-item]'));
+    const groups = Array.from(document.querySelectorAll<HTMLElement>('[data-ch-group]'));
+    const chips = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-ch-cat]'));
+    const jumps = Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-ch-jump]'));
+    const status = document.querySelector<HTMLElement>('[data-ch-status]')!;
+    const empty = document.querySelector<HTMLElement>('[data-ch-empty]')!;
+    const params = new URLSearchParams(location.search);
+    let cat = params.get('c') || 'all';
+    if (!chips.some((c) => c.dataset.chCat === cat)) cat = 'all';
+    q.value = params.get('q') || '';
+
+    const apply = () => {
+      const terms = q.value.toLowerCase().trim().split(/\s+/).filter(Boolean);
+      let shown = 0;
+      items.forEach((it) => {
+        const ok = (cat === 'all' || it.dataset.cat === cat) && terms.every((t) => it.dataset.text!.includes(t));
+        it.hidden = !ok;
+        if (ok) shown++;
+      });
+      const visible = new Set<string>();
+      groups.forEach((g) => {
+        const any = g.querySelector('[data-ch-item]:not([hidden])');
+        g.hidden = !any;
+        if (any) visible.add(g.dataset.chGroup!);
+      });
+      jumps.forEach((j) => j.classList.toggle('dim', !visible.has(j.dataset.chJump!)));
+      chips.forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.chCat === cat)));
+      empty.hidden = shown > 0;
+      status.textContent = terms.length || cat !== 'all' ? `${shown} of ${items.length} commands` : `${items.length} commands`;
+      const u = new URL(location.href);
+      q.value ? u.searchParams.set('q', q.value) : u.searchParams.delete('q');
+      cat !== 'all' ? u.searchParams.set('c', cat) : u.searchParams.delete('c');
+      history.replaceState(history.state, '', u);
+    };
+    q.addEventListener('input', apply);
+    chips.forEach((c) => c.addEventListener('click', () => { cat = c.dataset.chCat!; apply(); }));
+    document.querySelector('[data-ch-reset]')?.addEventListener('click', () => { q.value = ''; cat = 'all'; apply(); q.focus(); });
+    // "/" focuses the local filter on this page instead of the global palette
+    q.addEventListener('keydown', (e) => { if (e.key === 'Escape') { q.value = ''; apply(); } });
+    apply();
+
+    // category scrollspy
+    const io = new IntersectionObserver((es) => {
+      es.forEach((e) => { if (e.isIntersecting) jumps.forEach((j) => j.classList.toggle('active', j.dataset.chJump === (e.target as HTMLElement).dataset.chGroup)); });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    groups.forEach((g) => io.observe(g));
+    document.addEventListener('astro:before-swap', () => io.disconnect(), { once: true });
+  }
+  document.addEventListener('astro:page-load', init);
+</script>

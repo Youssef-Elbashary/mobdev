@@ -1,0 +1,37 @@
+# SETUP CHECKLIST — progress is saved in the student's browser.
+# `guide` links to a setup guide id (src/content/setup/<id>.md).
+- id: editor
+  label: Code editor installed
+  hint: VS Code with the recommended extensions
+  guide: 01-editor
+- id: node
+  label: Node.js LTS installed
+  hint: node -v prints a version number
+  guide: 02-node
+- id: git
+  label: Git installed & configured
+  hint: git config user.name and user.email set
+  guide: 03-git
+- id: github
+  label: GitHub account created
+  hint: One per student — commits must come from your own account
+  guide: 03-git
+- id: expo-go
+  label: Expo Go installed on your phone
+  hint: Same Wi-Fi as your laptop
+  guide: 05-emulator
+- id: sdk
+  label: Android SDK configured
+  hint: ANDROID_HOME set, adb available
+  guide: 04-android-sdk
+- id: emulator
+  label: Emulator or device ready
+  hint: A virtual device boots, or Expo Go is on your phone
+  guide: 05-emulator
+- id: extensions
+  label: Required extensions installed
+  guide: 01-editor
+- id: test-app
+  label: Test application running
+  hint: The starter app opens on your device
+  guide: 06-test-project

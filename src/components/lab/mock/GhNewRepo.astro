@@ -1,0 +1,36 @@
+---
+import MockFrame from './MockFrame.astro';
+interface Props { user?: string; repo?: string }
+const { user = 'your-username', repo = 'my-first-app' } = Astro.props;
+---
+<MockFrame url="github.com/new" label="GitHub Create a new repository form">
+  <div class="gh-grid">
+    <div>
+      <p class="gh-h">Create a new repository</p>
+      <p class="gh-sub">A repository contains all project files, including the revision history.</p>
+    </div>
+    <hr class="gh-sep" style="margin:0" />
+    <div class="gh-field mk-host" style="max-width:260px"><span class="gh-label">Repository template</span><span class="gh-select" style="color:var(--gh-mu)">No template</span><i class="mk" style="--n:0">1</i></div>
+    <div class="gh-row">
+      <div class="gh-field mk-host" style="flex:0 1 190px"><span class="gh-label">Owner<span class="req">*</span></span><span class="gh-select"><span class="gh-avatar"></span>{user}</span><i class="mk" style="--n:1">2</i></div>
+      <span style="font-size:22px;color:var(--gh-mu);padding-bottom:2px">/</span>
+      <div class="gh-field mk-host" style="flex:1 1 200px"><span class="gh-label">Repository name<span class="req">*</span></span><span class="gh-input focus">{repo}</span><i class="mk" style="--n:2">3</i></div>
+    </div>
+    <span class="gh-ok">✓ {repo} is available.</span>
+    <div class="gh-field mk-host"><span class="gh-label">Description <span class="gh-hint">(optional)</span></span><span class="gh-input">My first React Native + Expo app</span><i class="mk" style="--n:3">4</i></div>
+    <hr class="gh-sep" style="margin:0" />
+    <div class="gh-grid mk-host" style="gap:10px">
+      <span class="gh-radio on"><i></i><span><b>Public</b><span>Anyone on the internet can see this repository. You choose who can commit.</span></span></span>
+      <span class="gh-radio"><i></i><span><b>Private</b><span>You choose who can see and commit to this repository.</span></span></span>
+      <i class="mk" style="--n:4">5</i>
+    </div>
+    <hr class="gh-sep" style="margin:0" />
+    <div class="gh-grid mk-host" style="gap:10px">
+      <span class="gh-check"><i></i><span><b>Add a README file</b><span>Leave this OFF — your project already has one.</span></span></span>
+      <div class="gh-row"><span class="gh-label" style="font-weight:500">.gitignore</span><span class="gh-select" style="min-width:150px">None</span><span class="gh-label" style="font-weight:500;margin-left:8px">License</span><span class="gh-select" style="min-width:120px">None</span></div>
+      <i class="mk" style="--n:5">6</i>
+    </div>
+    <hr class="gh-sep" style="margin:0" />
+    <div style="display:flex;justify-content:flex-end"><span class="gh-btn green mk-host">Create repository<i class="mk" style="--n:6">7</i></span></div>
+  </div>
+</MockFrame>

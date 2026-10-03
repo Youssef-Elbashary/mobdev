@@ -1,0 +1,239 @@
+---
+import { render } from 'astro:content';
+import Base from '@/layouts/Base.astro';
+import Icon from '@/components/Icon.astro';
+import Rubric from '@/components/Rubric.astro';
+import Faq from '@/components/Faq.astro';
+import EmptyState from '@/components/EmptyState.astro';
+import { getProject, inline, formatDeadline, pad } from '@/lib/content';
+const project = await getProject();
+const d = project?.data;
+const rendered = project ? await render(project) : null;
+const Content = rendered?.Content;
+const required = d?.features.filter((f) => f.required) ?? [];
+const stretch = d?.features.filter((f) => !f.required) ?? [];
+const nav = d ? [
+  ['overview', 'Overview'],
+  ['journey', 'Milestones'],
+  ['requirements', 'Requirements'],
+  ['features', 'Features'],
+  ['technical', 'Technical & UI'],
+  ['deliverables', 'Deliverables'],
+  ['evaluation', 'Evaluation'],
+  d.faq.length ? ['faq', 'FAQ'] : null,
+].filter(Boolean) as [string, string][] : [];
+---
+<Base title="Course Project" description={d?.description}>
+  {!d ? (
+    <div class="container" style="padding-block: 160px 120px">
+      <EmptyState title="The project brief is coming soon." body="It will be published here once the term begins." path="project/" />
+    </div>
+  ) : (
+    <>
+      <header class="pjh">
+        <div class="pjh-bg" aria-hidden="true"><div class="pjh-grid"></div><div class="pjh-orb"></div></div>
+        <div class="container pjh-inner">
+          <nav class="crumbs" aria-label="Breadcrumb"><a href="/">~</a><span aria-hidden="true">/</span><span aria-current="page">project</span></nav>
+          <div class="pjh-top" data-reveal>
+            <span class="pjh-badge mono"><span class="live"></span> CAPSTONE · COURSE PROJECT</span>
+            <span class="mono pjh-due">Final due <b>{formatDeadline(d.deadline)}</b></span>
+          </div>
+          <h1 class="pjh-title" data-reveal style="--d:80ms">{d.tagline}</h1>
+          <p class="pjh-lead" data-reveal style="--d:160ms">{d.description}</p>
+          <dl class="pjh-stats" data-reveal style="--d:240ms">
+            <div><dt>Milestones</dt><dd>{pad(d.milestones.length)}</dd></div>
+            <div><dt>Required features</dt><dd>{pad(required.length)}</dd></div>
+            <div><dt>Not counted</dt><dd>{pad(stretch.length)}</dd></div>
+            <div><dt>Deliverables</dt><dd>{pad(d.deliverables.length)}</dd></div>
+          </dl>
+        </div>
+      </header>
+
+      <nav class="pj-subnav" aria-label="Project sections" data-subnav>
+        <div class="container"><ul>{nav.map(([id, label]) => <li><a href={`#${id}`} data-sub={id}>{label}</a></li>)}</ul></div>
+      </nav>
+
+      <div class="container pj-body">
+        <section id="overview" class="pj-sec pj-split">
+          <div>
+            <p class="eyebrow">What you're building</p>
+            <h2 class="h-2 mt-4">Overview</h2>
+          </div>
+          <div class="stack" style="--stack:20px">
+            <p class="lead">{d.description}</p>
+            <div class="problem">
+              <p class="mono problem-k">The problem</p>
+              <p set:html={inline(d.problem)} />
+            </div>
+            {d.objectives.length > 0 && <ul class="dash-list">{d.objectives.map((o) => <li set:html={inline(o)} />)}</ul>}
+          </div>
+        </section>
+
+        <section id="journey" class="pj-sec">
+          <p class="eyebrow">Project journey</p>
+          <h2 class="h-2 mt-4">Milestones</h2>
+          <ol class="mj">
+            {d.milestones.map((m, i) => (
+              <li class="mj-item" data-reveal style={`--d:${i * 70}ms`}>
+                <div class="mj-head"><span class="mj-n mono">M{i + 1}</span><span class="mj-line" aria-hidden="true"></span></div>
+                <h3 class="mj-t">{m.name}</h3>
+                <p class="muted mj-d" set:html={inline(m.detail)} />
+                {m.due && <p class="mono mj-due">{m.due}</p>}
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section id="requirements" class="pj-sec pj-split">
+          <div><p class="eyebrow">Must have</p><h2 class="h-2 mt-4">Requirements</h2></div>
+          <ul class="check-list big">{d.requirements.map((r) => <li set:html={inline(r)} />)}</ul>
+        </section>
+
+        <section id="features" class="pj-sec">
+          <p class="eyebrow">Functionality</p>
+          <h2 class="h-2 mt-4">Features</h2>
+          <div class="feat">
+            <div class="feat-col">
+              <p class="feat-k mono"><span class="badge badge-accent"><span class="dot"></span>Required</span></p>
+              {required.map((f, i) => <div class="feat-row"><span class="mono faint">{pad(i + 1)}</span><div><h3>{f.name}</h3><p class="muted" set:html={inline(f.detail)} /></div></div>)}
+            </div>
+            {stretch.length > 0 && (
+              <div class="feat-col stretch">
+                <p class="feat-k mono"><span class="badge badge-optional"><span class="dot"></span>Allowed · not counted</span></p>
+                {stretch.map((f) => <div class="feat-row"><span class="mono faint">+</span><div><h3>{f.name}</h3><p class="muted" set:html={inline(f.detail)} /></div></div>)}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section id="technical" class="pj-sec">
+          <div class="tu">
+            <div class="panel panel-pad">
+              <p class="mono tu-k"><Icon name="terminal" size={16} /> Technical requirements</p>
+              <ul class="dash-list mt-4">{d.technicalRequirements.map((r) => <li set:html={inline(r)} />)}</ul>
+            </div>
+            <div class="panel panel-pad">
+              <p class="mono tu-k"><Icon name="phone" size={16} /> UI requirements</p>
+              <ul class="dash-list mt-4">{d.uiRequirements.map((r) => <li set:html={inline(r)} />)}</ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="deliverables" class="pj-sec pj-split">
+          <div><p class="eyebrow">Hand in</p><h2 class="h-2 mt-4">Deliverables</h2></div>
+          <ol class="dlv">{d.deliverables.map((x, i) => <li><span class="mono">{pad(i + 1)}</span><span set:html={inline(x)} /></li>)}</ol>
+        </section>
+
+        <section id="evaluation" class="pj-sec pj-split">
+          <div><p class="eyebrow">Assessment</p><h2 class="h-2 mt-4">Evaluation</h2></div>
+          <Rubric items={d.evaluation} />
+        </section>
+
+        {Content && (
+          <section class="pj-sec pj-split">
+            <div><p class="eyebrow">Advice</p><h2 class="h-2 mt-4">Notes</h2></div>
+            <div class="prose"><Content /></div>
+          </section>
+        )}
+
+        {d.resources.length > 0 && (
+          <section id="resources" class="pj-sec pj-split">
+            <div><p class="eyebrow">Help</p><h2 class="h-2 mt-4">Resources</h2></div>
+            <div class="row-list">{d.resources.map((r) => <a href={r.href} class="row" style="grid-template-columns:1fr 36px"><span>{r.label}</span><span class="go"><Icon name="arrow-up-right" /></span></a>)}</div>
+          </section>
+        )}
+
+        {d.faq.length > 0 && (
+          <section id="faq" class="pj-sec pj-split">
+            <div><p class="eyebrow">Questions</p><h2 class="h-2 mt-4">FAQ</h2></div>
+            <Faq items={d.faq} />
+          </section>
+        )}
+      </div>
+    </>
+  )}
+</Base>
+
+<style>
+  .pjh { position: relative; overflow: hidden; isolation: isolate; background: #08090b; color: #eceef1; padding-top: calc(var(--nav-h) + 64px); padding-bottom: 72px; }
+  .pjh .crumbs { color: #6f7887; }
+  .pjh-bg { position: absolute; inset: 0; z-index: -1; }
+  .pjh-grid { position: absolute; inset: 0; background-image: linear-gradient(rgb(255 255 255 / 0.04) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / 0.04) 1px, transparent 1px); background-size: 56px 56px; mask-image: radial-gradient(ellipse 80% 70% at 70% 30%, #000, transparent 75%); }
+  .pjh-orb { position: absolute; width: 720px; height: 720px; right: -160px; top: -260px; border-radius: 50%; background: radial-gradient(circle, rgb(200 255 77 / 0.35), transparent 62%); filter: blur(20px); }
+  .pjh-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+  .pjh-badge { display: inline-flex; align-items: center; gap: 10px; font-size: 11.5px; letter-spacing: 0.12em; color: #c8ff4d; }
+  .pjh-badge .live { width: 8px; height: 8px; border-radius: 50%; background: #c8ff4d; animation: pulse-ring 2s infinite; }
+  .pjh-due { font-size: 12px; color: #8a93a1; }
+  .pjh-due b { color: #ffb547; font-weight: 500; }
+  .pjh-title { margin-top: 32px; font-size: clamp(3rem, 1.4rem + 6vw, 7.5rem); line-height: 0.92; letter-spacing: -0.05em; font-weight: 700; max-width: 13ch; }
+  .pjh-lead { margin-top: 28px; font-size: var(--fs-md); color: #aab1bd; max-width: 58ch; }
+  .pjh-stats { margin-top: 56px; display: grid; grid-template-columns: repeat(2, 1fr); border-top: 1px solid #262c36; }
+  @media (min-width: 720px) { .pjh-stats { grid-template-columns: repeat(4, 1fr); } }
+  .pjh-stats > div { padding: 20px 20px 0 0; }
+  .pjh-stats dt { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #6f7887; }
+  .pjh-stats dd { font-family: var(--font-display); font-size: 48px; font-weight: 600; letter-spacing: -0.04em; margin-top: 6px; line-height: 1; }
+
+  .pj-subnav { position: sticky; top: 56px; z-index: 50; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+  .pj-subnav ul { list-style: none; padding: 0; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  .pj-subnav a { position: relative; display: block; padding: 14px 12px; font-size: 13.5px; color: var(--text-3); white-space: nowrap; transition: color var(--t-fast); }
+  .pj-subnav a:hover, .pj-subnav a.active { color: var(--text); }
+  .pj-subnav a.active::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: -1px; height: 2px; background: var(--accent); }
+
+  .pj-body { padding-bottom: var(--section-y); }
+  .pj-sec { padding-block: clamp(56px, 7vw, 104px); border-bottom: 1px solid var(--line); scroll-margin-top: calc(var(--nav-h) + 56px); }
+  .pj-sec:last-child { border-bottom: 0; }
+  .pj-split { display: grid; gap: 32px; }
+  @media (min-width: 960px) { .pj-split { grid-template-columns: 340px 1fr; gap: 64px; } }
+  .problem { padding: 24px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--warn); color: var(--text); font-size: 1.05rem; }
+  .problem-k { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--warn); margin-bottom: 8px; }
+
+  .mj { list-style: none; padding: 0; margin-top: 48px; display: grid; gap: 32px; }
+  @media (min-width: 900px) { .mj { grid-template-columns: repeat(var(--n, 5), 1fr); gap: 0; } }
+  .mj-item { display: grid; gap: 10px; align-content: start; padding-right: 24px; }
+  .mj-head { display: flex; align-items: center; gap: 0; }
+  .mj-n { flex: none; width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; font-size: 13px; background: var(--surface); border: 1px solid var(--line-2); }
+  .mj-item:last-child .mj-n { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .mj-line { flex: 1; height: 1px; background: repeating-linear-gradient(90deg, var(--line-2) 0 6px, transparent 6px 12px); margin-left: 8px; }
+  .mj-item:last-child .mj-line { display: none; }
+  @media (max-width: 899px) { .mj-line { display: none; } }
+  .mj-t { font-size: var(--fs-lg); margin-top: 12px; }
+  .mj-d { font-size: 14.5px; }
+  .mj-due { font-size: 11.5px; color: var(--accent-text); }
+
+  .check-list.big li { font-size: 1.05rem; color: var(--text); padding-block: 4px; }
+  .feat { margin-top: 40px; display: grid; gap: 24px; }
+  @media (min-width: 900px) { .feat { grid-template-columns: 1.4fr 1fr; gap: 40px; } }
+  .feat-col { border-top: 1px solid var(--line-2); }
+  .feat-k { padding: 16px 0; }
+  .feat-row { display: grid; grid-template-columns: 36px 1fr; gap: 12px; padding: 18px 0; border-top: 1px solid var(--line); }
+  .feat-row h3 { font-family: var(--font-body); font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; }
+  .feat-row p { font-size: 14.5px; margin-top: 2px; }
+  .feat-col.stretch { border-top-style: dashed; border-top-color: color-mix(in oklab, var(--info) 50%, var(--line)); }
+  .tu { display: grid; gap: 16px; }
+  @media (min-width: 900px) { .tu { grid-template-columns: 1fr 1fr; } }
+  .tu-k { display: flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-text); }
+  .dlv { list-style: none; padding: 0; counter-reset: d; border-top: 1px solid var(--line); }
+  .dlv li { display: grid; grid-template-columns: 48px 1fr; gap: 12px; padding: 18px 0; border-bottom: 1px solid var(--line); font-size: 1.05rem; }
+  .dlv .mono { color: var(--accent-text); font-size: 13px; padding-top: 3px; }
+</style>
+
+<script>
+  document.addEventListener('astro:page-load', () => {
+    const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-sub]'));
+    if (!links.length) return;
+    const n = document.querySelectorAll('.mj-item').length;
+    document.querySelector<HTMLElement>('.mj')?.style.setProperty('--n', String(n));
+    const io = new IntersectionObserver((es) => {
+      es.forEach((e) => {
+        if (!e.isIntersecting) return;
+        links.forEach((l) => {
+          const on = l.dataset.sub === e.target.id;
+          l.classList.toggle('active', on);
+          if (on) { const ul = l.closest('ul')!; ul.scrollTo({ left: l.offsetLeft - ul.clientWidth / 2 + l.offsetWidth / 2, behavior: 'smooth' }); }
+        });
+      });
+    }, { rootMargin: '-30% 0px -60% 0px' });
+    links.forEach((l) => { const t = document.getElementById(l.dataset.sub!); if (t) io.observe(t); });
+    document.addEventListener('astro:before-swap', () => io.disconnect(), { once: true });
+  });
+</script>

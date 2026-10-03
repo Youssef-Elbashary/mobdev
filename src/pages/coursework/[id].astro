@@ -1,0 +1,97 @@
+---
+/** COURSEWORK TEMPLATE — every file in src/content/coursework renders here. */
+import { render } from 'astro:content';
+import Base from '@/layouts/Base.astro';
+import Toc from '@/components/Toc.astro';
+import Rubric from '@/components/Rubric.astro';
+import Faq from '@/components/Faq.astro';
+import Icon from '@/components/Icon.astro';
+import { getCoursework, pad, inline, formatDeadline } from '@/lib/content';
+
+export async function getStaticPaths() {
+  const all = await getCoursework();
+  return all.map((c) => ({ params: { id: c.id }, props: { cw: c } }));
+}
+const { cw } = Astro.props;
+const d = cw.data;
+const { Content, headings } = await render(cw);
+const sections = [
+  d.objectives.length && { depth: 2, slug: 'objectives', text: 'Objectives' },
+  d.requirements.length && { depth: 2, slug: 'requirements', text: 'Requirements' },
+  d.tasks.length && { depth: 2, slug: 'tasks', text: 'Tasks' },
+  d.deliverables.length && { depth: 2, slug: 'deliverables', text: 'Deliverables' },
+  d.submission.length && { depth: 2, slug: 'submission', text: 'Submission' },
+  d.grading.length && { depth: 2, slug: 'grading', text: 'Grading' },
+  ...headings.filter((h) => h.depth === 2),
+  d.resources.length && { depth: 2, slug: 'resources', text: 'Resources' },
+  d.faq.length && { depth: 2, slug: 'faq', text: 'FAQ' },
+].filter(Boolean) as { depth: number; slug: string; text: string }[];
+---
+<Base title={`CW${pad(d.number)} — ${d.title}`} description={d.description}>
+  <header class="page-head">
+    <div class="grid-bg" aria-hidden="true"></div>
+    <div class="container">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="/">~</a><span aria-hidden="true">/</span><a href="/coursework">coursework</a><span aria-hidden="true">/</span><span aria-current="page">{cw.id}</span></nav>
+      <p class="eyebrow" data-reveal>Coursework {pad(d.number)}</p>
+      <h1 class="h-1 mt-4" data-reveal style="--d:60ms; max-width:16ch">{d.title}</h1>
+      <p class="lead mt-6" data-reveal style="--d:120ms">{d.description}</p>
+      <dl class="cwh-meta" data-reveal style="--d:180ms">
+        <div><dt><Icon name="calendar" size={14} /> Deadline</dt><dd class="warn">{formatDeadline(d.deadline)}</dd></div>
+        {d.weight && <div><dt><Icon name="target" size={14} /> Weight</dt><dd>{d.weight}</dd></div>}
+        <div><dt><Icon name="layers" size={14} /> Tasks</dt><dd>{pad(d.tasks.length)}</dd></div>
+        <div><dt><Icon name="file" size={14} /> Deliverables</dt><dd>{pad(d.deliverables.length)}</dd></div>
+      </dl>
+    </div>
+  </header>
+
+  <div class="container doc">
+    <article class="doc-main">
+      {d.objectives.length > 0 && (
+        <section class="block"><h2 class="block-title" id="objectives">Objectives</h2><ul class="dash-list">{d.objectives.map((o) => <li set:html={inline(o)} />)}</ul></section>
+      )}
+      {d.requirements.length > 0 && (
+        <section class="block"><h2 class="block-title" id="requirements">Requirements</h2><ul class="check-list">{d.requirements.map((o) => <li set:html={inline(o)} />)}</ul></section>
+      )}
+      {d.tasks.length > 0 && (
+        <section class="block">
+          <h2 class="block-title" id="tasks">Tasks</h2>
+          <ol class="tasks">
+            {d.tasks.map((t, i) => (
+              <li><span class="t-n mono">{pad(i + 1)}</span><div><h3 class="t-t">{t.title}</h3><p class="muted" set:html={inline(t.detail)} /></div></li>
+            ))}
+          </ol>
+        </section>
+      )}
+      {d.deliverables.length > 0 && (
+        <section class="block"><h2 class="block-title" id="deliverables">Deliverables</h2><ul class="check-list">{d.deliverables.map((o) => <li set:html={inline(o)} />)}</ul></section>
+      )}
+      {d.submission.length > 0 && (
+        <section class="block"><h2 class="block-title" id="submission">Submission</h2><div class="panel panel-pad" style="border-left:3px solid var(--accent)"><ul class="dash-list">{d.submission.map((o) => <li set:html={inline(o)} />)}</ul></div></section>
+      )}
+      {d.grading.length > 0 && (
+        <section class="block"><h2 class="block-title" id="grading">Grading</h2><Rubric items={d.grading} /></section>
+      )}
+      <section class="block prose"><Content /></section>
+      {d.resources.length > 0 && (
+        <section class="block"><h2 class="block-title" id="resources">Resources</h2><ul class="dash-list">{d.resources.map((r) => <li><a href={r.href} class="accent">{r.label}</a></li>)}</ul></section>
+      )}
+      {d.faq.length > 0 && (
+        <section class="block"><h2 class="block-title" id="faq">FAQ</h2><Faq items={d.faq} /></section>
+      )}
+    </article>
+    <aside class="doc-aside"><Toc items={sections} /></aside>
+  </div>
+</Base>
+<style>
+  .cwh-meta { margin-top: 40px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; max-width: 760px; }
+  @media (min-width: 720px) { .cwh-meta { grid-template-columns: repeat(4, 1fr); } }
+  .cwh-meta > div { background: var(--surface); padding: 16px; }
+  .cwh-meta dt { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+  .cwh-meta dd { margin-top: 8px; font-weight: 550; }
+  .cwh-meta .warn { color: var(--warn); }
+  .tasks { list-style: none; padding: 0; display: grid; }
+  .tasks li { display: grid; grid-template-columns: 48px 1fr; gap: 16px; padding: 20px 0; border-top: 1px solid var(--line); }
+  .tasks li:last-child { border-bottom: 1px solid var(--line); }
+  .t-n { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-text); font-size: 13px; border: 1px solid color-mix(in oklab, var(--accent-text) 30%, transparent); }
+  .t-t { font-family: var(--font-body); font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 4px; }
+</style>

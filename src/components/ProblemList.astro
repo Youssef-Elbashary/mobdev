@@ -1,0 +1,40 @@
+---
+/** Accordion of problem → cause → solution → commands. Used by labs, tools, setup and the troubleshooting center. */
+import CmdLine from './CmdLine.astro';
+import { inline, slug } from '@/lib/content';
+interface Problem { id?: string; problem: string; cause?: string; solution: string; commands?: string[]; notes?: string }
+interface Props { items: Problem[]; openFirst?: boolean }
+const { items, openFirst = false } = Astro.props;
+---
+<div class="acc">
+  {items.map((p, i) => (
+    <details class="acc-item" id={p.id ?? slug(p.problem).slice(0, 60)} open={openFirst && i === 0}>
+      <summary>
+        <span class="pl-q"><span class="pl-err mono" aria-hidden="true">ERR</span><span set:html={inline(p.problem)} /></span>
+        <span class="plus" aria-hidden="true"></span>
+      </summary>
+      <div class="acc-body pl-body">
+        {p.cause && (
+          <div class="pl-row"><span class="pl-k mono">Cause</span><p set:html={inline(p.cause)} /></div>
+        )}
+        <div class="pl-row"><span class="pl-k mono ok">Fix</span><p set:html={inline(p.solution)} /></div>
+        {p.commands && p.commands.length > 0 && (
+          <div class="pl-row"><span class="pl-k mono">Run</span><div class="pl-cmds">{p.commands.map((c) => <CmdLine cmd={c} />)}</div></div>
+        )}
+        {p.notes && (
+          <div class="pl-row"><span class="pl-k mono">Note</span><p class="faint" set:html={inline(p.notes)} /></div>
+        )}
+      </div>
+    </details>
+  ))}
+</div>
+<style>
+  .pl-q { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+  .pl-err { flex: none; font-size: 10px; letter-spacing: 0.06em; color: var(--danger); padding: 2px 6px; border-radius: 4px; background: var(--danger-soft); transform: translateY(-2px); }
+  .pl-body { display: grid; gap: 14px; }
+  .pl-row { display: grid; gap: 6px; }
+  @media (min-width: 640px) { .pl-row { grid-template-columns: 64px 1fr; gap: 16px; } }
+  .pl-k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); padding-top: 3px; }
+  .pl-k.ok { color: var(--ok); }
+  .pl-cmds { display: grid; gap: 8px; min-width: 0; }
+</style>

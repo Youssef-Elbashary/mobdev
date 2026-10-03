@@ -1,0 +1,66 @@
+---
+/**
+ * "Every member has their own branch" diagram — branches draw themselves, then merge into main.
+ * <BranchPerMember members={['Member A', 'Member B', 'Member C']} />
+ */
+interface Props { members?: string[] }
+const { members = ['Member A', 'Member B', 'Member C'] } = Astro.props;
+const COLORS = ['#c8ff4d', '#7cb1ff', '#ff8ad8', '#ffb547'];
+const MAIN_Y = 176;
+const branches = members.slice(0, 4).map((m, i) => {
+  const start = 60 + i * 100, y = 44 + i * 42, end = start + 270;
+  return {
+    name: m, color: COLORS[i], y, start, end, i,
+    d: `M ${start} ${MAIN_Y} C ${start + 30} ${MAIN_Y}, ${start + 20} ${y}, ${start + 60} ${y} L ${end - 60} ${y} C ${end - 20} ${y}, ${end - 30} ${MAIN_Y}, ${end} ${MAIN_Y}`,
+    commits: [start + 100, start + 170],
+  };
+});
+---
+<figure class="bpm" data-reveal aria-label={`Each team member works on their own branch and merges into main: ${members.join(', ')}`}>
+  <svg viewBox="0 0 640 210" class="bpm-svg" aria-hidden="true">
+    <path d={`M 20 ${MAIN_Y} H 620`} class="bpm-main" pathLength="1" />
+    <text x="20" y={MAIN_Y + 26} class="bpm-lbl">main</text>
+    {branches.map((b) => (
+      <g class="bpm-br" style={`--c:${b.color}; --i:${b.i}`}>
+        <path d={b.d} pathLength="1" />
+        {b.commits.map((cx, k) => <circle cx={cx} cy={b.y} r="7" class="bpm-commit" style={`--k:${k}`} />)}
+        <circle cx={b.end} cy={MAIN_Y} r="8" class="bpm-merge" />
+        <g class="bpm-who" transform={`translate(${b.start + 60} ${b.y - 22})`}>
+          <rect x="-4" y="-13" width={b.name.length * 7.4 + 30} height="22" rx="11" />
+          <circle cx="8" cy="-2" r="6" />
+          <text x="20" y="3">{b.name}</text>
+        </g>
+      </g>
+    ))}
+  </svg>
+  <ul class="bpm-rules">
+    <li class="stg" style="--i:0"><b>1</b> Own branch</li>
+    <li class="stg" style="--i:1"><b>2</b> Own commits, from your own GitHub account</li>
+    <li class="stg" style="--i:2"><b>3</b> Merge into <code>main</code></li>
+  </ul>
+</figure>
+
+<style>
+  .bpm { margin-inline: 0; margin-bottom: 0; padding: 18px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--code-bg); }
+  .bpm-svg { width: 100%; height: auto; overflow: visible; }
+  .bpm-main { fill: none; stroke: var(--line-2); stroke-width: 5; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+  .bpm-lbl { font: 600 12px var(--font-mono); fill: var(--text-3); }
+  .bpm-br path { fill: none; stroke: var(--c); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+  .bpm-commit { fill: var(--code-bg); stroke: var(--c); stroke-width: 3; opacity: 0; }
+  .bpm-merge { fill: var(--c); opacity: 0; }
+  .bpm-who rect { fill: color-mix(in oklab, var(--c) 18%, var(--code-bg)); stroke: color-mix(in oklab, var(--c) 55%, transparent); }
+  .bpm-who circle { fill: var(--c); }
+  .bpm-who text { font: 600 11.5px var(--font-body); fill: var(--text); }
+  .bpm-who { opacity: 0; }
+  .bpm-rules { list-style: none; padding: 0 !important; margin: 14px 0 0 !important; display: flex; flex-wrap: wrap; gap: 8px; }
+  .bpm-rules li { display: inline-flex; align-items: center; gap: 8px; margin: 0 !important; padding: 6px 12px 6px 6px !important; border-radius: 999px; border: 1px solid var(--line-2); font-size: 13.5px; color: var(--text); }
+  .bpm-rules b { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font: 700 11px var(--font-mono); }
+  /* motion: main → each branch draws, commits pop, merges land */
+  .bpm.in .bpm-main { transition: stroke-dashoffset 1s var(--ease-out); stroke-dashoffset: 0; }
+  .bpm.in .bpm-br path { transition: stroke-dashoffset 1.4s var(--ease-out); transition-delay: calc(500ms + var(--i) * 450ms); stroke-dashoffset: 0; }
+  .bpm.in .bpm-who { animation: bpm-fade 500ms var(--ease-out) forwards; animation-delay: calc(700ms + var(--i) * 450ms); }
+  .bpm.in .bpm-commit { animation: bpm-fade 400ms var(--ease-out) forwards; animation-delay: calc(900ms + var(--i) * 450ms + var(--k) * 200ms); }
+  .bpm.in .bpm-merge { animation: bpm-fade 400ms var(--ease-out) forwards; animation-delay: calc(1700ms + var(--i) * 450ms); }
+  @keyframes bpm-fade { to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .bpm-main, .bpm-br path { stroke-dashoffset: 0; } .bpm-who, .bpm-commit, .bpm-merge { opacity: 1; animation: none; } }
+</style>

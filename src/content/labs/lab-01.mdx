@@ -1,0 +1,598 @@
+---
+number: 1
+title: 'Kick-off — Tools, Git & Your First Expo App'
+description: 'Meet the course and the tools, build a tiny React Native app, then put it on GitHub: create a repo, push, make one branch, merge it on GitHub and pull it back.'
+difficulty: Beginner
+estimatedTime: 1.5 hours
+skills: [React Native, Expo, npm & npx, UI basics, Git, GitHub]
+roadmapStage: getting-started
+objectives:
+  - Know your teaching team and how the coursework works
+  - Explain why we use React Native + Expo instead of native or Flutter
+  - Create, reset and run an Expo app on your phone
+  - Build a tiny screen with the 5 UI basics
+  - Push to GitHub, create one branch, merge it on GitHub and pull it back
+prerequisites:
+  - 'Laptop with **VS Code**, **Node.js LTS** and **Git** installed ([Setup](/setup))'
+  - '**Expo Go** on your phone, or an Android emulator'
+  - An email address for your GitHub account
+troubleshooting:
+  - problem: '"Missing script: reset-project"'
+    cause: The terminal is not inside the project folder.
+    solution: Go into the project folder first, then run it again.
+    commands: ['cd my-first-app', 'npm run reset-project']
+  - problem: Expo Go keeps loading / can't connect
+    cause: Your phone and laptop are on different networks, or the campus Wi-Fi blocks them from reaching each other.
+    solution: Stop the server with Ctrl + C and start it in tunnel mode.
+    commands: ['npx expo start --tunnel']
+  - problem: '"Author identity unknown — Please tell me who you are"'
+    cause: Git doesn't know your name and email yet.
+    solution: Do Task 4.3, then commit again.
+    commands: ['git config --global user.name "Your Name"', 'git config --global user.email "you@bue.edu.eg"']
+  - problem: '"Support for password authentication was removed"'
+    cause: You typed your GitHub password. The terminal only accepts a token.
+    solution: 'Push again and paste your **token** (Task 4.5) where it asks for the password.'
+    commands: ['git push -u origin main']
+  - problem: 403 / "Permission denied" on push (Windows)
+    cause: Windows saved a different GitHub account.
+    solution: 'Open **Credential Manager → Windows Credentials**, remove `git:https://github.com`, then push again and sign in with your token.'
+  - problem: '"error: remote origin already exists"'
+    solution: Point origin at the correct URL instead of adding it again.
+    commands: ['git remote set-url origin https://github.com/your-username/my-first-app.git']
+  - problem: '"error: src refspec main does not match any"'
+    cause: There is no commit yet, or the branch isn't called main.
+    solution: Commit first, then rename the branch and push.
+    commands: ['git add .', 'git commit -m "First commit"', 'git branch -M main', 'git push -u origin main']
+---
+
+export const flow = [
+  { label: 'Push main', where: 'both', lane: 'main', cmd: 'git push' },
+  { label: 'New branch', where: 'laptop', lane: 'branch', cmd: 'git switch -c' },
+  { label: 'Commit a change', where: 'laptop', lane: 'branch', cmd: 'git commit' },
+  { label: 'Push the branch', where: 'both', lane: 'branch', cmd: 'git push' },
+  { label: 'Pull request + merge', where: 'github', lane: 'main' },
+  { label: 'Pull it back', where: 'down', lane: 'main', cmd: 'git pull' },
+];
+
+<Part n="1" title="Meet the course" time="10 min" />
+
+<Task n="1.1" title="Your teaching team" time="2 min">
+
+<TeamCards />
+
+</Task>
+
+<Task n="1.2" title="How the module is graded" time="4 min">
+
+<SplitBar items={[{ label: 'Coursework project', value: 60, sub: 'team of up to 3 students' }, { label: 'Final exam', value: 40, sub: 'written exam' }]} />
+
+The 60% coursework, week by week:
+
+<Timeline items={[
+  { when: 'Week 2', title: 'Team + idea', text: 'Submit your idea for approval' },
+  { when: 'Week 6', title: 'Phase 1', marks: 30, text: 'Diagrams, architecture, **9 screens** (3 each)' },
+  { when: 'Week 12', title: 'Phase 2', marks: 50, text: 'Full app, storage, 3 unit tests, AI log' },
+  { when: 'Final week', title: 'Demo', marks: 20, text: '30-min team demo + questions' },
+]} />
+
+</Task>
+
+<Task n="1.3" title="Every project must have" time="2 min">
+
+<Cards cols={3} items={[
+  { icon: 'map', title: '1 Google API', text: 'Maps, YouTube, Drive, Calendar, Translate…' },
+  { icon: 'camera', title: '1 device feature', text: 'Camera, location, sensors, microphone…' },
+  { icon: 'sparkle', title: 'AI log', text: 'Every prompt → the output → **your changes** → why' },
+]} />
+
+</Task>
+
+<Task n="1.4" title="The Git rule — mandatory" time="2 min">
+
+<BranchPerMember />
+
+> [!IMPORTANT]
+> **Git & GitHub are mandatory for every member of the group.** Each of you commits to the team repo from **your own GitHub account**, on **your own branch**, with **your own commits**. Your commits are the proof of your work.
+
+Today you practise it **alone**: your own repo, one branch, one merge.
+
+</Task>
+
+<Part n="2" title="The tools" time="12 min" />
+
+<Task n="2.1" title="Why React Native?" time="4 min">
+
+<Cards cols={3} items={[
+  { title: 'Native', sub: 'Kotlin + Swift', logos: ['kotlin', 'swift'], tone: 'bad', points: ['+ Fastest, full access to the phone', '- Two apps in two languages', '- Two IDEs to learn'] },
+  { title: 'Flutter', sub: 'Dart', logos: ['flutter'], tone: 'bad', points: ['+ One codebase', '- A new language (Dart)', '- Draws its own widgets'] },
+  { title: 'React Native', sub: 'TypeScript + React', logos: ['react'], tone: 'good', tag: 'We use this', points: ['+ One codebase → Android + iOS', '+ Real native UI', '+ React skills also work on the web'] },
+]} />
+
+</Task>
+
+<Task n="2.2" title="Your toolkit" time="5 min">
+
+<ToolGrid items={[
+  ['react-native', 'The framework: one codebase, two apps'],
+  ['expo', 'Creates and runs the project, with no native setup'],
+  ['expo-go', 'Scan a QR code and the app runs on your phone'],
+  ['code-editor', 'Where you write code and run commands'],
+  ['nodejs', 'Runs the tools · **npm** installs · **npx** runs'],
+  ['git', 'Saves every change and shares it online'],
+  ['nativewind', 'Tailwind-style styling (we use it later)'],
+  ['android-studio', 'The emulator: a phone on your laptop'],
+]} />
+
+</Task>
+
+<Task n="2.3" title="Install the VS Code extensions" time="3 min">
+
+<Cards compact items={[
+  { icon: 'bug', title: 'ESLint', text: 'Flags bugs as you type' },
+  { icon: 'sparkle', title: 'Prettier', text: 'Formats your code on save' },
+  { icon: 'alert', title: 'Error Lens', text: 'Shows errors on the line' },
+  { icon: 'phone', title: 'Expo Tools', text: 'Autocomplete for app.json' },
+  { icon: 'play', title: 'React Native Tools', text: 'Debugging support' },
+  { icon: 'git', title: 'GitLens', text: 'Who changed each line' },
+  { icon: 'cmd', title: 'ES7+ Snippets', text: 'Type `rnfe` for a full component' },
+  { icon: 'grid', title: 'Tailwind IntelliSense', text: 'Hints for NativeWind classes' },
+]} />
+
+Paste this in the VS Code terminal to install them all:
+
+<Terminal title="Terminal — install extensions" lines={[
+  '$ code --install-extension dbaeumer.vscode-eslint',
+  '$ code --install-extension esbenp.prettier-vscode',
+  '$ code --install-extension usernamehw.errorlens',
+  '$ code --install-extension expo.vscode-expo-tools',
+  '$ code --install-extension msjsdiag.vscode-react-native',
+  '$ code --install-extension eamodio.gitlens',
+  '$ code --install-extension dsznajder.es7-react-js-snippets',
+  '$ code --install-extension bradlc.vscode-tailwindcss',
+]} />
+
+</Task>
+
+<Part n="3" title="Build your first app" time="28 min" />
+
+<Task n="3.1" title="Open VS Code & the terminal" time="3 min">
+
+<VsCode />
+
+1. **Explorer**: your project's files and folders
+2. **Editor**: where you write code
+3. **Terminal**: where you type commands. Open it with **Terminal → New Terminal** or ``Ctrl + ` ``
+4. **Source Control**: Git inside VS Code
+5. **Extensions**: install the extensions from Task 2.3
+
+Two words you'll type all the time:
+
+<Cards cols={2} items={[
+  { icon: 'download', title: 'npm', sub: 'Node Package Manager', text: '**Installs** packages into your project', code: 'npm install' },
+  { icon: 'play', title: 'npx', sub: 'Node Package eXecute', text: '**Runs** a package, without installing it', code: 'npx create-expo-app@latest' },
+]} />
+
+Check that everything is installed:
+
+<Terminal lines={['$ node -v', 'v22.12.0', '$ npm -v', '10.9.0', '$ npx -v', '10.9.0', '$ git -v', 'git version 2.47.1', '# any version numbers are fine']} />
+
+</Task>
+
+<Task n="3.2" title="Create the project" time="5 min">
+
+In the terminal, go to the folder where you keep your course work (for example `cd Documents`), then run:
+
+<Explain parts={[
+  ['npx', 'run a package without installing it'],
+  ['create-expo-app@latest', 'the tool that creates an Expo project. `@latest` = newest version'],
+  ['my-first-app', 'the name of the new folder'],
+]} />
+
+<Terminal title="Terminal — create" lines={[
+  '$ npx create-expo-app@latest my-first-app',
+  '? Need to install the following packages: create-expo-app  Ok to proceed? (y) y',
+  'Creating an Expo project using the default template.',
+  '✔ Downloaded and extracted project files.',
+  '✔ Installed JavaScript dependencies.',
+  '> ✅ Your project is ready!',
+]} />
+
+<Checkpoint>
+
+You see **✅ Your project is ready!** and a new folder called `my-first-app`.
+
+</Checkpoint>
+
+</Task>
+
+<Task n="3.3" title="Open it & know your folder" time="2 min">
+
+<Explain parts={[['cd', 'change directory: go into a folder'], ['my-first-app', 'the folder you just created']]} />
+
+<Explain parts={[['code', 'open VS Code'], ['.', 'this folder (the dot means "here")']]} />
+
+<FileTree title="my-first-app (before reset)" lines={[
+  'app/ # the demo screens',
+  'assets/ # images & fonts',
+  'components/ # demo components',
+  'constants/ -',
+  'hooks/ -',
+  'scripts/ # contains reset-project.js',
+  '.gitignore # made for you',
+  'app.json # app name, icon, settings',
+  'package.json # packages + scripts',
+  'README.md',
+]} />
+
+</Task>
+
+<Task n="3.4" title="Reset the project" time="3 min">
+
+The starter comes with demo screens. Reset it to a blank app:
+
+<Explain parts={[['npm run', 'run a script written in package.json'], ['reset-project', 'the script that clears the demo app']]} />
+
+<Terminal title="Terminal — reset" lines={[
+  '$ npm run reset-project',
+  '? Do you want to move existing files to /app-example instead of deleting them? (Y/n): Y',
+  '📁 /app-example directory created.',
+  '📁 New /app directory created.',
+  '📄 app/index.tsx created.',
+  '📄 app/_layout.tsx created.',
+  '> ✅ Project reset complete.',
+]} />
+
+<FileTree title="my-first-app (after reset)" lines={[
+  'app/',
+  '  _layout.tsx # the app shell',
+  '  index.tsx # YOUR first screen *',
+  'app-example/ # the old demo, kept for reference -',
+  'assets/',
+  '.gitignore',
+  'package.json',
+  'README.md',
+]} />
+
+</Task>
+
+<Task n="3.5" title="Run it on your phone" time="5 min">
+
+<Explain parts={[['npx', 'run a package'], ['expo', 'the Expo command-line tool'], ['start', 'start the development server']]} />
+
+<Terminal title="Terminal — dev server" lines={[
+  '$ npx expo start',
+  'Starting Metro Bundler',
+  '[qr]',
+  '> › Metro waiting on exp://192.168.1.5:8081',
+  '› Scan the QR code above with Expo Go (Android) or the Camera app (iOS)',
+  '› Press a │ open Android',
+  '› Press r │ reload app',
+  '# Ctrl + C stops the server',
+]} />
+
+<Cards cols={3} items={[
+  { icon: 'phone', title: 'Phone', text: 'Open **Expo Go** and scan the QR code. Use the **same Wi-Fi** as your laptop.' },
+  { icon: 'laptop', title: 'Emulator', text: 'Start it in Android Studio, then press **a** in the terminal.' },
+  { icon: 'alert', title: "Won't connect?", text: 'Stop the server and run `npx expo start --tunnel`.' },
+]} />
+
+<Checkpoint>
+
+Your phone shows the blank starter screen:
+
+<AppPhone blank size={210} plain />
+
+</Checkpoint>
+
+</Task>
+
+<Task n="3.6" title="Build a tiny UI — the 5 basics" time="10 min">
+
+<AppPhone markers />
+
+1. **`View`**: the box that holds everything (like a `div`)
+2. **`Image`**: a picture from a file or a URL (like `img`)
+3. **`Text`**: **all** text must be inside `Text` (like `p`)
+4. **`TextInput`**: a box the user can type in (like `input`)
+5. **`Pressable`**: anything the user can tap (like `button`)
+
+Open `app/index.tsx`, delete everything and paste:
+
+```tsx title="app/index.tsx" {2}
+import { useState } from 'react';
+import { View, Text, Image, TextInput, Pressable, StyleSheet } from 'react-native';
+
+export default function Index() {
+  const [name, setName] = useState('');   // what the user typed
+  const [count, setCount] = useState(0);   // how many taps
+
+  return (
+    <View style={styles.screen}>
+      <Image source={{ uri: 'https://reactnative.dev/img/tiny_logo.png' }} style={styles.logo} />
+      <Text style={styles.title}>Hello, {name || 'Mobile Dev'} 👋</Text>
+      <TextInput style={styles.input} placeholder="Type your name…" value={name} onChangeText={setName} />
+      <Pressable style={styles.button} onPress={() => setCount(count + 1)}>
+        <Text style={styles.buttonText}>Tapped {count} times</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24 },
+  logo: { width: 64, height: 64 },
+  title: { fontSize: 24, fontWeight: '700' },
+  input: { width: '100%', borderWidth: 1, borderColor: '#ccc', borderRadius: 10, padding: 12 },
+  button: { backgroundColor: '#111', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 10 },
+  buttonText: { color: '#fff', fontWeight: '600' },
+});
+```
+
+<Checkpoint>
+
+Save. The phone updates by itself (**Fast Refresh**). Type your name and tap the button:
+
+<AppPhone name="Mariam" count={3} size={210} plain />
+
+</Checkpoint>
+
+</Task>
+
+<Part n="4" title="Git & GitHub" time="40 min" />
+
+Your mission for Part 4. You work **alone**: your own repo, **one** branch, merged **on GitHub**, then pulled back to your laptop.
+
+<GitFlow steps={flow} branch="feature/add-footer" />
+
+<Task n="4.1" title="README & .gitignore" time="2 min">
+
+<FileTree title="my-first-app" lines={['app/', 'assets/', '.gitignore # made by Expo: do NOT touch *', 'package.json', 'README.md # write your own *']} />
+
+Replace everything in `README.md` with:
+
+```md title="README.md"
+# My First App
+
+Lab 01 — Mobile Application Development (25CSCI38H)
+Made by: Your Name · Student ID: 123456
+
+Run it: npm install, then npx expo start
+```
+
+> [!TIP]
+> `.gitignore` tells Git which files **not** to upload, like `node_modules` (thousands of files). Expo created it for you, so leave it alone. Only if it is **missing**, create it with the lines below.
+
+```text title=".gitignore (only if missing)"
+node_modules/
+.expo/
+dist/
+*.log
+.env
+```
+
+</Task>
+
+<Task n="4.2" title="Create your GitHub account" time="4 min">
+
+Go to **github.com/signup**:
+
+<GhSignup />
+
+1. **Email**: an address you can open right now. GitHub sends you a code
+2. **Password**: long and new, not your university password
+3. **Username**: your public name, as in `github.com/username`. Keep it professional (e.g. `mariam-ahmed`)
+4. **Country/Region**: where you live
+5. **Continue**: next, solve the short puzzle, then type the **code from your email**
+
+</Task>
+
+<Task n="4.3" title="Tell Git who you are" time="2 min">
+
+<Explain parts={[
+  ['git config', 'change a Git setting'],
+  ['--global', 'for every project on this laptop'],
+  ['user.name', 'the setting: your name'],
+  ['"Your Name"', 'the value, in quotes'],
+]} />
+
+<Terminal lines={[
+  '$ git config --global user.name "Your Name"',
+  '$ git config --global user.email "you@bue.edu.eg"',
+  '# use the SAME email as your GitHub account',
+]} />
+
+</Task>
+
+<Task n="4.4" title="Create the repository" time="4 min">
+
+<ClickPath steps={['+ (top-right corner)', 'New repository']} />
+
+<GhNewRepo />
+
+1. **Repository template**: leave it as **No template**
+2. **Owner**: you
+3. **Repository name**: `my-first-app`. GitHub shows ✓ if the name is free
+4. **Description** *(optional)*: one line about the project
+5. **Public / Private**: pick **Public** today so your TA can see it. Private = only people you invite
+6. **README / .gitignore / License**: leave them all **off**. Your project already has them
+7. **Create repository**
+
+<Checkpoint title="You'll land here">
+
+<GhQuickSetup />
+
+1. **HTTPS**: keep HTTPS selected
+2. **Copy** your repository URL. You need it in Task 4.6
+3. These 3 commands are exactly what you run in Task 4.6
+
+</Checkpoint>
+
+</Task>
+
+<Task n="4.5" title="Create a token" time="6 min">
+
+GitHub does **not** accept your password in the terminal. It wants a **token**: a long, secret password made just for Git.
+
+<ClickPath steps={['Profile picture', 'Settings', 'Developer settings', 'Personal access tokens', 'Tokens (classic)', 'Generate new token', 'Generate new token (classic)']} />
+
+<GhToken />
+
+1. **Note**: a name so you remember what it's for, e.g. `mobile-dev-laptop`
+2. **Expiration**: **90 days** lasts the whole semester
+3. **repo**: tick it. This lets the token push to your repositories
+4. **Generate token**
+
+<GhToken done />
+
+1. GitHub shows the token **only once**
+2. **Copy it now** and keep it somewhere safe. If you lose it, just make a new one
+
+> [!WARNING]
+> A token works like your password. Never share it, never paste it in your code, never commit it.
+
+</Task>
+
+<Task n="4.6" title="Commit & push" time="6 min">
+
+<GitFlow steps={flow} current={1} compact branch="feature/add-footer" />
+
+<Terminal title="Terminal — first push" lines={[
+  '$ git status',
+  '# shows what changed',
+  '$ git add .',
+  '# stage everything (. = this folder)',
+  '$ git commit -m "Lab 01: first screen + README"',
+  '# save a snapshot with a message',
+  '$ git branch -M main',
+  '# make sure the branch is called main',
+  '$ git remote add origin https://github.com/your-username/my-first-app.git',
+  '# connect to your GitHub repo (paste YOUR url)',
+  '$ git push -u origin main',
+]} />
+
+<Explain parts={[['git push', 'upload your commits'], ['-u', 'remember where to push, so next time `git push` is enough'], ['origin', 'nickname of your GitHub repo'], ['main', 'the branch to upload']]} />
+
+**Sign in when asked.** On Windows this window pops up:
+
+<GcmDialog />
+
+1. Click the **Token** tab
+2. **Paste your token**
+3. **Sign in**. Windows remembers it for next time
+
+On macOS or Linux the terminal asks instead. Paste the token as the password. Nothing shows while you paste; that's normal:
+
+<Terminal title="Terminal — macOS / Linux" lines={[
+  "? Username for 'https://github.com': your-username",
+  "? Password for 'https://your-username@github.com': (paste your token)",
+  'Enumerating objects: 25, done.',
+  'To https://github.com/your-username/my-first-app.git',
+  '>  * [new branch]      main -> main',
+  "branch 'main' set up to track 'origin/main'.",
+]} />
+
+<Checkpoint>
+
+Refresh your repo page on GitHub. Your files are there.
+
+</Checkpoint>
+
+</Task>
+
+<Task n="4.7" title="Create a branch & change something" time="4 min">
+
+<GitFlow steps={flow} current={2} compact branch="feature/add-footer" />
+
+<Explain parts={[['git switch', 'move to a branch'], ['-c', 'create it first'], ['feature/add-footer', 'the new branch name']]} />
+
+<Terminal lines={['$ git switch -c feature/add-footer', "Switched to a new branch 'feature/add-footer'"]} />
+
+Add a footer under the button in `app/index.tsx`:
+
+```tsx title="app/index.tsx" {5,10}
+      <Pressable style={styles.button} onPress={() => setCount(count + 1)}>
+        <Text style={styles.buttonText}>Tapped {count} times</Text>
+      </Pressable>
+
+      <Text style={styles.footer}>Made by Your Name</Text>
+    </View>
+  );
+}
+// … and inside StyleSheet.create:
+  footer: { color: '#666', fontSize: 12 },
+```
+
+<Terminal lines={['$ git add .', '$ git commit -m "Add footer with my name"', '# this commit exists only on the branch']} />
+
+<Checkpoint>
+
+<AppPhone name="Mariam" count={3} footer="Made by Mariam" size={210} plain />
+
+</Checkpoint>
+
+</Task>
+
+<Task n="4.8" title="Push the branch" time="2 min">
+
+<GitFlow steps={flow} current={4} compact branch="feature/add-footer" />
+
+<Terminal title="Terminal — push branch" lines={[
+  '$ git push -u origin feature/add-footer',
+  "remote: Create a pull request for 'feature/add-footer' on GitHub by visiting:",
+  'remote:      https://github.com/your-username/my-first-app/pull/new/feature/add-footer',
+  '>  * [new branch]      feature/add-footer -> feature/add-footer',
+]} />
+
+</Task>
+
+<Task n="4.9" title="Merge it on GitHub" time="6 min">
+
+<GitFlow steps={flow} current={5} compact branch="feature/add-footer" />
+
+Open your repo on GitHub:
+
+<GhPullRequest stage="banner" />
+
+1. **Compare & pull request**: GitHub noticed your new branch. Click the green button
+
+<GhPullRequest stage="open" />
+
+1. **base: main**: the branch that **receives** the changes
+2. **compare: feature/add-footer**: the branch that **gives** the changes
+3. **Able to merge**: no conflicts, safe to merge
+4. **Title**: what this change does
+5. **Description**: optional, a short explanation
+6. **Create pull request**
+
+<GhPullRequest stage="merge" />
+
+1. **Merge pull request**: joins your branch into `main`
+2. **Confirm merge**: click to confirm
+3. **Merged** ✓. You can now **Delete branch**; its commits are safe inside `main`
+
+</Task>
+
+<Task n="4.10" title="Pull it back" time="4 min">
+
+<GitFlow steps={flow} current={6} compact branch="feature/add-footer" />
+
+<Terminal title="Terminal — pull" lines={[
+  '$ git switch main',
+  "Switched to branch 'main'",
+  '# the footer DISAPPEARS: main on your laptop does not have it yet',
+  '$ git pull',
+  'Updating a1b2c3d..e4f5a6b',
+  'Fast-forward',
+  '>  app/index.tsx | 4 ++++',
+  '# the footer is back, now on main',
+]} />
+
+<BeforeAfter before={{ name: 'Mariam', count: 3 }} after={{ name: 'Mariam', count: 3, footer: 'Made by Mariam' }} action="git pull" />
+
+<Checkpoint title="Mission complete">
+
+Your repo on GitHub has your app, your branch is merged into `main`, and your laptop is up to date. 🎉
+
+</Checkpoint>
+
+</Task>

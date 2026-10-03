@@ -1,0 +1,75 @@
+---
+/**
+ * Visual cards. Points starting with "+ " get a ✓, "- " get a ✗.
+ * <Cards cols={3} items={[{ title, sub, logos: ['react'], tone: 'good', points: ['+ …', '- …'], code, tag }]} />
+ * logos = file names in src/assets/tools (without .svg). icon = name from Icon.astro.
+ */
+import type { ImageMetadata } from 'astro';
+import Icon from '../Icon.astro';
+import { inline } from '@/lib/content';
+
+type Item = { title: string; sub?: string; text?: string; code?: string; logos?: string[]; icon?: string; tone?: 'good' | 'bad' | 'neutral'; points?: string[]; tag?: string };
+interface Props { items: Item[]; cols?: number; compact?: boolean }
+const { items, cols = items.length, compact = false } = Astro.props;
+const logoFiles = import.meta.glob<ImageMetadata>('/src/assets/tools/*.svg', { eager: true, import: 'default' });
+const logo = (name: string) => logoFiles[`/src/assets/tools/${name}.svg`];
+---
+<div class="cards-c" data-reveal>
+<div class:list={['cards', { compact }]} style={`--cols:${Math.min(cols, 4)}; --cols2:${Math.min(cols, 2)}; --cols3:${Math.min(cols, 3)}`}>
+  {items.map((it, i) => (
+    <div class:list={['card', 'stg', it.tone]} style={`--i:${i}`}>
+      {it.tag && <span class="card-tag mono">{it.tag}</span>}
+      {(it.logos?.length || it.icon) && (
+        <div class="card-logos">
+          {it.logos?.map((l) => logo(l) && <span class="lg"><img src={logo(l)!.src} alt="" width="26" height="26" loading="lazy" /></span>)}
+          {it.icon && <span class="lg ic"><Icon name={it.icon as any} size={20} /></span>}
+        </div>
+      )}
+      <p class="card-title">{it.title}</p>
+      {it.sub && <p class="card-sub mono">{it.sub}</p>}
+      {it.text && <p class="card-text" set:html={inline(it.text)} />}
+      {it.points && (
+        <ul class="card-pts">
+          {it.points.map((p) => {
+            const kind = p.startsWith('+ ') ? 'yes' : p.startsWith('- ') ? 'no' : 'dot';
+            return <li class={kind}><span class="pi" aria-hidden="true">{kind === 'yes' ? '✓' : kind === 'no' ? '✕' : '•'}</span><span set:html={inline(kind === 'dot' ? p : p.slice(2))} /></li>;
+          })}
+        </ul>
+      )}
+      {it.code && <code class="card-code">{it.code}</code>}
+    </div>
+  ))}
+</div>
+</div>
+
+<style>
+  /* columns follow the space the cards actually get (container queries), not the window */
+  .cards-c { container-type: inline-size; }
+  .cards { display: grid; gap: 12px; grid-template-columns: 1fr; }
+  @container (min-width: 440px) { .cards { grid-template-columns: repeat(var(--cols2), 1fr); } }
+  @container (min-width: 600px) { .cards:not(.compact) { grid-template-columns: repeat(var(--cols3), 1fr); } }
+  @container (min-width: 860px) { .cards:not(.compact) { grid-template-columns: repeat(var(--cols), 1fr); } }
+  .cards.compact .card { display: grid; grid-template-columns: 42px 1fr; column-gap: 12px; row-gap: 0; align-items: center; padding: 12px 14px; }
+  .cards.compact .card-logos { grid-row: span 2; margin: 0; }
+  .cards.compact .card-title { font-size: 1rem; font-family: var(--font-body); font-weight: 650; }
+  .cards.compact .card-text { font-size: 13.5px; }
+  .card { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 18px; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface); transition: transform var(--t-med) var(--ease-out), border-color var(--t-med); }
+  .card:hover { transform: translateY(-3px); border-color: var(--line-2); }
+  .card.good { border-color: color-mix(in oklab, var(--accent-text) 55%, var(--line)); background: linear-gradient(160deg, var(--accent-soft), var(--surface) 60%); box-shadow: 0 16px 40px -24px var(--accent-glow); }
+  .card.bad { opacity: 0.92; }
+  .card-tag { position: absolute; top: 14px; right: 14px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .card-logos { display: flex; gap: 6px; margin-bottom: 6px; }
+  .lg { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: linear-gradient(160deg, #fff, #eef0ec); border: 1px solid rgb(0 0 0 / 0.06); }
+  .lg img { width: 24px; height: 24px; object-fit: contain; }
+  .lg.ic { background: var(--surface-2); border-color: var(--line-2); color: var(--accent-text); }
+  .card-title { font-family: var(--font-display); font-weight: 650; font-size: var(--fs-lg); letter-spacing: -0.02em; color: var(--text); line-height: 1.15; }
+  .card-sub { font-size: 11.5px; color: var(--text-3); margin-top: -4px; }
+  .card-text { color: var(--text-2); font-size: 14.5px; }
+  .card-pts { list-style: none; padding: 0 !important; margin: 4px 0 0 !important; display: grid; gap: 6px; }
+  .card-pts li { display: grid; grid-template-columns: 18px 1fr; gap: 6px; margin: 0 !important; font-size: 14px; color: var(--text-2); }
+  .pi { font-weight: 700; }
+  .card-pts .yes .pi { color: var(--ok); }
+  .card-pts .no .pi { color: var(--danger); }
+  .card-pts .dot .pi { color: var(--text-3); }
+  .card-code { margin-top: auto; align-self: flex-start; font-size: 12.5px !important; }
+</style>

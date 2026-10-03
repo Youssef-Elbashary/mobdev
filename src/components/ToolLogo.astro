@@ -1,0 +1,30 @@
+---
+/** Tool logo tile. Uses the tool's image when provided, otherwise a monogram. */
+import type { ImageMetadata } from 'astro';
+interface Props { logo?: ImageMetadata; monogram?: string; name: string; color?: string; size?: number; class?: string }
+const { logo, monogram, name, color = 'var(--accent)', size = 56, class: cls } = Astro.props;
+---
+<span class:list={['tlogo', cls, { img: !!logo }]} style={`--sz:${size}px; --c:${color}`}>
+  {logo ? (
+    <img src={logo.src} alt={`${name} logo`} width={Math.round(size * 0.6)} height={Math.round(size * 0.6)} loading="lazy" decoding="async" />
+  ) : (
+    <span class="mono" aria-hidden="true">{monogram ?? name.slice(0, 2)}</span>
+  )}
+</span>
+<style>
+  .tlogo {
+    flex: none; width: var(--sz); height: var(--sz); border-radius: calc(var(--sz) * 0.28);
+    display: grid; place-items: center; font-weight: 600; font-size: calc(var(--sz) * 0.27);
+    color: var(--c); background: color-mix(in oklab, var(--c) 12%, transparent);
+    border: 1px solid color-mix(in oklab, var(--c) 35%, transparent);
+    transition: transform var(--t-med) var(--ease-out), box-shadow var(--t-med);
+  }
+  /* image logos sit on a light "app icon" tile so dark marks stay visible in both themes */
+  .tlogo.img {
+    background: linear-gradient(160deg, #ffffff, #eef0ec);
+    border-color: rgb(0 0 0 / 0.06);
+    box-shadow: 0 1px 0 rgb(255 255 255 / 0.6) inset, 0 10px 24px -12px color-mix(in oklab, var(--c) 70%, transparent);
+  }
+  .tlogo img { width: 60%; height: 60%; object-fit: contain; color: #111; }
+  :global(:root[data-theme='light']) .tlogo:not(.img) { color: color-mix(in oklab, var(--c) 70%, #000); }
+</style>

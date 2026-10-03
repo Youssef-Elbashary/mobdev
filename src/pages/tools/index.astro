@@ -1,0 +1,57 @@
+---
+import Base from '@/layouts/Base.astro';
+import PageHeader from '@/components/PageHeader.astro';
+import EmptyState from '@/components/EmptyState.astro';
+import Icon from '@/components/Icon.astro';
+import ToolLogo from '@/components/ToolLogo.astro';
+import { getTools, groupBy } from '@/lib/content';
+const tools = await getTools();
+const groups = [...groupBy(tools, (t) => t.data.category)];
+---
+<Base title="Tools" description="Every tool used in the Mobile Development course — what it is, why we use it and how to install it.">
+  <PageHeader eyebrow="Development toolkit" title="The tools <span class='accent'>of the trade.</span>" lead="Everything you'll install this term. Each page explains why we use it, how to install and configure it, and how to fix it when it breaks." crumbs={[{ label: 'tools' }]}>
+    <a href="/setup" class="btn btn-primary">Guided setup <Icon name="arrow" class="arrow" /></a>
+  </PageHeader>
+
+  <section class="container tools-wrap">
+    {tools.length === 0 ? (
+      <EmptyState title="No tools listed yet." body="Tools will appear here as they're added." path="tools/" />
+    ) : groups.map(([cat, items]) => (
+      <div class="tg">
+        <h2 class="tg-cat mono">{cat}</h2>
+        <ul class="tg-list">
+          {items.map((t, i) => (
+            <li data-reveal style={`--d:${i * 50}ms`}>
+              <a href={`/tools/${t.id}`} class="row tool-row" style={`--c:${t.data.color ?? 'var(--accent)'}`}>
+                <ToolLogo logo={t.data.logo} monogram={t.data.monogram} name={t.data.name} color={t.data.color} />
+                <span class="tl-main">
+                  <span class="tl-name">{t.data.name}{!t.data.required && <span class="badge badge-optional tl-opt">Optional</span>}</span>
+                  <span class="tl-desc">{t.data.description}</span>
+                </span>
+                <span class="tl-plat">
+                  {t.data.platforms.map((p) => <span class="badge">{p}</span>)}
+                </span>
+                <span class="go"><Icon name="arrow-up-right" /></span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ))}
+  </section>
+</Base>
+<style>
+  .tools-wrap { padding-block: 48px var(--section-y); display: grid; gap: 56px; }
+  .tg { display: grid; gap: 16px; }
+  @media (min-width: 1024px) { .tg { grid-template-columns: 220px 1fr; gap: 48px; } }
+  .tg-cat { font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); padding-top: 26px; }
+  .tg-list { list-style: none; padding: 0; border-top: 1px solid var(--line); }
+  .tool-row { grid-template-columns: 56px 1fr 36px; }
+  @media (min-width: 860px) { .tool-row { grid-template-columns: 56px 1fr auto 36px; } }
+  .tl-opt { margin-left: 10px; vertical-align: 4px; }
+  .tl-main { display: grid; gap: 4px; min-width: 0; }
+  .tl-name { font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 600; letter-spacing: -0.02em; }
+  .tl-desc { color: var(--text-3); font-size: 14.5px; }
+  .tl-plat { display: none; gap: 6px; }
+  @media (min-width: 860px) { .tl-plat { display: flex; } }
+</style>

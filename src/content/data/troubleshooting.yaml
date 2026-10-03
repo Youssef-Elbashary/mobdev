@@ -1,0 +1,127 @@
+# TROUBLESHOOTING CENTER
+# Categories are grouped automatically, in the order they first appear.
+- id: node-not-found
+  category: Installation
+  problem: "'node' or 'npm' is not recognized"
+  cause: Node.js is not installed, or your terminal was opened before installation finished so PATH was not refreshed.
+  solution: Install Node.js LTS, then close every terminal (and your editor) and open a new one.
+  commands: ['node -v', 'npm -v']
+- id: disk-space
+  category: Installation
+  problem: Installer fails with "not enough space"
+  cause: The SDK, system images and emulator need 15 GB or more.
+  solution: Free space or install the SDK to another drive via Android Studio → Settings → Android SDK Location.
+- id: sdk-location
+  category: Tool Problems
+  problem: "SDK location not found. Define ANDROID_HOME"
+  cause: The ANDROID_HOME environment variable is missing.
+  solution: Set ANDROID_HOME to your SDK folder and add platform-tools to PATH. See the SDK setup guide.
+  commands: ['echo $ANDROID_HOME', 'adb --version']
+  notes: On Windows the SDK is usually at C:\Users\<you>\AppData\Local\Android\Sdk
+- id: reset-missing
+  category: Build Errors
+  problem: '"Missing script: reset-project"'
+  cause: You are not inside the project folder, or your template has no reset script.
+  solution: cd into the project folder, then list the available scripts.
+  commands: ['cd my-team-app', 'npm run']
+- id: npxexpo
+  category: Build Errors
+  problem: "'npxexpo' is not recognized"
+  cause: A missing space.
+  solution: It is two words — npx expo start.
+  commands: ['npx expo start']
+- id: metro-port
+  category: Build Errors
+  problem: "Port 8081 is already in use"
+  cause: Another Metro server is still running (often in a forgotten terminal tab).
+  solution: Stop the other server with Ctrl + C, or free the port.
+  commands: ['npx kill-port 8081']
+- id: module-not-found
+  category: Build Errors
+  problem: "Unable to resolve module …"
+  cause: A package is not installed, or an import path is misspelled (paths are case-sensitive).
+  solution: Check the import path. If it is a package, install it and restart with a clean cache.
+  commands: ['npx expo install <package>', 'npx expo start -c']
+- id: red-screen
+  category: Runtime Errors
+  problem: Red error screen on launch
+  cause: A JavaScript error was thrown while rendering.
+  solution: Read the first line — it names the error and the file. Tap the stack trace to jump to the exact line.
+- id: undefined-not-object
+  category: Runtime Errors
+  problem: "TypeError: undefined is not an object"
+  cause: You accessed a property of a value that hasn't loaded yet — typically API data on first render.
+  solution: Guard with optional chaining (`data?.items`) or render a loading state until data exists.
+- id: emulator-accel
+  category: Emulator Problems
+  problem: Emulator is very slow or refuses to start
+  cause: Hardware virtualisation is disabled.
+  solution: Enable VT-x / AMD-V in BIOS/UEFI. On Windows, enable "Windows Hypervisor Platform" in Windows Features.
+- id: emulator-offline
+  category: Emulator Problems
+  problem: adb shows the emulator as "offline"
+  cause: The ADB server lost connection.
+  solution: Restart the ADB server.
+  commands: ['adb kill-server', 'adb start-server', 'adb devices']
+- id: git-auth
+  category: Git Problems
+  problem: '"Authentication failed" on git push'
+  cause: GitHub no longer accepts account passwords over HTTPS.
+  solution: Sign in with the GitHub CLI or Git Credential Manager, or use a personal access token.
+  commands: ['gh auth login']
+- id: git-origin-exists
+  category: Git Problems
+  problem: '"error: remote origin already exists"'
+  solution: Point origin at the correct URL instead of adding it again.
+  commands: ['git remote -v', 'git remote set-url origin <repository-url>']
+- id: git-refspec
+  category: Git Problems
+  problem: '"error: src refspec main does not match any"'
+  cause: No commit yet, or the branch is not named main.
+  solution: Commit first, then rename the branch and push.
+  commands: ['git add .', 'git commit -m "First commit"', 'git branch -M main', 'git push -u origin main']
+- id: git-rejected
+  category: Git Problems
+  problem: '"Updates were rejected because the remote contains work that you do not have"'
+  cause: A teammate pushed first.
+  solution: Pull their changes, then push again.
+  commands: ['git pull --rebase', 'git push']
+- id: git-403
+  category: Git Problems
+  problem: '403 / "Permission denied" when pushing to the team repo'
+  cause: You are not a collaborator yet, or you have not accepted the invite.
+  solution: The repo owner adds you in Settings → Collaborators. Accept the email invite, then push again.
+- id: git-on-main
+  category: Git Problems
+  problem: I committed on main instead of my branch
+  solution: Create your branch from here (it keeps the commit), push it, and ask the leader not to push main until you merge.
+  commands: ['git switch -c <your-name>', 'git push -u origin <your-name>']
+- id: git-merge-conflict
+  category: Git Problems
+  problem: CONFLICT (content) — merge conflict
+  cause: The same lines changed on both sides.
+  solution: Open the files marked as conflicted, choose which changes to keep, remove the <<<<<<< ======= >>>>>>> markers, then stage and commit.
+  commands: ['git status', 'git add <file>', 'git commit']
+- id: expo-go-sdk
+  category: Emulator Problems
+  problem: '"Project is incompatible with this version of Expo Go"'
+  cause: Expo Go only supports one Expo SDK version at a time.
+  solution: Update Expo Go from the store. Check your project SDK version.
+  commands: ['npx expo --version', 'npx expo install --fix']
+- id: expo-go-connect
+  category: Emulator Problems
+  problem: Expo Go can't connect to the dev server
+  cause: Phone and laptop on different networks, or campus Wi-Fi blocks device-to-device traffic.
+  solution: Use the same network, or tunnel mode. Or press a to use the Android emulator.
+  commands: ['npx expo start --tunnel']
+- id: network-request-failed
+  category: Networking / API Problems
+  problem: '"Network request failed" when calling a local API'
+  cause: On a phone or emulator, "localhost" points to the device itself, not your computer.
+  solution: Use your computer's LAN IP (e.g. 192.168.1.20), or 10.0.2.2 from the Android emulator. Make sure the server listens on 0.0.0.0.
+  commands: ['ipconfig']
+- id: cleartext
+  category: Networking / API Problems
+  problem: HTTP request blocked on Android
+  cause: Android blocks plain http:// traffic by default.
+  solution: Use https:// endpoints. For local development only, allow cleartext in the app config.

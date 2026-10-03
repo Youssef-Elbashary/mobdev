@@ -1,0 +1,19 @@
+---
+/** On-page navigation. Pass template sections + markdown headings. */
+interface Item { depth: number; slug: string; text: string }
+interface Props { items: Item[]; title?: string }
+const OS = /^(windows|macos|linux)$/i;
+const { items, title = 'On this page' } = Astro.props;
+const list = items.filter((h) => h.depth <= 3 && !OS.test(h.text.trim()));
+---
+{list.length > 0 && (
+  <nav class="toc" aria-label="On this page">
+    <p class="toc-title">{title}</p>
+    <ol>
+      {list.map((h) => (
+        <li class={`d${h.depth}`}><a href={`#${h.slug}`}>{h.text.replace(/^\d*Step\s+(\d+)\s*[—–:-]+\s*/i, (_, n) => `${n.padStart(2, '0')} · `)}</a></li>
+      ))}
+    </ol>
+    <slot />
+  </nav>
+)}

@@ -1,0 +1,21 @@
+---
+import Base from '@/layouts/Base.astro';
+import Icon from '@/components/Icon.astro';
+---
+<Base title="Not found">
+  <section class="nf container">
+    <p class="mono nf-code"><span class="accent">$</span> open {Astro.url.pathname}</p>
+    <p class="mono nf-err">error: route not found (404)</p>
+    <h1 class="h-1 mt-8">This screen<br />doesn't exist.</h1>
+    <p class="lead mt-6">The page may have moved, or the link has a typo. Try searching for what you need.</p>
+    <div class="flex wrap gap-3 mt-8">
+      <button class="btn btn-primary" data-search-open><Icon name="search" /> Search the course</button>
+      <a href="/" class="btn btn-ghost">Back home</a>
+    </div>
+  </section>
+</Base>
+<style>
+  .nf { padding-block: calc(var(--nav-h) + 120px) 160px; }
+  .nf-code { font-size: 14px; color: var(--text-2); }
+  .nf-err { font-size: 14px; color: var(--danger); margin-top: 6px; }
+</style>

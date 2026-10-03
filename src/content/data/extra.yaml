@@ -1,0 +1,46 @@
+# EXTRA LEARNING — optional material, clearly separated from required work.
+- id: best-practices
+  category: Best Practices
+  title: Write code future-you can read
+  summary: Small components, clear names, one responsibility per file.
+  points: [Keep components under ~150 lines, Name files after what they export, Extract repeated styles into a theme]
+- id: debugging-mindset
+  category: Debugging
+  title: The debugging loop
+  summary: Reproduce → isolate → hypothesise → verify. Change one thing at a time.
+  points: [Read the whole error message, Add a console.log before guessing, Undo to the last working state]
+- id: performance
+  category: Performance
+  title: Keep lists at 60 fps
+  summary: Why FlatList beats map(), and when to memoise.
+  points: [Use keyExtractor, Avoid inline functions in hot rows, Measure before optimising]
+- id: uiux
+  category: UI / UX
+  title: Touch targets and thumbs
+  summary: Design for one-handed use and 44–48 pt minimum touch targets.
+  points: [Primary actions within thumb reach, Visible pressed states, Respect safe areas]
+- id: architecture
+  category: Architecture
+  title: Folders that scale
+  summary: A simple feature-first folder structure for apps beyond a few screens.
+- id: git-tips
+  category: Git Tips
+  title: Commit like a professional
+  summary: Small commits with meaningful messages make debugging and grading easier.
+- id: workflow
+  category: Developer Workflow
+  title: A calm daily workflow
+  summary: Pull, branch, build, commit, push — every time.
+- id: mistakes
+  category: Common Mistakes
+  title: Ten mistakes every beginner makes
+  summary: From committing node_modules to calling localhost from a phone.
+- id: advanced
+  category: Advanced Concepts
+  title: Beyond the course
+  summary: Native modules, offline-first sync, animations with Reanimated and CI builds.
+- id: career
+  category: Career Preparation
+  title: Turn your project into a portfolio piece
+  summary: A clean README, screenshots, a demo video and a short write-up of your decisions.
+  points: [Record a 60-second demo, Explain one hard problem you solved, Publish an APK or Expo link]

@@ -1,0 +1,51 @@
+---
+import Logo from './Logo.astro';
+import { course, nav, secondaryNav } from '@/site.config';
+const groups = [
+  { title: 'Learn', links: nav.slice(1, 4) },
+  { title: 'Build', links: nav.slice(4, 7) },
+  { title: 'Help', links: [nav[7], ...secondaryNav] },
+];
+---
+<footer class="footer">
+  <div class="container">
+    <div class="f-top">
+      <div class="f-brand">
+        <a href="/" class="f-logo"><Logo size={36} /><span>{course.name}</span></a>
+        <p class="muted">The complete workspace for the course — labs, coursework, project, commands, tools and setup, in one place.</p>
+        <div class="f-status mono"><span class="pulse"></span> {course.code} · {course.term}</div>
+      </div>
+      {groups.map((g) => (
+        <nav aria-label={g.title} class="f-col">
+          <p class="eyebrow no-slash">{g.title}</p>
+          <ul>{g.links.map((l) => <li><a href={l.href}>{l.label}</a></li>)}</ul>
+        </nav>
+      ))}
+    </div>
+    <div class="f-mark" aria-hidden="true">mobile<span>/</span>dev</div>
+    <div class="f-bottom mono">
+      <span>Module leader: {course.instructor} · <a href="/#team">Teaching team</a></span>
+      <span>Built for students · content in <code>src/content/</code></span>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .footer { border-top: 1px solid var(--line); padding-top: 72px; overflow: hidden; background: var(--bg-2); }
+  .f-top { display: grid; gap: 40px; grid-template-columns: 1fr 1fr; }
+  @media (min-width: 900px) { .f-top { grid-template-columns: 1.6fr repeat(3, 1fr); } }
+  .f-brand { grid-column: 1 / -1; display: grid; gap: 16px; max-width: 380px; align-content: start; }
+  @media (min-width: 900px) { .f-brand { grid-column: auto; } }
+  .f-logo { display: inline-flex; align-items: center; gap: 12px; font-family: var(--font-display); font-weight: 650; font-size: 20px; letter-spacing: -0.02em; }
+  .f-status { display: inline-flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-3); }
+  .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse-ring 2s infinite; }
+  .f-col ul { list-style: none; padding: 0; margin-top: 16px; display: grid; gap: 10px; }
+  .f-col a { color: var(--text-2); font-size: 14.5px; transition: color var(--t-fast); }
+  .f-col a:hover { color: var(--accent-text); }
+  .f-mark {
+    margin-top: 64px; font-family: var(--font-display); font-weight: 700; letter-spacing: -0.06em; line-height: 0.8;
+    font-size: clamp(64px, 17vw, 250px); color: transparent; -webkit-text-stroke: 1px var(--line-2); user-select: none; white-space: nowrap;
+  }
+  .f-mark span { -webkit-text-stroke: 0; color: var(--accent); }
+  .f-bottom { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; padding-block: 24px; border-top: 1px solid var(--line); font-size: 12px; color: var(--text-3); }
+</style>

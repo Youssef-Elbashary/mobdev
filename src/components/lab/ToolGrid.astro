@@ -1,0 +1,40 @@
+---
+/**
+ * Tool tiles with real logos, pulled from the Tools collection.
+ * <ToolGrid items={[['react-native', 'One codebase → Android + iOS']]} />
+ */
+import { getEntry } from 'astro:content';
+import ToolLogo from '../ToolLogo.astro';
+import { inline } from '@/lib/content';
+interface Props { items: [string, string][] }
+const { items } = Astro.props;
+const tools = await Promise.all(items.map(async ([id, why]) => ({ entry: await getEntry('tools', id), id, why })));
+---
+<div class="tgrid" data-reveal>
+  {tools.map(({ entry, id, why }, i) => entry && (
+    <a href={`/tools/${id}`} class="tg-item stg" style={`--i:${i}; --c:${entry.data.color ?? 'var(--accent)'}`}>
+      <ToolLogo logo={entry.data.logo} monogram={entry.data.monogram} name={entry.data.name} color={entry.data.color} size={48} class="tg-logo" />
+      <span class="tg-txt">
+        <span class="tg-name">{entry.data.name}{!entry.data.required && <span class="tg-opt mono">optional</span>}</span>
+        <span class="tg-why" set:html={inline(why)} />
+      </span>
+      <svg class="tg-go" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9" /></svg>
+    </a>
+  ))}
+</div>
+
+<style>
+  .tgrid { display: grid; gap: 10px; grid-template-columns: 1fr; }
+  @media (min-width: 640px) { .tgrid { grid-template-columns: 1fr 1fr; } }
+  .tg-item { position: relative; display: grid; grid-template-columns: 48px 1fr 16px; align-items: center; gap: 14px; padding: 14px; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface); text-decoration: none !important; overflow: hidden; transition: border-color var(--t-med), transform var(--t-med) var(--ease-out); }
+  .tg-item::after { content: ''; position: absolute; inset: 0; background: radial-gradient(120px 80px at 30px 50%, color-mix(in oklab, var(--c) 18%, transparent), transparent); opacity: 0; transition: opacity var(--t-med); pointer-events: none; }
+  .tg-item:hover { border-color: color-mix(in oklab, var(--c) 60%, var(--line)); transform: translateY(-2px); }
+  .tg-item:hover::after { opacity: 1; }
+  .tg-item:hover :global(.tg-logo) { transform: rotate(-6deg) scale(1.06); }
+  .tg-txt { display: grid; gap: 2px; min-width: 0; }
+  .tg-name { font-weight: 650; color: var(--text); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .tg-opt { font-size: 10px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--info); padding: 1px 6px; border-radius: 999px; border: 1px solid color-mix(in oklab, var(--info) 45%, transparent); }
+  .tg-why { font-size: 13.5px; color: var(--text-2); line-height: 1.45; }
+  .tg-go { color: var(--text-3); transition: transform var(--t-med) var(--ease-out), color var(--t-fast); }
+  .tg-item:hover .tg-go { color: var(--accent-text); transform: translate(2px, -2px); }
+</style>

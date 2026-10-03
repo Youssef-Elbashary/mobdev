@@ -1,0 +1,94 @@
+---
+/**
+ * Terminal window with commands AND their output.
+ * Line prefixes:  "$ " command (copyable) · "# " comment · "> " highlight
+ *                 "! " error · "? " question/prompt · anything else = output
+ *                 "[qr]" draws an example QR code at that spot
+ * <Terminal title="VS Code — Terminal" lines={['$ npx expo start', '[qr]', '› Metro waiting…']} />
+ */
+interface Props { lines: string[]; title?: string }
+const { lines, title = 'Terminal' } = Astro.props;
+const qr = lines.includes('[qr]');
+
+type Line = { kind: 'cmd' | 'comment' | 'hl' | 'err' | 'ask' | 'out' | 'qr'; text: string };
+const parsed: Line[] = lines.map((l) => {
+  if (l === '[qr]') return { kind: 'qr', text: '' };
+  if (l.startsWith('$ ')) return { kind: 'cmd', text: l.slice(2) };
+  if (l.startsWith('# ')) return { kind: 'comment', text: l.slice(2) };
+  if (l.startsWith('> ')) return { kind: 'hl', text: l.slice(2) };
+  if (l.startsWith('! ')) return { kind: 'err', text: l.slice(2) };
+  if (l.startsWith('? ')) return { kind: 'ask', text: l.slice(2) };
+  return { kind: 'out', text: l };
+});
+const commands = parsed.filter((l) => l.kind === 'cmd').map((l) => l.text).join('\n');
+
+// Decorative QR-like grid (deterministic), with the three finder squares.
+const N = 25;
+const cells: [number, number][] = [];
+if (qr) {
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+  const inFinder = (x: number, y: number) => [[0, 0], [N - 7, 0], [0, N - 7]].some(([fx, fy]) => x >= fx && x < fx + 7 && y >= fy && y < fy + 7);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    if (inFinder(x, y)) {
+      const fx = x < 7 ? 0 : N - 7, fy = y < 7 ? 0 : N - 7;
+      const dx = x - fx, dy = y - fy;
+      const ring = dx === 0 || dy === 0 || dx === 6 || dy === 6;
+      const core = dx >= 2 && dx <= 4 && dy >= 2 && dy <= 4;
+      if (ring || core) cells.push([x, y]);
+    } else if (rnd() > 0.52) cells.push([x, y]);
+  }
+}
+---
+<figure class="term-win" data-reveal>
+  <div class="tw-bar">
+    <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+    <span class="tw-title mono">{title}</span>
+    {commands && (
+      <button class="copy-btn" data-copy data-copy-text={commands} aria-label="Copy commands">
+        <span class="idle" style="display:inline-flex;gap:6px;align-items:center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" /></svg><span class="hide-sm">Copy</span></span>
+        <span class="ok" style="gap:6px;align-items:center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7" /></svg>Copied</span>
+      </button>
+    )}
+  </div>
+  <div class="tw-body mono">
+    {parsed.map((l, i) => l.kind === 'qr' ? (
+      <svg class="tw-qr tl" style={`--i:${i}`} viewBox={`-1 -1 ${N + 2} ${N + 2}`} width="132" height="132" role="img" aria-label="QR code (example)" shape-rendering="crispEdges">
+        <rect x="-1" y="-1" width={N + 2} height={N + 2} fill="#fff" />
+        {cells.map(([x, y]) => <rect x={x} y={y} width="1" height="1" fill="#000" />)}
+      </svg>
+    ) : (
+      <div class={`tl tl-${l.kind}`} style={`--i:${i}`}>
+        {l.kind === 'cmd' && <span class="p" aria-hidden="true">$</span>}
+        <span class="t">{l.text || ' '}</span>
+        {l.kind === 'cmd' && i === parsed.length - 1 && <span class="caret" aria-hidden="true"></span>}
+      </div>
+    ))}
+  </div>
+</figure>
+
+<style>
+  .term-win { margin-inline: 0; margin-bottom: 0; border-radius: var(--r-md); overflow: hidden; border: 1px solid #2a2f38; background: #0c0f13; box-shadow: var(--shadow-md); }
+  .tw-bar { display: flex; align-items: center; gap: 12px; height: 36px; padding: 0 6px 0 12px; background: #161a20; border-bottom: 1px solid #232932; }
+  .tw-bar .dots { display: inline-flex; gap: 6px; }
+  .tw-bar .dots i { width: 10px; height: 10px; border-radius: 50%; background: #3a404b; }
+  .tw-bar .dots i:first-child { background: #ff6b5f; } .tw-bar .dots i:nth-child(2) { background: #ffbd2e; } .tw-bar .dots i:nth-child(3) { background: #28c940; }
+  .tw-title { flex: 1; font-size: 11.5px; color: #7c8594; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .term-win .copy-btn { color: #7c8594; }
+  .term-win .copy-btn:hover { background: #232932; color: #eceef1; }
+  .tw-body { padding: 14px 16px 16px; font-size: 13px; line-height: 1.75; color: #aab1bd; overflow-x: auto; scrollbar-width: thin; }
+  .tl { display: flex; gap: 10px; white-space: pre; min-width: max-content; }
+  .tl .p { color: #c8ff4d; user-select: none; }
+  .tl-cmd .t { color: #eceef1; font-weight: 500; }
+  .tl-comment .t { color: #5f6875; font-style: italic; }
+  .tl-hl .t { color: #c8ff4d; }
+  .tl-err .t { color: #ff7a6b; }
+  .tl-ask .t { color: #7cb1ff; }
+  .caret { display: inline-block; width: 8px; height: 15px; margin-top: 4px; background: #c8ff4d; animation: blink 1s steps(1) infinite; }
+  .tw-qr { display: block; margin: 8px 0 10px; border-radius: 6px; min-width: 0 !important; }
+  /* motion: lines appear one after another, like real output */
+  .term-win .tl { opacity: 0; transform: translateX(-6px); }
+  .term-win.in .tl { animation: tl-show 380ms var(--ease-out) forwards; animation-delay: calc(250ms + var(--i) * 110ms); }
+  @keyframes tl-show { to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .term-win .tl { opacity: 1; transform: none; animation: none; } }
+</style>

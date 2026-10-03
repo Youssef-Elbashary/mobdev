@@ -1,0 +1,38 @@
+---
+import { getData } from '@/lib/content';
+import Base from '@/layouts/Base.astro';
+import PageHeader from '@/components/PageHeader.astro';
+import EmptyState from '@/components/EmptyState.astro';
+const items = await getData('extra');
+---
+<Base title="Extra Learning" description="Optional material for students who want to go beyond the Mobile Development course.">
+  <PageHeader eyebrow="Extra learning" title="Go further.<br/><span class='faint'>If you want to.</span>" lead="Optional material on best practices, debugging, performance, architecture and careers. None of this is graded — it's here for the curious." crumbs={[{ label: 'extra' }]}>
+    <p class="opt-note"><span class="badge badge-optional"><span class="dot"></span>Optional</span> Not required for labs, coursework or the project.</p>
+  </PageHeader>
+  <div class="container ex-wrap">
+    {items.length === 0 ? <EmptyState title="Extra material is coming soon." path="extra/" /> : (
+      <ol class="ex-list">
+        {items.map((e, i) => (
+          <li id={e.id} class="ex-item" data-reveal style={`--d:${(i % 2) * 60}ms`}>
+            <p class="ex-cat mono">{String(i + 1).padStart(2, '0')} · {e.data.category}</p>
+            <h2 class="h-4">{e.data.title}</h2>
+            <p class="muted">{e.data.summary}</p>
+            {e.data.points.length > 0 && <ul class="dash-list ex-points">{e.data.points.map((p) => <li>{p}</li>)}</ul>}
+            {e.data.links.length > 0 && <p class="flex wrap gap-3">{e.data.links.map((l) => <a href={l.href} class="accent">{l.label} →</a>)}</p>}
+          </li>
+        ))}
+      </ol>
+    )}
+  </div>
+</Base>
+<style>
+  .opt-note { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--text-3); font-size: 14px; }
+  .ex-wrap { padding-block: 48px var(--section-y); }
+  .ex-list { list-style: none; padding: 0; display: grid; gap: 0; border-top: 1.5px dashed color-mix(in oklab, var(--info) 45%, var(--line)); }
+  @media (min-width: 900px) { .ex-list { grid-template-columns: 1fr 1fr; column-gap: 64px; } }
+  .ex-item { display: grid; gap: 10px; align-content: start; padding: 32px 0; border-bottom: 1px solid var(--line); scroll-margin-top: calc(var(--nav-h) + 24px); }
+  .ex-item:target { animation: target-flash 1.8s var(--ease-out); }
+  .ex-cat { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--info); }
+  .ex-points { margin-top: 6px; }
+  .ex-points li { font-size: 14.5px; }
+</style>

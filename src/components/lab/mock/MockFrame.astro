@@ -1,0 +1,23 @@
+---
+/**
+ * Browser (or app window) frame around a UI mockup. Numbered markers inside
+ * (<i class="mk" style="--n:0">1</i>) pop in; a list written right after the
+ * component in MDX becomes the legend automatically (see src/styles/lab.css).
+ */
+interface Props { url?: string; window?: string; caption?: string; label: string }
+const { url, window: win, caption, label } = Astro.props;
+---
+<figure class="mock-fig" data-reveal role="img" aria-label={label}>
+  <div class="mock-bar">
+    <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+    {url && (
+      <span class="mock-url">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
+        {url}
+      </span>
+    )}
+    {win && <span class="mock-url" style="border:0;background:none;justify-content:center">{win}</span>}
+  </div>
+  <div class="mock-body"><slot /></div>
+  {caption && <figcaption class="mock-cap">{caption}</figcaption>}
+</figure>

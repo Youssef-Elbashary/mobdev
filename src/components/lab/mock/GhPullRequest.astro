@@ -1,0 +1,93 @@
+---
+/**
+ * Pull request screens.
+ * stage="banner"  → repo page with the yellow "Compare & pull request" banner
+ * stage="open"    → the "Open a pull request" form
+ * stage="merge"   → Merge pull request → Confirm merge → Merged (3 states)
+ */
+import MockFrame from './MockFrame.astro';
+interface Props { stage: 'banner' | 'open' | 'merge'; user?: string; repo?: string; branch?: string; title?: string }
+const { stage, user = 'your-username', repo = 'my-first-app', branch = 'feature/add-footer', title = 'Add footer with my name' } = Astro.props;
+---
+{stage === 'banner' && (
+  <MockFrame url={`github.com/${user}/${repo}`} label="Repository page with a yellow banner: branch had recent pushes, Compare & pull request button">
+    <div class="gh-grid">
+      <div class="gh-row" style="align-items:center"><span class="gh-avatar"></span><span style="font-size:16px;overflow-wrap:anywhere;min-width:0"><span class="gh-link">{user}</span> / <b>{repo}</b></span></div>
+      <div class="gh-tabs"><span class="on">Code</span><span>Issues</span><span>Pull requests</span><span>Actions</span><span>Settings</span></div>
+      <div class="gh-banner mk-host"><span><span class="gh-branch">{branch}</span> had recent pushes less than a minute ago</span><span class="gh-btn green">Compare &amp; pull request</span><i class="mk" style="--n:0">1</i></div>
+      <div style="border:1px solid var(--gh-bd);border-radius:6px;overflow:hidden;font-size:13px">
+        <div style="display:flex;gap:10px;align-items:center;padding:9px 12px;background:var(--gh-bg2);border-bottom:1px solid var(--gh-bd)"><span class="gh-avatar"></span><b>{user}</b><span style="color:var(--gh-mu)">Lab 01: first screen + README</span></div>
+        {['app', 'assets', 'app-example', '.gitignore', 'README.md', 'package.json'].map((f) => (
+          <div style="display:flex;gap:10px;padding:7px 12px;border-bottom:1px solid var(--gh-bd);color:var(--gh-tx)"><span style="color:var(--gh-mu)">{f.includes('.') ? '▤' : '▰'}</span>{f}</div>
+        ))}
+      </div>
+    </div>
+  </MockFrame>
+)}
+
+{stage === 'open' && (
+  <MockFrame url={`github.com/${user}/${repo}/compare/main...${branch}`} label="Open a pull request form: base main, compare branch, able to merge, title, description, Create pull request">
+    <div class="gh-grid">
+      <div>
+        <p class="gh-h">Open a pull request</p>
+        <p class="gh-sub">Create a new pull request by comparing changes across two branches.</p>
+      </div>
+      <div class="gh-row" style="align-items:center;padding:10px;border:1px solid var(--gh-bd);border-radius:6px;background:var(--gh-bg2)">
+        <span style="color:var(--gh-mu)">⇄</span>
+        <span class="gh-select mk-host">base: <b>main</b><i class="mk" style="--n:0">1</i></span>
+        <span style="color:var(--gh-mu)">←</span>
+        <span class="gh-select mk-host">compare: <b>{branch}</b><i class="mk" style="--n:1">2</i></span>
+        <span class="gh-ok mk-host" style="padding-right:14px">✓ Able to merge.<i class="mk" style="--n:2">3</i></span>
+        <span class="gh-hint">These branches can be automatically merged.</span>
+      </div>
+      <div class="gh-field mk-host"><span class="gh-label">Add a title</span><span class="gh-input focus">{title}</span><i class="mk" style="--n:3">4</i></div>
+      <div class="gh-field mk-host"><span class="gh-label">Add a description</span><span class="gh-input gh-textarea">Shows "Made by …" under the button.</span><i class="mk" style="--n:4">5</i></div>
+      <div style="display:flex;justify-content:flex-end"><span class="gh-btn green mk-host">Create pull request <span class="caret">▾</span><i class="mk" style="--n:5">6</i></span></div>
+    </div>
+  </MockFrame>
+)}
+
+{stage === 'merge' && (
+  <MockFrame url={`github.com/${user}/${repo}/pull/1`} label="Pull request page: Merge pull request, then Confirm merge, then Merged with Delete branch">
+    <div class="gh-grid">
+      <div>
+        <p class="gh-h">{title} <span style="color:var(--gh-mu);font-weight:400">#1</span></p>
+        <div class="gh-row" style="align-items:center;margin-top:8px"><span class="gh-pill open">⇄ Open</span><span class="gh-hint"><b>{user}</b> wants to merge 1 commit into <span class="gh-branch">main</span> from <span class="gh-branch">{branch}</span></span></div>
+      </div>
+      <div class="gh-tabs"><span class="on">Conversation</span><span>Commits 1</span><span>Checks</span><span>Files changed 1</span></div>
+      <ol class="pr-states">
+        <li class="stg" style="--i:0">
+          <span class="st-n">A</span>
+          <div class="st-box">
+            <p class="gh-ok">✓ This branch has no conflicts with the base branch</p>
+            <p class="gh-hint">Merging can be performed automatically.</p>
+            <span class="gh-btn green mk-host" style="margin-top:10px">Merge pull request <span class="caret">▾</span><i class="mk" style="--n:0">1</i></span>
+          </div>
+        </li>
+        <li class="stg" style="--i:1">
+          <span class="st-n">B</span>
+          <div class="st-box">
+            <span class="gh-input" style="font-size:12px">Merge pull request #1 from {user}/{branch}</span>
+            <div class="gh-row" style="margin-top:10px"><span class="gh-btn green mk-host">Confirm merge<i class="mk" style="--n:1">2</i></span><span class="gh-btn">Cancel</span></div>
+          </div>
+        </li>
+        <li class="stg" style="--i:2">
+          <span class="st-n">C</span>
+          <div class="st-box">
+            <div class="gh-row" style="align-items:center"><span class="gh-pill merged">⇄ Merged</span><b style="font-size:13px">Pull request successfully merged and closed</b></div>
+            <div class="gh-row" style="align-items:center;margin-top:10px"><span class="gh-hint">You're all set — the <span class="gh-branch">{branch}</span> branch can be safely deleted.</span><span class="gh-btn mk-host">Delete branch<i class="mk" style="--n:2">3</i></span></div>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </MockFrame>
+)}
+
+<style is:global>
+  .pr-states { list-style: none; padding: 0 !important; margin: 0 !important; display: grid; gap: 14px; }
+  .pr-states li { position: relative; display: grid; grid-template-columns: 28px 1fr; gap: 12px; margin: 0 !important; padding: 0 !important; }
+  .pr-states li:not(:last-child)::after { content: ''; position: absolute; left: 13px; top: 30px; bottom: -14px; width: 2px; background: var(--gh-bd); }
+  .st-n { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--gh-bg2); border: 1px solid var(--gh-bd); font: 700 12px var(--font-mono); color: var(--gh-mu); }
+  .st-box { padding: 12px 14px; border: 1px solid var(--gh-bd); border-radius: 6px; background: var(--gh-bg); min-width: 0; }
+  .pr-states li:last-child .st-n { background: var(--gh-purple); border-color: var(--gh-purple); color: #fff; }
+</style>

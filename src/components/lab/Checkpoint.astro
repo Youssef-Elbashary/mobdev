@@ -1,0 +1,27 @@
+---
+/** "You should now see…" box. <Checkpoint> …markdown… </Checkpoint> */
+interface Props { title?: string }
+const { title = 'Checkpoint' } = Astro.props;
+---
+<aside class="cp" data-reveal>
+  <span class="cp-ic" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7" /></svg>
+  </span>
+  <div class="cp-body">
+    <p class="cp-title mono">{title}</p>
+    <slot />
+  </div>
+</aside>
+
+<style>
+  .cp { display: grid; grid-template-columns: 36px 1fr; gap: 14px; padding: 16px 18px; border-radius: var(--r-md); border: 1px solid color-mix(in oklab, var(--ok) 40%, transparent); background: linear-gradient(135deg, var(--ok-soft), transparent 70%); }
+  .cp-ic { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--ok); color: #fff; box-shadow: 0 0 0 0 color-mix(in oklab, var(--ok) 50%, transparent); }
+  .cp-ic svg { width: 18px; height: 18px; stroke-dasharray: 24; stroke-dashoffset: 24; }
+  .cp.in .cp-ic { animation: cp-ring 1.4s var(--ease-out) 300ms; }
+  .cp.in .cp-ic svg { transition: stroke-dashoffset 500ms var(--ease-out) 250ms; stroke-dashoffset: 0; }
+  @keyframes cp-ring { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--ok) 55%, transparent); } 100% { box-shadow: 0 0 0 14px transparent; } }
+  .cp-title { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ok); margin-bottom: 4px; font-weight: 600; }
+  .cp-body { color: var(--text); min-width: 0; }
+  .cp-body > :global(* + *) { margin-top: 12px !important; }
+  @media (prefers-reduced-motion: reduce) { .cp-ic svg { stroke-dashoffset: 0; } }
+</style>

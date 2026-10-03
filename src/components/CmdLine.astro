@@ -1,0 +1,22 @@
+---
+/** A single copyable terminal command with lightweight syntax highlighting. */
+import { highlightCmd } from '@/lib/content';
+interface Props { cmd: string; prompt?: boolean; class?: string }
+const { cmd, prompt = true, class: cls } = Astro.props;
+const isShortcut = /^(Ctrl|Cmd|⌘|↑|Alt|Shift)/.test(cmd);
+---
+<div class:list={['cmd-line', cls]}>
+  {prompt && !isShortcut && <span class="prompt" aria-hidden="true">$</span>}
+  <code set:html={isShortcut ? cmd : highlightCmd(cmd)} />
+  {!isShortcut && (
+    <button class="copy-btn" data-copy data-copy-text={cmd} aria-label={`Copy command: ${cmd}`}>
+      <span class="idle" style="display:inline-flex;gap:6px;align-items:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" /></svg>
+        <span class="hide-sm">Copy</span>
+      </span>
+      <span class="ok" style="gap:6px;align-items:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7" /></svg>Copied
+      </span>
+    </button>
+  )}
+</div>

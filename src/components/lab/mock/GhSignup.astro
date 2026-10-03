@@ -1,0 +1,15 @@
+---
+import MockFrame from './MockFrame.astro';
+interface Props { user?: string }
+const { user = 'your-username' } = Astro.props;
+---
+<MockFrame url="github.com/signup" label="GitHub sign-up page with Email, Password, Username, Country and Continue">
+  <div class="gh-grid" style="max-width:400px;margin-inline:auto">
+    <p class="gh-h">Sign up to GitHub</p>
+    <div class="gh-field mk-host"><span class="gh-label">Email<span class="req">*</span></span><span class="gh-input">you@bue.edu.eg</span><i class="mk" style="--n:0">1</i></div>
+    <div class="gh-field mk-host"><span class="gh-label">Password<span class="req">*</span></span><span class="gh-input">••••••••••••••••</span><span class="gh-hint">Password should be at least 15 characters OR at least 8 characters including a number and a lowercase letter.</span><i class="mk" style="--n:1">2</i></div>
+    <div class="gh-field mk-host"><span class="gh-label">Username<span class="req">*</span></span><span class="gh-input focus">{user}</span><span class="gh-hint">Username may only contain alphanumeric characters or single hyphens, and cannot begin or end with a hyphen.</span><i class="mk" style="--n:2">3</i></div>
+    <div class="gh-field mk-host"><span class="gh-label">Your Country/Region<span class="req">*</span></span><span class="gh-select">Egypt</span><i class="mk" style="--n:3">4</i></div>
+    <span class="gh-btn green mk-host" style="justify-content:center;height:36px">Continue ›<i class="mk" style="--n:4">5</i></span>
+  </div>
+</MockFrame>

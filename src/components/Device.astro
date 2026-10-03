@@ -1,0 +1,44 @@
+---
+/** Phone frame. Put any screen content in the default slot. */
+interface Props { class?: string; time?: string; label?: string; light?: boolean }
+const { class: cls, time = '9:41', label = 'Phone preview', light = false } = Astro.props;
+---
+<div class:list={['device', cls, { light }]} role="img" aria-label={label}>
+  <div class="d-btn d-btn-a" aria-hidden="true"></div>
+  <div class="d-btn d-btn-b" aria-hidden="true"></div>
+  <div class="d-screen">
+    <div class="d-status" aria-hidden="true">
+      <span class="mono">{time}</span>
+      <span class="d-island"></span>
+      <span class="d-icons"><i></i><i></i><i></i></span>
+    </div>
+    <div class="d-content"><slot /></div>
+    <div class="d-home" aria-hidden="true"></div>
+  </div>
+</div>
+<style>
+  .device {
+    --w: 300px;
+    position: relative; width: var(--w); aspect-ratio: 9 / 19.2; padding: calc(var(--w) * 0.035);
+    border-radius: calc(var(--w) * 0.16);
+    background: linear-gradient(145deg, #2a2f38, #0c0e12 40%, #1b1f26);
+    box-shadow: 0 0 0 1px #3a404b inset, 0 0 0 1.5px #07080a, 0 50px 100px -30px rgb(0 0 0 / 0.7), 0 30px 60px -30px var(--accent-glow);
+  }
+  :global(:root[data-theme='light']) .device { box-shadow: 0 0 0 1px #3a404b inset, 0 0 0 1.5px #07080a, 0 50px 90px -30px rgb(40 40 20 / 0.45); }
+  .d-btn { position: absolute; left: -2px; width: 3px; border-radius: 2px 0 0 2px; background: #1c2027; }
+  .d-btn-a { top: 22%; height: 7%; }
+  .d-btn-b { top: 31%; height: 11%; }
+  .d-screen {
+    position: relative; height: 100%; overflow: hidden; border-radius: calc(var(--w) * 0.125);
+    background: #0b0d10; color: #eceef1; display: flex; flex-direction: column;
+  }
+  .d-status { display: flex; align-items: center; justify-content: space-between; height: 42px; padding: 0 22px; font-size: 12px; font-weight: 600; flex: none; }
+  .d-island { width: 30%; height: 24px; border-radius: 20px; background: #000; }
+  .d-icons { display: inline-flex; gap: 3px; align-items: flex-end; }
+  .d-icons i { display: block; width: 3px; background: currentColor; border-radius: 1px; }
+  .d-icons i:nth-child(1) { height: 5px; } .d-icons i:nth-child(2) { height: 8px; } .d-icons i:nth-child(3) { height: 11px; }
+  .d-content { flex: 1; min-height: 0; position: relative; }
+  .light .d-screen { background: #ffffff; color: #11181c; }
+  .light .d-home { background: rgb(0 0 0 / 0.35); }
+  .d-home { position: absolute; bottom: 8px; left: 50%; width: 36%; height: 4px; border-radius: 4px; background: rgb(255 255 255 / 0.55); translate: -50% 0; }
+</style>

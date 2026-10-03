@@ -1,0 +1,22 @@
+---
+import MockFrame from './MockFrame.astro';
+interface Props { user?: string; repo?: string }
+const { user = 'your-username', repo = 'my-first-app' } = Astro.props;
+const url = `https://github.com/${user}/${repo}.git`;
+---
+<MockFrame url={`github.com/${user}/${repo}`} label="Empty GitHub repository page with Quick setup URL and push commands">
+  <div class="gh-grid">
+    <div class="gh-row" style="align-items:center"><span class="gh-avatar"></span><span style="font-size:16px;overflow-wrap:anywhere;min-width:0"><span class="gh-link">{user}</span> / <b>{repo}</b></span><span class="gh-pill" style="border:1px solid var(--gh-bd);color:var(--gh-mu);font-weight:500">Public</span></div>
+    <div class="gh-grid mk-host" style="gap:10px;padding:14px;border:1px solid var(--gh-bd);border-radius:6px;background:var(--gh-bg2)">
+      <p style="font-size:13.5px"><b>Quick setup</b> — if you've done this kind of thing before</p>
+      <div class="gh-row" style="align-items:center">
+        <span class="gh-btn mk-host" style="border-color:var(--gh-blue);color:var(--gh-blue)">HTTPS<i class="mk" style="--n:0">1</i></span>
+        <span class="gh-btn" style="opacity:.55">SSH</span>
+        <span class="gh-input gh-mono" style="flex:1 1 220px;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">{url}</span>
+        <span class="gh-btn mk-host" aria-label="copy" style="padding:0 10px">⧉<i class="mk" style="--n:1">2</i></span>
+      </div>
+    </div>
+    <p style="font-size:13.5px;margin-top:6px"><b>…or push an existing repository from the command line</b></p>
+    <div class="gh-code mk-host">git remote add origin {url}{'\n'}git branch -M main{'\n'}git push -u origin main<i class="mk" style="--n:2;top:8px;right:8px">3</i></div>
+  </div>
+</MockFrame>

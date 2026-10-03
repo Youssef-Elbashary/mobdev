@@ -1,0 +1,51 @@
+---
+import Base from '@/layouts/Base.astro';
+import PageHeader from '@/components/PageHeader.astro';
+import EmptyState from '@/components/EmptyState.astro';
+import Icon from '@/components/Icon.astro';
+import { getCoursework, pad, formatDeadline } from '@/lib/content';
+const items = await getCoursework();
+---
+<Base title="Coursework" description="Graded coursework assignments for the Mobile Development course.">
+  <PageHeader eyebrow="Coursework" title="Assessed work,<br/><span class='accent'>clearly explained.</span>" lead="Every assignment has the same structure: objectives, requirements, tasks, deliverables, submission, grading and FAQ." crumbs={[{ label: 'coursework' }]} />
+  <section class="container cw-wrap">
+    {items.length === 0 ? (
+      <EmptyState title="No coursework published yet." body="Assignments will appear here along with their deadlines." path="coursework/" />
+    ) : (
+      <div class="row-list">
+        {items.map((c, i) => (
+          <a href={`/coursework/${c.id}`} class="row cw-row" data-reveal style={`--d:${i * 60}ms`}>
+            <span class="cw-no mono">CW<b>{pad(c.data.number)}</b></span>
+            <span class="cw-main">
+              <span class="cw-t">{c.data.title}</span>
+              <span class="cw-d">{c.data.description}</span>
+            </span>
+            <dl class="cw-meta mono">
+              <div><dt>Due</dt><dd class="warn">{formatDeadline(c.data.deadline)}</dd></div>
+              <div><dt>Tasks</dt><dd>{pad(c.data.tasks.length)}</dd></div>
+              {c.data.weight && <div><dt>Weight</dt><dd>{c.data.weight.replace(/\[XX\]%/, 'TBA').replace(' of final grade', '')}</dd></div>}
+            </dl>
+            <span class="go"><Icon name="arrow-up-right" /></span>
+          </a>
+        ))}
+      </div>
+    )}
+  </section>
+</Base>
+<style>
+  .cw-wrap { padding-block: 48px var(--section-y); }
+  .cw-row { grid-template-columns: 72px 1fr 36px; padding-block: 32px; }
+  @media (min-width: 960px) { .cw-row { grid-template-columns: 110px 1fr 300px 36px; } }
+  .cw-no { display: grid; font-size: 10.5px; letter-spacing: 0.1em; color: var(--text-3); line-height: 1.1; }
+  .cw-no b { font-family: var(--font-display); font-size: clamp(32px, 4vw, 48px); font-weight: 600; letter-spacing: -0.04em; color: var(--text); }
+  .cw-main { display: grid; gap: 6px; min-width: 0; }
+  .cw-t { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 600; letter-spacing: -0.025em; }
+  .cw-d { color: var(--text-3); max-width: 60ch; }
+  .cw-meta { grid-column: 2; display: flex; gap: 24px; font-size: 12px; }
+  @media (min-width: 960px) { .cw-meta { grid-column: auto; } }
+  .cw-meta dt { color: var(--text-3); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .cw-meta dd { color: var(--text); margin-top: 4px; }
+  .cw-meta .warn { color: var(--warn); white-space: nowrap; }
+  .cw-row .go { grid-row: 1; grid-column: 3; }
+  @media (min-width: 960px) { .cw-row .go { grid-column: 4; } }
+</style>

@@ -1,0 +1,34 @@
+---
+/**
+ * Two phones with an animated arrow between them.
+ * <BeforeAfter before={{ caption: '…', name: '' }} after={{ caption: '…', footer: 'Made by …' }} action="git pull" />
+ */
+import AppPhone from './AppPhone.astro';
+interface PhoneProps { caption?: string; name?: string; count?: number; footer?: string; blank?: boolean }
+interface Props { before: PhoneProps; after: PhoneProps; action?: string }
+const { before, after, action } = Astro.props;
+---
+<figure class="ba" data-reveal>
+  <div class="ba-side"><span class="ba-tag mono">BEFORE</span><AppPhone {...before} size={210} plain /></div>
+  <div class="ba-mid" aria-hidden="true">
+    <svg viewBox="0 0 120 24" class="ba-arrow"><path d="M2 12h110" /><path d="M104 5l8 7-8 7" /></svg>
+    {action && <code class="ba-act">{action}</code>}
+  </div>
+  <div class="ba-side after"><span class="ba-tag mono">AFTER</span><AppPhone {...after} size={210} plain /></div>
+</figure>
+
+<style>
+  .ba { margin-inline: 0; margin-bottom: 0; display: grid; gap: 16px; align-items: center; justify-items: center; padding: 20px; border-radius: var(--r-lg); border: 1px solid var(--line); background: radial-gradient(60% 80% at 80% 50%, var(--accent-soft), transparent 70%), var(--surface); }
+  @media (min-width: 720px) { .ba { grid-template-columns: 1fr auto 1fr; } }
+  .ba-side { display: grid; justify-items: center; gap: 10px; }
+  .ba-tag { font-size: 10.5px; letter-spacing: 0.14em; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--text-3); }
+  .after .ba-tag { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .ba-mid { display: grid; justify-items: center; gap: 8px; }
+  .ba-arrow { width: 120px; height: 24px; fill: none; stroke: var(--accent-text); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 130; stroke-dashoffset: 130; }
+  @media (max-width: 719px) { .ba-arrow { transform: rotate(90deg); width: 70px; margin-block: 18px; } }
+  .ba.in .ba-arrow { transition: stroke-dashoffset 900ms var(--ease-out) 400ms; stroke-dashoffset: 0; }
+  .ba-act { font-size: 12.5px !important; }
+  .ba .after { opacity: 0; transform: translateX(16px); }
+  .ba.in .after { transition: opacity 700ms var(--ease-out) 900ms, transform 700ms var(--ease-out) 900ms; opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { .ba .after { opacity: 1; transform: none; } .ba-arrow { stroke-dashoffset: 0; } }
+</style>

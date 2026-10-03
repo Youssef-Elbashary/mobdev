@@ -1,0 +1,13 @@
+---
+/** Thin reading-progress bar pinned under the navbar. Uses scroll-driven animation where supported. */
+---
+<div class="rp" aria-hidden="true"><i></i></div>
+<style>
+  .rp { position: fixed; left: 0; right: 0; top: 0; height: 2px; z-index: 150; pointer-events: none; }
+  .rp i { display: block; height: 100%; background: var(--accent); transform-origin: left; transform: scaleX(0); box-shadow: 0 0 8px var(--accent-glow); }
+  @supports (animation-timeline: scroll()) {
+    .rp i { animation: rp-grow linear both; animation-timeline: scroll(root); }
+    @keyframes rp-grow { to { transform: scaleX(1); } }
+  }
+  @media (prefers-reduced-motion: reduce) { .rp { display: none; } }
+</style>

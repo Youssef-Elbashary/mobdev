@@ -1,0 +1,60 @@
+---
+import { ClientRouter } from 'astro:transitions';
+import Nav from '@/components/Nav.astro';
+import Footer from '@/components/Footer.astro';
+import SearchPalette from '@/components/SearchPalette.astro';
+import { course } from '@/site.config';
+import '@/styles/global.css';
+
+interface Props { title?: string; description?: string; noindex?: boolean }
+const { title, description = course.tagline, noindex = false } = Astro.props;
+const fullTitle = title ? `${title} · ${course.name}` : `${course.name} — Course Workspace`;
+---
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+    <meta name="theme-color" content="#0a0c0f" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f5f4ef" media="(prefers-color-scheme: light)" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Geist:wght@400..700&family=Geist+Mono:wght@400..600&display=swap"
+    />
+    <script is:inline>
+      // Theme before paint (no flash). Re-applied after each client-side navigation.
+      (function () {
+        function apply() {
+          var t = null;
+          try { t = localStorage.getItem('theme'); } catch (e) {}
+          if (!t) t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+          document.documentElement.dataset.theme = t;
+          document.documentElement.classList.remove('no-js');
+        }
+        apply();
+        document.addEventListener('astro:after-swap', apply);
+      })();
+    </script>
+    <ClientRouter fallback="swap" />
+  </head>
+  <body>
+    <a href="#main" class="skip-link">Skip to content</a>
+    <Nav />
+    <main id="main" transition:name="main">
+      <slot />
+    </main>
+    <Footer />
+    <SearchPalette />
+    <script>
+      import '@/scripts/app';
+    </script>
+  </body>
+</html>

@@ -1,0 +1,114 @@
+---
+/** TOOL TEMPLATE — every file in src/content/tools renders through this page. */
+import { render, getCollection } from 'astro:content';
+import Base from '@/layouts/Base.astro';
+import Icon from '@/components/Icon.astro';
+import Toc from '@/components/Toc.astro';
+import ToolLogo from '@/components/ToolLogo.astro';
+import ProblemList from '@/components/ProblemList.astro';
+import { getTools, getLabs, pad, inline } from '@/lib/content';
+
+export async function getStaticPaths() {
+  const tools = await getTools();
+  return tools.map((tool) => ({ params: { id: tool.id }, props: { tool } }));
+}
+const { tool } = Astro.props;
+const d = tool.data;
+const { Content, headings } = await render(tool);
+const labs = (await getLabs()).filter((l) => d.relatedLabs.includes(l.id));
+const setupGuides = (await getCollection('setup')).filter((s) => s.data.tool === tool.id);
+
+const sections = [
+  d.whyWeUseIt && { depth: 2, slug: 'why', text: 'Why we use it' },
+  d.alternatives.length && { depth: 2, slug: 'alternatives', text: 'Why not the alternatives?' },
+  ...headings.filter((h) => h.depth === 2),
+  d.extensions.length && { depth: 2, slug: 'extensions', text: 'Useful extensions' },
+  d.troubleshooting.length && { depth: 2, slug: 'problems', text: 'Common problems' },
+  labs.length && { depth: 2, slug: 'related', text: 'Related labs' },
+].filter(Boolean) as { depth: number; slug: string; text: string }[];
+---
+<Base title={d.name} description={d.description}>
+  <header class="page-head">
+    <div class="grid-bg" aria-hidden="true"></div>
+    <div class="container th">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="/">~</a><span aria-hidden="true">/</span><a href="/tools">tools</a><span aria-hidden="true">/</span><span aria-current="page">{tool.id}</span></nav>
+      <div class="th-grid">
+        <div data-reveal class="th-logo-wrap"><ToolLogo logo={d.logo} monogram={d.monogram} name={d.name} color={d.color} size={120} /></div>
+        <div>
+          <p class="eyebrow" data-reveal>{d.category}{!d.required && <span class="badge badge-optional" style="margin-left:6px">Optional</span>}</p>
+          <h1 class="h-1 mt-4" data-reveal style="--d:60ms">{d.name}</h1>
+          <p class="lead mt-6" data-reveal style="--d:120ms">{d.description}</p>
+          <div class="flex wrap gap-3 mt-8 items-center" data-reveal style="--d:180ms">
+            {setupGuides[0] && <a href={`/setup/${setupGuides[0].id}`} class="btn btn-primary"><Icon name="download" /> Install guide</a>}
+            {d.docs && <a href={d.docs} target="_blank" rel="noopener" class="btn btn-ghost">Official docs <Icon name="external" /></a>}
+            <span class="flex gap-2 wrap">{d.platforms.map((p) => <span class="badge">{p}</span>)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="container doc">
+    <article class="doc-main">
+      {d.whyWeUseIt && (
+        <section class="block">
+          <h2 class="block-title" id="why">Why we use it</h2>
+          <p class="why" set:html={inline(d.whyWeUseIt)} />
+        </section>
+      )}
+      {d.alternatives.length > 0 && (
+        <section class="block">
+          <h2 class="block-title" id="alternatives">Why not the alternatives?</h2>
+          <dl class="alt">
+            {d.alternatives.map((a) => <div><dt>{a.name}</dt><dd set:html={inline(a.verdict)} /></div>)}
+          </dl>
+        </section>
+      )}
+      <section class="block prose"><Content /></section>
+      {d.extensions.length > 0 && (
+        <section class="block">
+          <h2 class="block-title" id="extensions">Useful extensions</h2>
+          <dl class="ext">
+            {d.extensions.map((e) => <div><dt>{e.name}</dt><dd set:html={inline(e.detail)} /></div>)}
+          </dl>
+        </section>
+      )}
+      {d.troubleshooting.length > 0 && (
+        <section class="block">
+          <h2 class="block-title" id="problems">Common problems</h2>
+          <ProblemList items={d.troubleshooting} />
+        </section>
+      )}
+      {labs.length > 0 && (
+        <section class="block">
+          <h2 class="block-title" id="related">Related labs</h2>
+          <div class="row-list">
+            {labs.map((l) => (
+              <a href={`/labs/${l.id}`} class="row" style="grid-template-columns: 80px 1fr 36px">
+                <span class="mono accent">LAB {pad(l.data.number)}</span><span>{l.data.title}</span><span class="go"><Icon name="arrow-up-right" /></span>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
+    </article>
+    <aside class="doc-aside"><Toc items={sections} /></aside>
+  </div>
+</Base>
+<style>
+  .th-grid { display: grid; gap: 28px; }
+  @media (min-width: 900px) { .th-grid { grid-template-columns: 140px 1fr; gap: 48px; align-items: start; } }
+  .th-logo-wrap :global(.tlogo) { --sz: 96px !important; }
+  @media (min-width: 900px) { .th-logo-wrap :global(.tlogo) { --sz: 140px !important; } }
+  .alt { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; }
+  .alt > div { display: grid; gap: 6px; padding: 18px 20px; background: var(--surface); }
+  @media (min-width: 640px) { .alt > div { grid-template-columns: 170px 1fr; gap: 20px; } }
+  .alt dt { font-weight: 600; }
+  .alt dd { color: var(--text-2); }
+  .why { font-family: var(--font-display); font-size: var(--fs-lg); line-height: 1.35; letter-spacing: -0.015em; color: var(--text); }
+  .ext { display: grid; border-top: 1px solid var(--line); }
+  .ext > div { display: grid; gap: 4px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  @media (min-width: 640px) { .ext > div { grid-template-columns: 200px 1fr; gap: 24px; } }
+  .ext dt { font-weight: 600; }
+  .ext dd { color: var(--text-2); }
+</style>

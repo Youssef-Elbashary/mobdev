@@ -1,0 +1,108 @@
+---
+import Base from '@/layouts/Base.astro';
+import PageHeader from '@/components/PageHeader.astro';
+import Checklist from '@/components/Checklist.astro';
+import EmptyState from '@/components/EmptyState.astro';
+import Icon from '@/components/Icon.astro';
+import { getSetup, pad } from '@/lib/content';
+const guides = await getSetup();
+---
+<Base title="Setup & Installation" description="Step-by-step setup for Windows, macOS and Linux — from a fresh laptop to a working mobile development environment.">
+  <PageHeader eyebrow="Setup & installation" title="Get your machine<br/><span class='accent'>ready to build.</span>" lead="Follow the steps in order. Every guide covers requirements, download, installation, configuration, verification and common errors — for Windows, macOS and Linux." crumbs={[{ label: 'setup' }]}>
+    <div class="os-pick" role="radiogroup" aria-label="Your operating system" data-os-pick>
+      <span class="mono faint" style="font-size:12px">I'm on</span>
+      <button class="chip" role="radio" aria-checked="false" data-pick="windows"><Icon name="windows" size={15} /> Windows</button>
+      <button class="chip" role="radio" aria-checked="false" data-pick="macos"><Icon name="apple" size={15} /> macOS</button>
+      <button class="chip" role="radio" aria-checked="false" data-pick="linux"><Icon name="linux" size={15} /> Linux</button>
+    </div>
+  </PageHeader>
+
+  <div class="container su-layout">
+    <section aria-labelledby="steps-title">
+      <h2 id="steps-title" class="sr-only">Setup steps</h2>
+      {guides.length === 0 ? (
+        <EmptyState title="Setup guides are coming soon." path="setup/" />
+      ) : (
+        <ol class="steps">
+          {guides.map((g, i) => (
+            <li class="step" data-reveal style={`--d:${i * 40}ms`}>
+              <span class="step-rail" aria-hidden="true"><span class="step-n mono">{pad(g.data.step)}</span></span>
+              <a href={`/setup/${g.id}`} class="step-card">
+                <span class="step-top">
+                  <span class="step-t">{g.data.title}</span>
+                  {g.data.estimatedTime && <span class="mono faint step-time"><Icon name="clock" size={13} /> {g.data.estimatedTime}</span>}
+                </span>
+                <span class="step-s">{g.data.summary}</span>
+                {g.data.verify.length > 0 && (
+                  <span class="step-verify mono"><span class="accent">✓ verify</span> {g.data.verify.map((v) => v.command).join('  ·  ')}</span>
+                )}
+                <Icon name="arrow" class="step-go" />
+              </a>
+            </li>
+          ))}
+        </ol>
+      )}
+      <div class="stuck">
+        <Icon name="help" />
+        <div>
+          <p><strong>Stuck on an error?</strong></p>
+          <p class="muted">The troubleshooting center covers installation, SDK, emulator and Git problems.</p>
+        </div>
+        <a href="/troubleshooting" class="btn btn-ghost btn-sm">Troubleshooting <Icon name="arrow" class="arrow" /></a>
+      </div>
+    </section>
+
+    <aside class="su-aside">
+      <Checklist />
+    </aside>
+  </div>
+</Base>
+
+<style>
+  .os-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .os-pick .chip :global(svg) { width: 15px; height: 15px; }
+  .os-pick .chip[aria-checked='true'] { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .su-layout { display: grid; gap: 48px; padding-block: 56px var(--section-y); }
+  @media (min-width: 1024px) {
+    .su-layout { grid-template-columns: minmax(0, 1fr) 400px; gap: 64px; }
+    .su-aside { position: sticky; top: calc(var(--nav-h) + 32px); align-self: start; }
+  }
+  .steps { list-style: none; padding: 0; }
+  .step { display: grid; grid-template-columns: 48px 1fr; gap: 20px; }
+  .step-rail { position: relative; display: flex; justify-content: center; }
+  .step-rail::before { content: ''; position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line-2); }
+  .step:first-child .step-rail::before { top: 24px; }
+  .step:last-child .step-rail::before { bottom: calc(100% - 24px); }
+  .step-n { position: relative; margin-top: 4px; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--bg); border: 1px solid var(--line-2); font-size: 13px; transition: all var(--t-med) var(--ease-out); }
+  .step:hover .step-n { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .step-card { position: relative; display: grid; gap: 6px; padding: 16px 48px 28px 0; }
+  .step-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+  .step-t { font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 600; letter-spacing: -0.02em; }
+  .step-time { display: inline-flex; gap: 5px; align-items: center; font-size: 12px; }
+  .step-s { color: var(--text-2); }
+  .step-verify { font-size: 12px; color: var(--text-3); margin-top: 6px; overflow-wrap: anywhere; }
+  .step-card :global(.step-go) { position: absolute; right: 4px; top: 20px; width: 20px; height: 20px; color: var(--text-3); transition: transform var(--t-med) var(--ease-out), color var(--t-fast); }
+  .step-card:hover :global(.step-go) { transform: translateX(4px); color: var(--accent-text); }
+  .step-card:hover .step-t { color: var(--accent-text); }
+  .stuck { margin-top: 40px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px 20px; padding: 24px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); }
+  .stuck > :global(svg) { width: 28px; height: 28px; color: var(--warn); flex: none; }
+  .stuck > div { flex: 1; min-width: 220px; }
+  .stuck .muted { font-size: 14px; }
+</style>
+
+<script>
+  document.addEventListener('astro:page-load', () => {
+    const pick = document.querySelector<HTMLElement>('[data-os-pick]');
+    if (!pick) return;
+    const btns = Array.from(pick.querySelectorAll<HTMLButtonElement>('[data-pick]'));
+    const ua = navigator.userAgent;
+    let os = /Mac|iPhone|iPad/i.test(ua) ? 'macos' : /Linux/i.test(ua) && !/Android/i.test(ua) ? 'linux' : 'windows';
+    try { os = localStorage.getItem('os') || os; } catch {}
+    const set = (v: string) => {
+      btns.forEach((b) => b.setAttribute('aria-checked', String(b.dataset.pick === v)));
+      try { localStorage.setItem('os', v); } catch {}
+    };
+    btns.forEach((b) => b.addEventListener('click', () => set(b.dataset.pick!)));
+    set(os);
+  });
+</script>
