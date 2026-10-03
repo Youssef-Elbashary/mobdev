@@ -14,6 +14,10 @@ npm run preview   # serve the built site
 > On Windows, if `npm run` fails with `'"node"' is not recognized`, run Astro directly:
 > `node node_modules/astro/bin/astro.mjs dev`
 
+**Live site:** https://mobdev.vercel.app (the old `mobile-development-course.vercel.app` address redirects there).
+
+**CI/CD:** a push to `main` deploys to production through Vercel's Git integration, and other branches and pull requests get their own preview links. GitHub Actions (`.github/workflows/ci.yml`) runs `npm test` and `npm run build` on every push and pull request.
+
 ---
 
 ## Adding content
