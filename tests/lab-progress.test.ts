@@ -2,6 +2,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { aggregate, MemoryLabBackend, validateLabEvent, type LabEvent } from '../src/lib/lab/core.ts';
+import { ProgressLabBackend } from '../src/lib/lab/progress-backend.ts';
+import { MemoryStore } from '../src/lib/progress/store.ts';
 
 const base = { lab: 'lab-02', name: 'Mariam Ahmed', studentId: 'ST-001', deviceId: 'dev-aaaaaaaaaaaaaaaa' };
 const ev = (extra: Record<string, unknown>) => {
@@ -71,6 +73,24 @@ test('rate limit counter resets after its window', async () => {
   assert.equal(await store.hit('k', 10), 2);
   t += 11_000;
   assert.equal(await store.hit('k', 10), 1);
+});
+
+test('progress-store adapter powers the live dashboard without a separate Supabase schema', async () => {
+  let t = Date.parse('2026-10-05T09:00:00Z');
+  const backend = new ProgressLabBackend(new MemoryStore(() => t));
+  await backend.record(ev({ event: 'start' }));
+  t += 60_000;
+  await backend.record(ev({ event: 'check', exercise: 'ex05', result: 'partial', score: 0.6 }));
+  await backend.record(ev({ event: 'check', exercise: 'ex05', result: 'pass' }));
+  await backend.record(ev({ event: 'check', exercise: 'ex17', result: 'pass' }));
+
+  const { students, attempts } = await backend.rows('lab-02');
+  assert.equal(students.length, 1);
+  assert.equal(students[0].completed_at, new Date(t).toISOString());
+  assert.deepEqual(
+    { attempts: attempts[0].attempts, score: attempts[0].best_score, solved: !!attempts[0].solved_at },
+    { attempts: 2, score: 1, solved: true },
+  );
 });
 
 test('aggregate: per-exercise attempted / solved / not solved / success rate / hardest', async () => {

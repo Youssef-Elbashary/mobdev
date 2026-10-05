@@ -371,13 +371,14 @@ const time = (iso: string) => {
       const res = await fetch(`/api/admin/lab?lab=${encodeURIComponent(root.dataset.lab!)}`, { cache: 'no-store' });
       if (res.status === 401) return location.reload();
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? res.status);
+      if (!res.ok) throw new Error(data.error ?? String(res.status));
       render(root, data as LabStats);
       live.classList.add('on');
       live.textContent = `live · ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
     } catch (error) {
       live.classList.remove('on');
-      live.textContent = error instanceof Error && error.message.includes('set up') ? 'run supabase/lab-progress.sql' : 'reconnecting…';
+      const message = error instanceof Error ? error.message : 'Could not load progress.';
+      live.textContent = message.includes('set up') ? 'connect Neon in Vercel Storage' : message;
     }
   }
 

@@ -1,22 +1,73 @@
 ---
 number: 2
-title: 'React & React Native — learn it, try it, get feedback'
-description: 'How a React app starts, components, props and hooks — then React Native components, input, styling with NativeWind and lists. Every concept is followed by an exercise you solve right here, with instant feedback.'
+title: 'React & React Native: Syntax, Hooks & Your First Multi-Page App'
+description: 'Learn React and React Native through 17 interactive exercises, study a complete Expo Router app, then build and publish your own four-screen Movies watchlist.'
 difficulty: Beginner
-estimatedTime: 1.5 hours
-skills: [React, Components, Props, useState, useEffect, React Native, NativeWind, FlatList]
+estimatedTime: 3 hours
+skills: [JSX, Components, Props, useState, useEffect, useRef, useMemo, React Native, NativeWind, FlatList, Expo Router, Context]
 roadmapStage: mobile-ui
 interactive: true
 objectives:
-  - Explain how a React app starts, and what components and props are
-  - Use **useState** to update the screen, and know when **useEffect** runs
+  - Explain how React starts, how JSX works, and why apps are built from components
+  - Pass data with props and render conditions and keyed lists
+  - Use **useState**, **useEffect**, **useRef** and **useMemo** correctly
   - Build phone screens with `View`, `Text`, `Image`, `TextInput`, `Pressable` and `FlatList`
   - Style with flexbox and **NativeWind** classes
-  - Combine everything into a small React Native feature
+  - Navigate with Expo Router using stacks, tabs and route parameters
+  - Share state between screens with Context
+  - Build a four-screen Movies app and merge it through GitHub
 prerequisites:
-  - Lab 01 done
-  - A laptop with Chrome, Edge or Firefox — everything runs on this page
+  - '[Lab 01](/labs/lab-01) completed: Expo runs on your phone and Git is configured'
+  - A laptop with Chrome, Edge or Firefox for the interactive exercises
+  - '**Expo Go** on your phone, or the Android emulator, for the final project'
+  - Your GitHub account and token from Lab 01
+troubleshooting:
+  - problem: '"Text strings must be rendered within a <Text> component"'
+    cause: Text was placed directly inside a View.
+    solution: 'Wrap every piece of text in `<Text>…</Text>`.'
+  - problem: '"Each child in a list should have a unique key prop"'
+    cause: 'A `.map()` returns items without a stable `key`.'
+    solution: 'Add `key={item.id}`, or use `keyExtractor` on a FlatList.'
+  - problem: '"Too many re-renders"'
+    cause: 'State is changed while rendering, such as `onPress={setCount(1)}`.'
+    solution: 'Pass a function instead: `onPress={() => setCount(1)}`.'
+  - problem: '"Rendered more hooks than during the previous render"'
+    cause: 'A hook is inside an `if`, loop, nested function, or after an early return.'
+    solution: Call every hook at the top of the component in the same order.
+  - problem: The app fetches or re-renders forever
+    cause: 'A `useEffect` changes state but has a missing or incorrect dependency array.'
+    solution: 'Use `[]` for once, or list every reactive value the effect reads.'
+  - problem: '"Unmatched route" or the page is not found'
+    cause: 'The file is outside `app/`, or the link does not match its file name.'
+    solution: '`app/movie/[id].tsx` is opened with `/movie/3`; check both spellings.'
+  - problem: Expo Go keeps loading or cannot connect
+    cause: The phone and laptop are on different networks, or the network blocks discovery.
+    solution: Stop the server and start it in tunnel mode.
+    commands: ['npx expo start --tunnel']
+submission:
+  - 'All **17 interactive exercises** show **Solved**'
+  - 'A link to the **movies-app** GitHub repository with `feature/movies-app` merged into `main`'
+  - 'A screenshot of each of the four pages running on your phone'
+extraChallenge: 'Persist the watchlist with `@react-native-async-storage/async-storage`: load it once at startup and save it whenever it changes.'
+resources:
+  - { label: 'React: Describing the UI', href: 'https://react.dev/learn/describing-the-ui' }
+  - { label: 'React: Adding interactivity', href: 'https://react.dev/learn/adding-interactivity' }
+  - { label: 'React hooks reference', href: 'https://react.dev/reference/react/hooks' }
+  - { label: 'React Native core components', href: 'https://reactnative.dev/docs/components-and-apis' }
+  - { label: 'Expo Router introduction', href: 'https://docs.expo.dev/router/introduction/' }
+  - { label: 'Expo Router tabs', href: 'https://docs.expo.dev/router/advanced/tabs/' }
 ---
+
+export const flow = [
+  { label: 'New branch', where: 'laptop', lane: 'branch', cmd: 'git switch -c' },
+  { label: 'Commit each page', where: 'laptop', lane: 'branch', cmd: 'git commit' },
+  { label: 'Push the branch', where: 'both', lane: 'branch', cmd: 'git push' },
+  { label: 'Pull request + merge', where: 'github', lane: 'main' },
+  { label: 'Pull it back', where: 'down', lane: 'main', cmd: 'git pull' },
+];
+
+> [!TIP]
+> The first half is your fast practice loop: edit, run and check code in the browser. The second half moves the same ideas into a real Expo project on your phone.
 
 <Part n="1" title="How a React app starts" time="10 min" />
 
@@ -97,6 +148,71 @@ function Greeting() {
 <Exercise id="ex05" />
 
 <Exercise id="ex06" />
+
+### The hook details you will need in a real app
+
+`useEffect` runs after React draws the screen. Its dependency array controls when it runs:
+
+| You write | It runs |
+| --- | --- |
+| `useEffect(fn)` | after every render |
+| `useEffect(fn, [])` | once, after the first render |
+| `useEffect(fn, [query])` | after the first render and whenever `query` changes |
+| `return () => ...` inside `fn` | before the effect runs again and when the component unmounts |
+
+```tsx title="Load data when a screen opens"
+const [movies, setMovies] = useState<Movie[]>([]);
+const [loading, setLoading] = useState(true);
+
+useEffect(() => {
+  fetch('https://example.com/movies.json')
+    .then((response) => response.json())
+    .then(setMovies)
+    .finally(() => setLoading(false));
+}, []);
+```
+
+`useRef` returns a box whose `.current` value survives renders. Attach it to an input when you need to focus that input, or use it for a value that should not redraw the screen.
+
+```tsx title="Focus the title when validation fails"
+const titleRef = useRef<TextInput>(null);
+
+function save() {
+  if (!title.trim()) {
+    titleRef.current?.focus();
+    return;
+  }
+}
+
+<TextInput ref={titleRef} value={title} onChangeText={setTitle} />
+```
+
+`useMemo` remembers the result of a calculation until one of its inputs changes. It is useful for filtering a large list, but ordinary small calculations do not need it.
+
+```tsx title="Filter only when movies or query changes"
+const filteredMovies = useMemo(
+  () => movies.filter((movie) => movie.title.toLowerCase().includes(query.toLowerCase())),
+  [movies, query],
+);
+```
+
+> [!IMPORTANT]
+> Call hooks only at the top level of a component or custom hook. Never put a hook inside an `if`, loop, event handler, or nested function.
+
+### Conditions, lists and stable keys
+
+Use a ternary when exactly one of two things should appear, and `&&` when something is optional:
+
+```tsx
+{loading ? <ActivityIndicator /> : <MovieList movies={movies} />}
+{error && <Text className="text-red-600">{error}</Text>}
+```
+
+When `.map()` creates components, each outer element needs a unique, stable key. Do not use the array index when items can be inserted, removed or reordered.
+
+```tsx
+{movies.map((movie) => <MovieCard key={movie.id} movie={movie} />)}
+```
 
 <Part n="4" title="React Native components" time="10 min" />
 
@@ -208,66 +324,270 @@ Everything you practised today, in one small feature. The **checklist** is your 
 
 <Exercise id="ex17" />
 
-## Optional challenge: take it into Expo
+<Part n="10" title="Navigation + the Recipes app" time="30 min" />
 
-The exercises above run in this page so you can practise quickly. Now use the same ideas in a real Expo project: a four-screen **Movies watchlist**. This section comes from the longer practical version of Lab 02 and is the best next step if you finish early.
+The browser exercises taught each idea separately. Now see how those ideas connect in a real multi-screen Expo app before building your own.
 
-### File-based routing
+<Task n="10.1" title="Routing on mobile: Expo Router" time="7 min">
 
-Expo Router turns files inside `app/` into screens. Square brackets make a dynamic route, so `movie/[id].tsx` can open `/movie/1`, `/movie/2`, and so on.
+Expo Router maps **files to screens**. Every file inside `app/` becomes a route; folders organise the routes, and layout files decide whether screens use a stack or tabs.
+
+<FileTree title="app/ → routes" lines={[
+  'app/',
+  '  _layout.tsx # wraps every route in a Stack -',
+  '  (tabs)/ # route group; not part of the URL -',
+  '    _layout.tsx # bottom tab bar -',
+  '    index.tsx # → / *',
+  '    favorites.tsx # → /favorites *',
+  '    add.tsx # → /add *',
+  '  recipe/',
+  '    [id].tsx # → /recipe/1, /recipe/2 ... *',
+]} />
+
+<Cards cols={3} items={[
+  { icon: 'layers', title: 'Stack', code: '<Stack />', text: 'Pages slide on top of one another and get a Back button.' },
+  { icon: 'grid', title: 'Tabs', code: '<Tabs />', text: 'A bottom bar switches between the main areas of the app.' },
+  { icon: 'link', title: 'Navigate', code: "router.push('/add')", text: 'Navigate in code, or wrap content in `<Link href>`.' },
+]} />
+
+```tsx title="A tappable card that opens a details route"
+<Link href={`/recipe/${recipe.id}`} asChild>
+  <Pressable>
+    <Text>{recipe.title}</Text>
+  </Pressable>
+</Link>
+```
+
+</Task>
+
+<Task n="10.2" title="Dynamic routes and route parameters" time="6 min">
+
+Square brackets create a dynamic page. `app/recipe/[id].tsx` handles `/recipe/1`, `/recipe/2`, and every other recipe id.
+
+```tsx title="app/recipe/[id].tsx"
+import { Stack, useLocalSearchParams } from 'expo-router';
+
+export default function RecipeDetails() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const recipe = recipes.find((item) => item.id === id);
+
+  if (!recipe) return <Text>Recipe not found</Text>;
+
+  return (
+    <View>
+      <Stack.Screen options={{ title: recipe.title }} />
+      <Text>{recipe.title}</Text>
+    </View>
+  );
+}
+```
+
+> [!WARNING]
+> Route parameters are strings. If your data uses numeric ids, compare with `item.id === Number(id)`.
+
+</Task>
+
+<Task n="10.3" title="Share state between pages with Context" time="7 min">
+
+The Details page changes favorites, while the Favorites tab displays them. State owned by either page would disappear from the other, so place it in a provider **above both screens**.
+
+```tsx title="context/recipes.tsx (short version)"
+type RecipesValue = {
+  favorites: string[];
+  toggleFavorite: (id: string) => void;
+};
+
+const RecipesContext = createContext<RecipesValue | null>(null);
+
+export function RecipesProvider({ children }: PropsWithChildren) {
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const toggleFavorite = (id: string) =>
+    setFavorites((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+    );
+
+  return <RecipesContext.Provider value={{ favorites, toggleFavorite }}>{children}</RecipesContext.Provider>;
+}
+
+export function useRecipes() {
+  const value = useContext(RecipesContext);
+  if (!value) throw new Error('useRecipes must be inside RecipesProvider');
+  return value;
+}
+```
+
+Wrap the Stack with `<RecipesProvider>` in `app/_layout.tsx`. Any screen below it can then call `useRecipes()`.
+
+</Task>
+
+<Task n="10.4" title="Walk through the complete Recipes app" time="10 min">
+
+This is the complete four-page example from the original Lab 02. Select a file to read its code; use the phone preview to see how the files work together.
+
+<AppWalkthrough ex="recipes" />
+
+Find the code responsible for each behaviour:
+
+1. Search for `fal`. Which hook calculates the filtered list, and what are its dependencies?
+2. Open **Koshari**, add it to favorites, then open the Favorites tab. Which provider makes that possible?
+3. Press **Save recipe** with an empty title. Where is the error set, and how does the ref focus the title input?
+4. Add a recipe. Which function creates the new array, and why would `recipes.push(...)` be wrong?
+
+</Task>
+
+<Part n="11" title="Your project: a four-screen Movies app" time="45 min" />
+
+Build the same architecture yourself in a real Expo project. The specifications below are deliberately detailed, but the implementation is yours.
+
+<Task n="11.1" title="Create and organise the project" time="7 min">
+
+The tabs template already includes Expo Router, a Stack and a tab bar.
+
+<Terminal title="Terminal — create the project" lines={[
+  '$ npx create-expo-app@latest movies-app --template tabs',
+  '$ cd movies-app',
+  '$ git switch -c feature/movies-app',
+  '$ npx expo start',
+  '[qr]',
+]} />
+
+Reshape the template into this structure:
 
 <FileTree title="movies-app" lines={[
   'app/',
   '  _layout.tsx # Stack + MoviesProvider',
   '  (tabs)/',
   '    _layout.tsx # Movies · Watchlist · Add',
-  '    index.tsx # all movies *',
-  '    watchlist.tsx # saved movies *',
-  '    add.tsx # controlled form *',
+  '    index.tsx # Page 1: Movies *',
+  '    watchlist.tsx # Page 3: Watchlist *',
+  '    add.tsx # Page 4: Add movie *',
   '  movie/',
-  '    [id].tsx # movie details *',
+  '    [id].tsx # Page 2: Movie details *',
   'components/',
-  '  MovieCard.tsx # receives one movie as props',
+  '  MovieCard.tsx # receives one Movie prop',
   'context/',
-  '  movies.tsx # shared movies + watchlist state',
+  '  movies.tsx # shared list + watchlist state',
+  'data/',
+  '  movies.ts # starting data + Movie type',
 ]} />
 
-<Cards cols={3} items={[
-  { icon: 'layers', title: 'Stack', code: '<Stack />', text: 'Details slide on top and get a Back button.' },
-  { icon: 'grid', title: 'Tabs', code: '<Tabs />', text: 'Switch between Movies, Watchlist and Add.' },
-  { icon: 'link', title: 'Navigate', code: "router.push('/add')", text: 'Or wrap a card with `<Link href>`.' },
-]} />
+```ts title="data/movies.ts"
+export type Movie = {
+  id: string;
+  title: string;
+  year: number;
+  genre: string;
+  rating: number;
+  emoji: string;
+};
 
-```tsx title="app/movie/[id].tsx"
-const { id } = useLocalSearchParams<{ id: string }>();
-const movie = movies.find((item) => item.id === id);
+export const MOVIES: Movie[] = [
+  { id: '1', title: 'Inception', year: 2010, genre: 'Sci-Fi', rating: 8.8, emoji: '🌀' },
+  { id: '2', title: 'The Lion King', year: 1994, genre: 'Animation', rating: 8.5, emoji: '🦁' },
+  { id: '3', title: 'Interstellar', year: 2014, genre: 'Sci-Fi', rating: 8.7, emoji: '🪐' },
+  { id: '4', title: 'Spirited Away', year: 2001, genre: 'Animation', rating: 8.6, emoji: '🐉' },
+  { id: '5', title: 'The Dark Knight', year: 2008, genre: 'Action', rating: 9.0, emoji: '🦇' },
+  { id: '6', title: 'Coco', year: 2017, genre: 'Animation', rating: 8.4, emoji: '💀' },
+];
 ```
 
-> [!WARNING]
-> Route parameters are strings. Convert `id` first if your data uses numeric IDs.
+</Task>
 
-### Build the four screens
+<Task n="11.2" title="Page 1: Movies list and search" time="9 min">
 
-1. **Movies:** render the data with `FlatList`, extract a reusable `MovieCard`, and filter by title.
-2. **Details:** read the route `id`, show the movie, and toggle it in the watchlist.
-3. **Watchlist:** reuse `MovieCard`; include a count and a friendly empty state.
-4. **Add movie:** use controlled inputs, validate the title and year, then add the new movie to shared state.
+<MockScreen title="Movies" tab={0} search rows={['🌀 Inception · 2010 · ⭐ 8.8', '🦁 The Lion King · 1994', '🪐 Interstellar · 2014', '🐉 Spirited Away · 2001', '🦇 The Dark Knight · 2008']} caption="app/(tabs)/index.tsx" />
 
-The watchlist changes on the Details screen but appears on another tab, so keep it in a Context provider above both screens.
+Your page must include:
 
-<Terminal title="Create, branch and run" lines={[
-  '$ npx create-expo-app@latest movies-app --template tabs',
-  '$ cd movies-app',
-  '$ git switch -c feature/movies-app',
-  '$ npx expo start',
+- A `FlatList` of every movie with a stable `keyExtractor`.
+- A reusable `MovieCard` receiving one typed `movie` prop.
+- Emoji, title, year and rating on each card.
+- A `Link` with `asChild` that opens `/movie/<id>` when the card is pressed.
+- A controlled search box and a `useMemo` filtered list.
+- A useful empty result such as “No movie matches…”.
+
+<Terminal lines={['$ git add .', '$ git commit -m "Page 1: movies list with search"']} />
+
+</Task>
+
+<Task n="11.3" title="Page 2: Movie details" time="9 min">
+
+<MockScreen title="Inception" variant="detail" back rows={['🌀 Inception', '2010 · Sci-Fi', '⭐ 8.8 / 10']} button="☆ Add to watchlist" caption="app/movie/[id].tsx" />
+
+Your page must:
+
+- Read `id` with `useLocalSearchParams` and find the corresponding movie.
+- Display its emoji, title, year, genre and rating.
+- Set the Stack header title to the movie title.
+- Toggle between **Add to watchlist** and **Remove from watchlist**.
+- Render “Movie not found” for an invalid id.
+
+The watchlist is used here and on Page 3, so own it in `context/movies.tsx`, expose it with `useMovies()`, and wrap the app in `MoviesProvider`.
+
+<Terminal lines={['$ git add .', '$ git commit -m "Page 2: movie details and watchlist toggle"']} />
+
+</Task>
+
+<Task n="11.4" title="Page 3: Watchlist" time="7 min">
+
+<div style={{ display: 'flex', flexWrap: 'wrap', gap: '28px', justifyContent: 'center' }}>
+  <MockScreen title="Watchlist" tab={1} rows={['2 movies to watch', '🌀 Inception · 2010', '🦇 The Dark Knight · 2008']} caption="with movies" />
+  <MockScreen title="Watchlist" tab={1} variant="empty" rows={['Your watchlist is empty — add a movie from its page']} caption="empty state" />
+</div>
+
+Reuse `MovieCard`, show only saved movies, include the count with correct singular/plural grammar, and provide a friendly empty state.
+
+<Terminal lines={['$ git add .', '$ git commit -m "Page 3: watchlist"']} />
+
+</Task>
+
+<Task n="11.5" title="Page 4: Add movie form" time="8 min">
+
+<MockScreen title="Add movie" tab={2} variant="form" rows={['Title', 'Year', 'Genre']} button="Save movie" caption="app/(tabs)/add.tsx" />
+
+Your form must include:
+
+- Controlled title, year and genre inputs.
+- Validation: title is required; year must be a number from 1900 to 2030.
+- A red error message and `useRef` to focus the field that needs fixing.
+- A save handler that creates a new movie without mutating the old array.
+- Cleared inputs and `router.push('/')` after a successful save.
+
+<Terminal lines={['$ git add .', '$ git commit -m "Page 4: add movie form with validation"']} />
+
+</Task>
+
+<Task n="11.6" title="Test, push and merge" time="5 min">
+
+Before pushing, test this complete journey on your phone:
+
+1. Search for a movie and open its details.
+2. Add it to the watchlist and confirm it appears in the Watchlist tab.
+3. Remove it and confirm the empty state returns.
+4. Submit the Add form empty and confirm validation focuses the title.
+5. Add a valid movie and confirm it appears on the Movies page.
+6. Open an invalid details URL and confirm the app does not crash.
+
+<GitFlow steps={flow} current={3} compact branch="feature/movies-app" />
+
+<Terminal title="Push the feature branch" lines={[
+  '$ git remote add origin https://github.com/your-username/movies-app.git',
+  '$ git push -u origin feature/movies-app',
+  '> feature/movies-app -> feature/movies-app',
 ]} />
 
-Commit each screen separately. When all four work, push the branch, merge its pull request into `main`, and paste the repository link below for your TA.
+On GitHub choose **Compare & pull request → Create pull request → Merge pull request**. Then update the local copy:
+
+<Terminal lines={['$ git switch main', '$ git pull', '# main now contains all four pages']} />
+
+Paste the repository link for your TA:
 
 <RepoSubmit lab="lab-02" />
 
-<Checkpoint title="Optional mission complete">
+<Checkpoint title="Mission complete">
 
-Your app has four working screens, shared watchlist state, form validation, and a merged GitHub branch. 🎬
+Your Movies app has four working pages, shared watchlist state, search, validation, route parameters, and a reviewed Git history merged into `main`. 🎬
 
 </Checkpoint>
+
+</Task>

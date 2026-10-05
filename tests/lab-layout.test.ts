@@ -20,9 +20,11 @@ test('attendance is the final lab card before previous/next navigation', () => {
   assert.ok(content < checkin && checkin < navigation, 'check-in must be after all lab content and before navigation');
 });
 
-test('merged Lab 02 keeps the interactive course and practical Expo challenge', () => {
+test('merged Lab 02 keeps the interactive course and full practical Expo project', () => {
   const ids = [...lab02.matchAll(/<Exercise id="(ex\d+)"/g)].map((m) => m[1]);
   assert.deepEqual(ids, Array.from({ length: 17 }, (_, i) => `ex${String(i + 1).padStart(2, '0')}`));
-  assert.match(lab02, /Optional challenge: take it into Expo/);
+  assert.match(lab02, /Navigation \+ the Recipes app/);
+  assert.match(lab02, /Your project: a four-screen Movies app/);
+  assert.match(lab02, /<AppWalkthrough ex="recipes"/);
   assert.match(lab02, /<RepoSubmit lab="lab-02"/);
 });

@@ -3,7 +3,6 @@
  * If the network drops (campus Wi-Fi…), events wait in localStorage and are re-sent later.
  */
 import { deviceId, getStudent, storage } from './store.ts';
-import { record } from '@/scripts/progress';
 
 export type LabEvent = {
   lab: string;
@@ -65,12 +64,6 @@ export function track(event: LabEvent) {
   if (!student) return; // not signed in: nothing to report yet
   const item: Queued = { ...event, name: student.name, studentId: student.id, deviceId: deviceId(), at: Date.now() };
   writeQueue([...readQueue(), item]);
-  if (event.event === 'check' && event.exercise && event.result) {
-    const total = 10;
-    const passed = event.result === 'pass' ? total : Math.max(0, Math.min(total - 1, Math.round((event.score ?? 0) * total)));
-    record.attempt({ lab: event.lab, exercise: event.exercise, passed, total, files: { 'result.txt': `Interactive check: ${event.result} (${passed}/${total})` } });
-    if (event.result === 'pass') record.task({ lab: event.lab, task: event.exercise, done: true });
-  }
   void flushQueue();
 }
 
