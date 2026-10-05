@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>App preview</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #fff; color: #11181c; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+    #root { height: 100%; display: flex; flex-direction: column; }
+    #redbox { position: fixed; inset: 0; z-index: 10; overflow: auto; padding: 16px; background: #c62828; color: #fff; font: 12.5px/1.55 ui-monospace, Consolas, monospace; }
+    #redbox b { display: block; margin-bottom: 8px; font: 700 15px system-ui, sans-serif; }
+    #redbox pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
+    #redbox p { margin: 14px 0 0; opacity: 0.85; font-family: system-ui, sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <div id="redbox" hidden role="alert"><b>Error</b><pre></pre><p>Fix the code, then press ▶ Run.</p></div>
+  <script src="runtime.js"></script>
+</body>
+</html>

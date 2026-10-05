@@ -10,11 +10,13 @@ import { unified } from '@astrojs/markdown-remark';
 import mdx from '@astrojs/mdx';
 import vercel from '@astrojs/vercel';
 import rehypeCallouts from './src/plugins/rehype-callouts.mjs';
+import runner from './src/integrations/runner.mjs';
 
 export default defineConfig({
   site: 'https://mobdev.vercel.app',
   prefetch: { prefetchAll: true, defaultStrategy: 'hover' },
-  integrations: [mdx()],
+  // runner(): builds the Lab playground runtime (public/runner/runtime.js)
+  integrations: [mdx(), runner()],
   // Static site; only /admin and /api/* run on the server (they set `prerender = false`).
   adapter: vercel({ maxDuration: 60 }),
   markdown: {
