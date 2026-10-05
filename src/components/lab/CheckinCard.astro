@@ -1,0 +1,45 @@
+---
+/**
+ * End-of-lab check-in. Added to every lab by the lab template (not written in MDX).
+ * Works only while the admin has check-in open for this lab (/admin/progress).
+ */
+interface Props { lab: string; label: string }
+const { lab, label } = Astro.props;
+---
+<section class="ci" data-checkin data-lab={lab} data-state="loading" data-reveal aria-live="polite">
+  <span class="ci-ic" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s7-6.1 7-12a7 7 0 0 0-14 0c0 5.9 7 12 7 12Z" /><circle cx="12" cy="10" r="2.6" /></svg>
+  </span>
+  <div class="ci-body">
+    <p class="ci-k mono">End of lab · attendance</p>
+    <h2 class="ci-t">Check in for {label}</h2>
+    <p class="ci-msg" data-ci-msg>Checking whether check-in is open…</p>
+  </div>
+  <button type="button" class="btn btn-primary ci-btn" data-ci-btn hidden>Check in</button>
+</section>
+
+<style>
+  .ci {
+    position: relative; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 16px 18px;
+    margin-top: 56px; padding: 22px; border-radius: var(--r-lg); border: 1px solid var(--line-2);
+    background: var(--surface); scroll-margin-top: calc(var(--nav-h) + 24px);
+    transition: border-color var(--t-med), background var(--t-med);
+  }
+  @media (min-width: 640px) { .ci { grid-template-columns: auto 1fr auto; } }
+  .ci-ic { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; background: var(--surface-3); color: var(--text-3); transition: background var(--t-med), color var(--t-med); }
+  .ci-ic svg { width: 24px; height: 24px; }
+  .ci-k { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); }
+  .ci-t { font-size: var(--fs-lg); letter-spacing: -0.02em; margin-top: 2px; }
+  .ci-msg { color: var(--text-2); font-size: 14.5px; margin-top: 4px; }
+  .ci-btn { grid-column: 1 / -1; justify-self: start; }
+  @media (min-width: 640px) { .ci-btn { grid-column: auto; } }
+
+  .ci[data-state='open'] { border-color: color-mix(in oklab, var(--accent-text) 55%, var(--line)); background: linear-gradient(135deg, var(--accent-soft), var(--surface) 60%); }
+  .ci[data-state='open'] .ci-ic { background: var(--accent); color: var(--accent-ink); animation: ci-ring 1.8s var(--ease-out) infinite; }
+  .ci[data-state='done'] { border-color: var(--ok); background: linear-gradient(135deg, var(--ok-soft), transparent 70%); }
+  .ci[data-state='done'] .ci-ic { background: var(--ok); color: #fff; }
+  .ci[data-state='done'] .ci-msg { color: var(--ok); font-weight: 600; }
+  .ci[data-state='conflict'] .ci-msg, .ci[data-state='error'] .ci-msg { color: var(--danger); }
+  @keyframes ci-ring { 0% { box-shadow: 0 0 0 0 var(--accent-glow); } 100% { box-shadow: 0 0 0 14px transparent; } }
+  @media (prefers-reduced-motion: reduce) { .ci[data-state='open'] .ci-ic { animation: none; } }
+</style>

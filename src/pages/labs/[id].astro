@@ -47,6 +47,7 @@ import MockScreen from '@/components/lab/MockScreen.astro';
 import RepoSubmit from '@/components/lab/RepoSubmit.astro';
 import MeChip from '@/components/lab/MeChip.astro';
 import IdentitySheet from '@/components/lab/IdentitySheet.astro';
+import CheckinCard from '@/components/lab/CheckinCard.astro';
 
 const components = {
   Part, Task, Checkpoint, Terminal, Explain, Cards, ToolGrid, TeamCards, Timeline, FileTree, AppPhone, BeforeAfter,
@@ -160,6 +161,8 @@ const sections = [
       <section class="block prose lab-prose">
         <Content components={components} />
       </section>
+
+      {isMission && <CheckinCard lab={lab.id} label={`Lab ${pad(d.number)}`} />}
 
       {isMission && (
         <section class="done-banner" data-lab-complete hidden>

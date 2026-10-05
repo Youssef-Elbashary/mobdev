@@ -216,6 +216,7 @@ function wireSheet() {
     setState('saving');
     closeSheet(me);
     if (!before || before.studentId !== studentId) syncTicks();
+    flushViews(true); // reading gathered before signing in
     flush();
   });
   dlg.querySelector('[data-me-skip]')!.addEventListener('click', () => {
@@ -264,12 +265,156 @@ function wireRepoBoxes() {
   });
 }
 
+/* -------------------------------------------------------------- check-in */
+
+const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+function wireCheckin() {
+  document.querySelectorAll<HTMLElement>('[data-checkin]').forEach((card) => {
+    if (card.dataset.wired) return;
+    card.dataset.wired = '1';
+    const lab = card.dataset.lab!;
+    const msg = card.querySelector<HTMLElement>('[data-ci-msg]')!;
+    const btn = card.querySelector<HTMLButtonElement>('[data-ci-btn]')!;
+    const render = (state: 'open' | 'closed' | 'done' | 'conflict' | 'error', text: string) => {
+      card.dataset.state = state;
+      msg.textContent = text;
+      btn.hidden = state !== 'open';
+      btn.disabled = false;
+    };
+    const doneAt = () => {
+      const me = getIdentity();
+      const done = read<{ id: string; at: string } | null>(`progress:checkin:${lab}`, null);
+      return me && done && done.id === me.studentId ? done.at : null;
+    };
+    const refresh = async () => {
+      const at = doneAt();
+      if (at) return render('done', `✓ Checked in at ${clock(at)}. See you next lab!`);
+      try {
+        const s = await (await fetch(`/api/progress/session?lab=${encodeURIComponent(lab)}`, { cache: 'no-store' })).json();
+        if (s.open) render('open', s.closesAt ? `Check-in is open until ${clock(s.closesAt)}.` : 'Check-in is open now.');
+        else render('closed', 'Check-in opens during the lab session. Your TA will tell you when.');
+      } catch {
+        render('error', 'Could not reach the server. Try again in a moment.');
+      }
+    };
+    btn.addEventListener('click', async () => {
+      const me = await ensureIdentity(true);
+      if (!me) return;
+      btn.disabled = true;
+      msg.textContent = 'Checking in…';
+      try {
+        const res = await fetch('/api/progress/checkin', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...me, lab }) });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          write(`progress:checkin:${lab}`, { id: me.studentId, at: data.at });
+          render('done', `✓ Checked in at ${clock(data.at)}. See you next lab!`);
+          flushViews(true);
+        } else if (res.status === 409) render('conflict', data.message ?? 'This student ID is used on another device. Ask your TA.');
+        else if (res.status === 403) render('closed', data.message ?? 'Check-in is closed.');
+        else render('error', 'Could not check in. Try again in a moment.');
+      } catch {
+        render('error', 'No connection. Try again in a moment.');
+      }
+    });
+    refresh();
+    const timer = window.setInterval(() => {
+      if (!card.isConnected) return clearInterval(timer);
+      if (document.visibilityState === 'visible' && card.dataset.state !== 'done') refresh();
+    }, 30_000);
+  });
+}
+
+/* ------------------------------------------------------- reading tracker */
+
+type Pending = { seen: string[]; sec: number; sent: string[] };
+const SEEN_MS = 4000; // a task must stay in view this long
+const IDLE_MS = 60_000; // no interaction for this long = not active
+const MAX_BATCH_SEC = 900;
+let lastInput = Date.now();
+let reading: { stop(): void; flush(force?: boolean): void } | null = null;
+
+const viewsKey = (lab: string) => `progress:views:${lab}`;
+function flushViews(force = false) {
+  reading?.flush(force);
+}
+
+function initReadingTracker() {
+  reading?.stop();
+  reading = null;
+  const lab = labId();
+  const tasks = Array.from(document.querySelectorAll<HTMLElement>('.task[data-task]'));
+  if (!lab || !tasks.length || !('IntersectionObserver' in window)) return;
+  const get = () => read<Pending>(viewsKey(lab), { seen: [], sec: 0, sent: [] });
+  const timers = new Map<Element, number>();
+  const markSeen = (n: string) => {
+    const p = get();
+    if (p.seen.includes(n) || p.sent.includes(n)) return;
+    p.seen.push(n);
+    write(viewsKey(lab), p);
+  };
+  // "in view" = 40 % of the task visible, or (for tall tasks) half the screen filled by it
+  const io = new IntersectionObserver(
+    (entries) =>
+      entries.forEach((e) => {
+        const n = (e.target as HTMLElement).dataset.task!;
+        const inView = e.isIntersecting && (e.intersectionRatio >= 0.4 || e.intersectionRect.height >= window.innerHeight * 0.5);
+        if (inView && !timers.has(e.target)) timers.set(e.target, window.setTimeout(() => markSeen(n), SEEN_MS));
+        if (!inView && timers.has(e.target)) {
+          clearTimeout(timers.get(e.target));
+          timers.delete(e.target);
+        }
+      }),
+    { threshold: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1] },
+  );
+  tasks.forEach((t) => io.observe(t));
+
+  let unsaved = 0;
+  const tick = window.setInterval(() => {
+    if (document.visibilityState !== 'visible' || Date.now() - lastInput > IDLE_MS) return;
+    unsaved++;
+    if (unsaved >= 5) save();
+  }, 1000);
+  const save = () => {
+    if (!unsaved) return;
+    const p = get();
+    p.sec += unsaved;
+    unsaved = 0;
+    write(viewsKey(lab), p);
+  };
+  const flush = (force = false) => {
+    save();
+    if (!getIdentity()) return; // kept until the student signs in
+    const p = get();
+    if (!p.seen.length && (p.sec < 5 || (!force && p.sec < 15))) return;
+    const activeSec = Math.min(p.sec, MAX_BATCH_SEC);
+    send('/api/progress/views', { lab, seen: p.seen, activeSec });
+    write(viewsKey(lab), { seen: [], sec: p.sec - activeSec, sent: [...p.sent, ...p.seen] });
+  };
+  const every = window.setInterval(() => flush(), 30_000);
+  const onHide = () => document.visibilityState === 'hidden' && flush(true);
+  document.addEventListener('visibilitychange', onHide);
+  reading = {
+    flush,
+    stop() {
+      flush(true);
+      io.disconnect();
+      timers.forEach((t) => clearTimeout(t));
+      clearInterval(tick);
+      clearInterval(every);
+      document.removeEventListener('visibilitychange', onHide);
+    },
+  };
+}
+
 /* ---------------------------------------------------------------- init */
 
 let listening = false;
 export function initProgressUi() {
   wireSheet();
   wireRepoBoxes();
+  wireCheckin();
+  initReadingTracker();
   document.querySelectorAll<HTMLElement>('[data-me-chip]').forEach((chip) => {
     if (chip.dataset.wired) return;
     chip.dataset.wired = '1';
@@ -279,6 +424,14 @@ export function initProgressUi() {
   if (!listening) {
     listening = true;
     window.addEventListener('online', () => flush());
+    // any interaction keeps "active time" counting for the next minute
+    for (const ev of ['scroll', 'keydown', 'pointerdown', 'pointermove', 'wheel', 'touchstart'])
+      window.addEventListener(ev, () => (lastInput = Date.now()), { passive: true });
+    // leaving the lab page (view transition): send what was read
+    document.addEventListener('astro:before-swap', () => {
+      reading?.stop();
+      reading = null;
+    });
   }
   flush();
 }

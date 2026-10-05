@@ -37,6 +37,7 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
               <span class="sr-only">Lab</span>
               <select class="input" data-pa-lab></select>
             </label>
+            <div class="pa-ci" data-pa-ci></div>
             <span class="pa-live mono" data-pa-live>connecting…</span>
             <a class="btn btn-ghost btn-sm" data-pa-csv href="#" download>Export CSV</a>
             <form method="post" action="/api/admin/logout"><button class="btn btn-ghost btn-sm" type="submit">Log out</button></form>
@@ -47,7 +48,8 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
           <div class="pa-stat stg" style="--i:0"><span class="mono">Active students</span><b data-pa-stat="active">0</b></div>
           <div class="pa-stat stg" style="--i:1"><span class="mono">Average progress</span><b><i data-pa-stat="avgPercent">0</i><small>%</small></b></div>
           <div class="pa-stat stg" style="--i:2"><span class="mono">Exercises solved</span><b data-pa-stat="solved">0</b></div>
-          <div class="pa-stat stg" style="--i:3"><span class="mono">Repos submitted</span><b><i data-pa-stat="submitted">0</i><small data-pa-of></small></b></div>
+          <div class="pa-stat stg" style="--i:3"><span class="mono">Checked in</span><b><i data-pa-stat="checkedIn">0</i><small data-pa-of-ci></small></b></div>
+          <div class="pa-stat stg" style="--i:4"><span class="mono">Repos submitted</span><b><i data-pa-stat="submitted">0</i><small data-pa-of></small></b></div>
         </div>
 
         <div class="pa-grid">
@@ -102,6 +104,16 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
   .pa-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
   .pa-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
   .pa-select select { height: 38px; padding: 0 12px; border-radius: 10px; max-width: min(380px, 80vw); }
+  .pa-ci { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 4px 4px 4px 12px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--surface); }
+  .pa-ci :global(.ci-state) { font-size: 12px; color: var(--text-3); display: inline-flex; align-items: center; gap: 6px; }
+  .pa-ci :global(.ci-state)::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+  .pa-ci :global(.ci-state.on) { color: var(--ok); font-weight: 600; }
+  .pa-ci :global(.ci-state.on)::before { background: var(--ok); animation: pa-pulse 2s var(--ease-out) infinite; }
+  .pa-ci :global(.ci-len) { height: 32px; padding: 0 8px; border-radius: 999px; font-size: 13px; }
+  .pa-table :global(.att) { font: 600 12.5px var(--font-mono); }
+  .pa-table :global(.att.yes) { color: var(--ok); }
+  .pa-table :global(.att.no) { color: var(--text-3); }
+  .pa-drawer :global(.d-tick.read) { box-shadow: inset 0 0 0 1px var(--accent-text); color: var(--text-2); }
   .pa-live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-3); }
   .pa-live::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
   .pa-live.on::before { background: var(--ok); animation: pa-pulse 2s var(--ease-out) infinite; box-shadow: 0 0 0 0 var(--ok-soft); }
@@ -109,7 +121,8 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
   @keyframes pa-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--ok) 60%, transparent); } 100% { box-shadow: 0 0 0 9px transparent; } }
 
   .pa-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-block: 28px; }
-  @media (min-width: 900px) { .pa-stats { grid-template-columns: repeat(4, 1fr); } }
+  @media (min-width: 700px) { .pa-stats { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 1100px) { .pa-stats { grid-template-columns: repeat(5, 1fr); } }
   .pa-stat { display: grid; gap: 6px; padding: 18px; border-radius: var(--r-lg); border: 1px solid var(--line); background: linear-gradient(160deg, var(--accent-soft), var(--surface) 65%); }
   .pa-stat span { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
   .pa-stat b { font-family: var(--font-display); font-size: 2.4rem; letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; }
@@ -154,7 +167,7 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
   @keyframes pa-flash { 0% { box-shadow: inset 3px 0 0 var(--accent-text); background: var(--accent-soft); } 100% { box-shadow: inset 3px 0 0 transparent; } }
   .pa-table :global(.who b) { display: block; font-weight: 600; color: var(--text); }
   .pa-table :global(.who small) { font: 12px var(--font-mono); color: var(--text-3); }
-  .pa-table :global(.prog) { display: grid; grid-template-columns: 120px 40px; align-items: center; gap: 10px; }
+  .pa-table :global(.prog) { display: grid; grid-template-columns: 80px 38px; align-items: center; gap: 10px; }
   .pa-table :global(.prog span) { font: 600 13px var(--font-mono); text-align: right; }
   .pa-table :global(.cell) { width: 26px; text-align: center; padding-inline: 2px; }
   .pa-table :global(.sq) { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font: 700 9.5px var(--font-mono); background: var(--surface-3); color: var(--text-3); }
@@ -202,15 +215,17 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
 
 <script>
   type Cell = { passed: number; total: number; attempts: number };
-  type Student = { key: string; id: string; name: string; lastSeen: string; locked: boolean; percent: number; solved: number; tasksDone: number; submission: { url: string; reviewed: boolean; note: string } | null; cells: Record<string, Cell> };
+  type Student = { key: string; id: string; name: string; lastSeen: string; locked: boolean; percent: number; solved: number; tasksDone: number; submission: { url: string; reviewed: boolean; note: string } | null; cells: Record<string, Cell>; attended: string | null; seen: number; activeSec: number };
   type Data = {
     labs: { id: string; title: string }[];
     structure: { lab: string; title: string; tasks: { n: string; title: string }[]; exercises: { id: string; task: string; title: string; checks: number }[]; hasSubmission: boolean };
     students: Student[];
     exercises: { id: string; solvedPct: number; avgAttempts: number; medianSolveMs: number | null }[];
-    totals: { active: number; avgPercent: number; solved: number; submitted: number };
+    totals: { active: number; avgPercent: number; solved: number; submitted: number; checkedIn: number };
+    session: { open: boolean; closesAt: string | null };
   };
   type Attempt = { id: number; exercise: string; passed: number; total: number; code: string; created_at: string };
+  type Detail = { attempts: Attempt[]; tasks: { task: string; done: boolean }[]; submission: { url: string; reviewed: boolean; note: string } | null; checkin: string | null; views: { seen: string[]; active_sec: number } | null };
 
   /** tiny DOM builder: text is always set with textContent, never as HTML */
   function h<K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, any> = {}, ...kids: (Node | string | null | false | undefined)[]) {
@@ -236,6 +251,8 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
     return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   };
   const mins = (ms: number | null) => (ms == null ? '–' : ms < 60_000 ? `${Math.round(ms / 1000)}s` : `${Math.round(ms / 60_000)}m`);
+  const clock = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const duration = (sec: number) => (sec < 60 ? `${sec}s` : sec < 3600 ? `${Math.round(sec / 60)}m` : `${Math.floor(sec / 3600)}h ${Math.round((sec % 3600) / 60)}m`);
 
   function countTo(el: Element, to: number) {
     const from = Number(el.textContent) || 0;
@@ -296,8 +313,10 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
       sel.value = d.structure.lab;
       $<HTMLAnchorElement>('[data-pa-csv]').href = `/api/admin/progress/export?lab=${encodeURIComponent(d.structure.lab)}`;
       // stats
-      for (const k of ['active', 'avgPercent', 'solved', 'submitted'] as const) countTo($(`[data-pa-stat="${k}"]`), d.totals[k]);
+      for (const k of ['active', 'avgPercent', 'solved', 'checkedIn', 'submitted'] as const) countTo($(`[data-pa-stat="${k}"]`), d.totals[k]);
       $('[data-pa-of]').textContent = d.structure.hasSubmission ? ` / ${d.totals.active}` : ' · none asked';
+      $('[data-pa-of-ci]').textContent = ` / ${d.totals.active}`;
+      renderCheckinControl(d);
 
       // exercise overview
       const hardest = d.exercises.length && d.totals.active ? d.exercises.reduce((a, b) => (b.solvedPct < a.solvedPct ? b : a)).id : '';
@@ -320,9 +339,11 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
       $('[data-pa-head]').replaceChildren(
         h('tr', {},
           h('th', { scope: 'col' }, 'Student'),
+          h('th', { scope: 'col' }, 'Attended'),
           h('th', { scope: 'col' }, 'Progress'),
           ...d.structure.exercises.map((e) => h('th', { scope: 'col', class: 'cell-h', title: e.title }, short(e.id))),
           h('th', { scope: 'col' }, 'Tasks'),
+          h('th', { scope: 'col', title: 'Tasks read (on screen ≥ 4 s) · active time' }, 'Seen'),
           d.structure.hasSubmission ? h('th', { scope: 'col' }, 'Repo') : null,
           h('th', { scope: 'col' }, 'Last seen')),
       );
@@ -336,11 +357,14 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
       const first = seen.size === 0;
       body.replaceChildren(
         ...rows.map((s) => {
-          const sig = JSON.stringify([s.percent, s.cells, s.tasksDone, s.submission]);
+          const sig = JSON.stringify([s.percent, s.cells, s.tasksDone, s.submission, s.attended]);
           const changed = !first && seen.get(s.key) !== sig;
           seen.set(s.key, sig);
           const tr = h('tr', { class: `st-row${changed ? ' flash' : ''}`, tabindex: 0, 'data-key': s.key, onclick: () => openStudent(s.key), onkeydown: (e: KeyboardEvent) => e.key === 'Enter' && openStudent(s.key) },
             h('td', { class: 'who' }, h('b', {}, s.name), h('small', {}, s.id)),
+            h('td', {}, s.attended
+              ? h('span', { class: 'att yes', title: new Date(s.attended).toLocaleString('en-GB') }, `✓ ${clock(s.attended)}`)
+              : h('span', { class: 'att no' }, '–')),
             h('td', {}, h('div', { class: 'prog' }, bar(s.percent), h('span', {}, `${s.percent}%`))),
             ...d.structure.exercises.map((e) => {
               const c = s.cells[e.id];
@@ -349,6 +373,7 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
                 h('span', { class: `sq${solved ? ' ok' : c ? ' part' : ''}`, title: `${e.title}: ${c ? `${c.passed}/${c.total} · ${c.attempts} ${c.attempts === 1 ? 'try' : 'tries'}` : 'not tried'}` }, solved ? '✓' : c ? `${c.passed}/${c.total}` : ''));
             }),
             h('td', { class: 'dim' }, `${s.tasksDone}/${d.structure.tasks.length}`),
+            h('td', { class: 'dim' }, `${s.seen}/${d.structure.tasks.length} · ${duration(s.activeSec)}`),
             d.structure.hasSubmission
               ? h('td', { class: 'repo' }, s.submission ? h('a', { href: s.submission.url, target: '_blank', rel: 'noopener', onclick: (e: Event) => e.stopPropagation() }, s.submission.reviewed ? '✓ reviewed' : 'open') : h('span', { class: 'dim' }, '–'))
               : null,
@@ -358,6 +383,45 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
       );
       $('[data-pa-empty]').hidden = d.students.length > 0;
     }
+
+    /* ------- check-in control ------- */
+    async function setSession(payload: Record<string, unknown>) {
+      if (!data) return;
+      await fetch('/api/admin/progress/session', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lab: data.structure.lab, ...payload }) });
+      await load();
+    }
+    function countdown() {
+      const left = root!.querySelector<HTMLElement>('[data-ci-left]');
+      const closesAt = data?.session.closesAt;
+      if (!left || !data?.session.open) return;
+      if (!closesAt) return void (left.textContent = 'Check-in open · no time limit');
+      const ms = Date.parse(closesAt) - Date.now();
+      if (ms <= 0) return void load();
+      left.textContent = `Check-in open · ${Math.floor(ms / 60_000)}:${String(Math.floor((ms % 60_000) / 1000)).padStart(2, '0')} left`;
+    }
+    function renderCheckinControl(d: Data) {
+      const box = $('[data-pa-ci]');
+      const sig = d.structure.lab + JSON.stringify(d.session);
+      if (box.dataset.sig !== sig) {
+        box.dataset.sig = sig;
+        if (d.session.open) {
+          box.replaceChildren(
+            h('span', { class: 'ci-state on mono', 'data-ci-left': '' }),
+            h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: () => setSession({ action: 'close' }) }, 'Close now'),
+          );
+        } else {
+          const len = h('select', { class: 'input ci-len', 'aria-label': 'How long check-in stays open' },
+            h('option', { value: '15' }, '15 min'), h('option', { value: '30', selected: true }, '30 min'), h('option', { value: '60' }, '60 min'), h('option', { value: '' }, 'No limit')) as HTMLSelectElement;
+          box.replaceChildren(
+            h('span', { class: 'ci-state mono' }, 'Check-in closed'),
+            len,
+            h('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: () => setSession({ action: 'open', minutes: len.value ? Number(len.value) : null }) }, 'Open check-in'),
+          );
+        }
+      }
+      countdown();
+    }
+    const countdownTimer = window.setInterval(() => (root!.isConnected ? countdown() : clearInterval(countdownTimer)), 1000);
 
     /* ------- drawer ------- */
     const drawer = $('[data-pa-drawer]');
@@ -381,13 +445,14 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
       box.replaceChildren(h('p', { class: 'dim' }, 'Loading…'));
       const res = await fetch(`/api/admin/progress/student?lab=${encodeURIComponent(data.structure.lab)}&id=${encodeURIComponent(key)}`, { cache: 'no-store' });
       if (!res.ok || openKey !== key) return;
-      const detail = (await res.json()) as { attempts: Attempt[]; tasks: { task: string; done: boolean }[]; submission: { url: string; reviewed: boolean; note: string } | null };
+      const detail = (await res.json()) as Detail;
       drawDetail(s, detail);
     }
-    function drawDetail(s: Student, detail: { attempts: Attempt[]; tasks: { task: string; done: boolean }[]; submission: { url: string; reviewed: boolean; note: string } | null }) {
+    function drawDetail(s: Student, detail: Detail) {
       const d = data!;
       const box = $('[data-pa-detail]');
       const done = new Set(detail.tasks.filter((t) => t.done).map((t) => t.task));
+      const seenSet = new Set(detail.views?.seen ?? []);
       const action = async (payload: Record<string, unknown>) => {
         await fetch('/api/admin/progress/student', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: s.key, lab: d.structure.lab, ...payload }) });
         await load();
@@ -453,8 +518,15 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
           })),
 
         h('section', { class: 'd-sec' },
-          h('span', { class: 'd-k' }, `Tasks ticked · ${done.size}/${d.structure.tasks.length}`),
-          h('div', { class: 'd-ticks' }, ...d.structure.tasks.map((t) => h('span', { class: `d-tick${done.has(t.n) ? ' on' : ''}`, title: t.title }, t.n)))),
+          h('span', { class: 'd-k' }, 'Attendance & reading'),
+          h('p', {}, detail.checkin ? `✓ Checked in at ${new Date(detail.checkin).toLocaleString('en-GB')}` : 'Not checked in for this lab.'),
+          h('p', { class: 'dim' }, `Read ${seenSet.size} of ${d.structure.tasks.length} tasks · ${duration(detail.views?.active_sec ?? 0)} active on the lab page`)),
+
+        h('section', { class: 'd-sec' },
+          h('span', { class: 'd-k' }, `Tasks · ${done.size} ticked Done · ${seenSet.size} read`),
+          h('div', { class: 'd-ticks' }, ...d.structure.tasks.map((t) =>
+            h('span', { class: `d-tick${done.has(t.n) ? ' on' : seenSet.has(t.n) ? ' read' : ''}`, title: `${t.title}${done.has(t.n) ? ' · Done' : seenSet.has(t.n) ? ' · read' : ''}` }, t.n))),
+          h('p', { class: 'dim' }, 'Green = ticked Done · outlined = read but not ticked')),
       );
     }
 
