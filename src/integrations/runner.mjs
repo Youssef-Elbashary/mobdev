@@ -17,7 +17,16 @@ export default function runner() {
       'astro:config:setup': async ({ config, command, logger, updateConfig }) => {
         if (command !== 'dev' && command !== 'build') return;
         outfile = fileURLToPath(new URL('public/runner/runtime.js', config.root));
-        updateConfig({ vite: { plugins: [serveRuntimeInDev(() => outfile)] } });
+        updateConfig({
+          vite: {
+            plugins: [serveRuntimeInDev(() => outfile)],
+            // the playground editor is imported lazily; pre-bundle it so the dev server
+            // doesn't reload the page the first time a playground scrolls into view
+            optimizeDeps: {
+              include: ['@codemirror/view', '@codemirror/state', '@codemirror/commands', '@codemirror/language', '@codemirror/lang-javascript', '@codemirror/autocomplete', '@lezer/highlight'],
+            },
+          },
+        });
         const options = {
           entryPoints: [fileURLToPath(new URL('src/runner/runtime.tsx', config.root))],
           outfile,

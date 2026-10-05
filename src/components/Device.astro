@@ -1,9 +1,9 @@
 ---
-/** Phone frame. Put any screen content in the default slot. */
-interface Props { class?: string; time?: string; label?: string; light?: boolean }
-const { class: cls, time = '9:41', label = 'Phone preview', light = false } = Astro.props;
+/** Phone frame. Put any screen content in the default slot. `interactive`: the screen is a live app, not a picture. */
+interface Props { class?: string; time?: string; label?: string; light?: boolean; interactive?: boolean }
+const { class: cls, time = '9:41', label = 'Phone preview', light = false, interactive = false } = Astro.props;
 ---
-<div class:list={['device', cls, { light }]} role="img" aria-label={label}>
+<div class:list={['device', cls, { light }]} role={interactive ? 'group' : 'img'} aria-label={label}>
   <div class="d-btn d-btn-a" aria-hidden="true"></div>
   <div class="d-btn d-btn-b" aria-hidden="true"></div>
   <div class="d-screen">

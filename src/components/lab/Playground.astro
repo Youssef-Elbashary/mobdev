@@ -1,0 +1,183 @@
+---
+/**
+ * Live code playground, running real React Native code (react-native-web) in a sandboxed phone.
+ *   <Playground ex="e05-counter" />          exercise: Run · Check (auto-graded) · Hint · Solution
+ *   <Playground ex="demo-use-state" demo />  demo: editable, starts by itself when scrolled into view
+ * Definitions: src/playgrounds/<lab>/<id>.ts. Passing every check ticks the surrounding <Task>.
+ */
+import { Code } from 'astro:components';
+import Device from '../Device.astro';
+import Icon from '../Icon.astro';
+import { inline } from '@/lib/content';
+import { getPlayground } from '@/lib/playgrounds';
+
+interface Props { ex: string; demo?: boolean }
+const { ex, demo = false } = Astro.props;
+const def = getPlayground(ex);
+const exercise = !demo && def.checks.length > 0;
+const names = Object.keys(def.files);
+const themes = { light: 'github-light', dark: 'github-dark-default' } as const;
+const titled = (title: string) => [{ pre(node: any) { node.properties['data-title'] = title; } }];
+const json = JSON.stringify({ id: ex, files: def.files, checks: def.checks }).replace(/</g, '\\u003c');
+---
+<section class:list={['pg', { exercise }]} data-playground data-pg-id={ex} data-mode={exercise ? 'exercise' : 'demo'} data-reveal aria-label={`${exercise ? 'Exercise' : 'Live demo'}: ${def.title}`}>
+  <script type="application/json" data-pg-def set:html={json} />
+  <header class="pg-head">
+    {exercise
+      ? <span class="pg-kind mono"><Icon name="target" size={13} /> Exercise</span>
+      : <span class="pg-kind mono"><span class="pg-live" aria-hidden="true"></span> Live demo</span>}
+    <h4 class="pg-title">{def.title}</h4>
+    {exercise && <span class="pg-pass mono">✓ Solved</span>}
+  </header>
+  {def.goal && <p class="pg-goal" set:html={inline(def.goal)} />}
+
+  <div class="pg-body">
+    <div class="pg-code">
+      <div class="pg-tabs" role="tablist" aria-label="Files">
+        {names.map((f, i) => <button type="button" role="tab" class="pg-tab mono" data-pg-file={f} aria-selected={String(i === 0)}>{f}</button>)}
+        <span class="pg-kbd mono" aria-hidden="true"><kbd>Ctrl</kbd>+<kbd>↵</kbd> run</span>
+      </div>
+      <div class="pg-editor" data-pg-editor>
+        <Code code={def.files[names[0]]} lang="tsx" themes={themes} defaultColor={false} />
+      </div>
+      <div class="pg-bar">
+        <button type="button" class="btn btn-primary btn-sm pg-run" data-pg-run><Icon name="play" /> Run</button>
+        {exercise && <button type="button" class="btn btn-ghost btn-sm" data-pg-check><Icon name="check" /> Check</button>}
+        <span class="pg-sp"></span>
+        {def.hint && <button type="button" class="pg-link" data-pg-hint aria-expanded="false">💡 Hint</button>}
+        {def.solution && <button type="button" class="pg-link" data-pg-sol aria-expanded="false" disabled title="Press Check once to unlock">👁 Solution</button>}
+        <button type="button" class="pg-link" data-pg-reset>↺ Reset</button>
+      </div>
+    </div>
+    <div class="pg-phone">
+      <Device light interactive label={`App preview: ${def.title}`}>
+        <div class="pg-screen" data-pg-screen>
+          <p class="pg-idle">{exercise ? <>Press <b>▶ Run</b><br />to start the app</> : 'Starting…'}</p>
+        </div>
+      </Device>
+    </div>
+  </div>
+
+  {def.hint && <div class="pg-hint" data-pg-hint-box hidden><span aria-hidden="true">💡</span><p set:html={inline(def.hint)} /></div>}
+
+  <div class:list={['pg-out', { two: exercise }]}>
+    <div class="pg-panel">
+      <p class="pg-k mono">Console</p>
+      <div class="pg-console mono" data-pg-console role="log" aria-live="polite"><span class="pg-empty">console.log output appears here</span></div>
+    </div>
+    {exercise && (
+      <div class="pg-panel">
+        <p class="pg-k mono">Checks</p>
+        <ol class="pg-checks" data-pg-checks aria-live="polite">
+          {def.checks.map((c, i) => (
+            <li data-state="idle" class="stg" style={`--i:${i}`}>
+              <span class="ck" aria-hidden="true"></span>
+              <span class="ck-t">{c.name}</span>
+              <small class="ck-d" data-detail></small>
+            </li>
+          ))}
+        </ol>
+      </div>
+    )}
+  </div>
+
+  {def.solution && (
+    <div class="pg-solution" data-pg-solution hidden>
+      {Object.entries(def.solution).map(([f, code]) => <Code code={code} lang="tsx" themes={themes} defaultColor={false} transformers={titled(`${f} · solution`)} />)}
+    </div>
+  )}
+</section>
+
+<style>
+  .pg {
+    --pg-kw: #ff7b72; --pg-str: #a5d6ff; --pg-num: #79c0ff; --pg-fn: #d2a8ff; --pg-tag: #7ee787; --pg-attr: #79c0ff;
+    --rule: var(--accent);
+    position: relative; container-type: inline-size; margin-block: 8px !important;
+    border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); overflow: hidden;
+    transition: border-color var(--t-med);
+  }
+  :global(:root[data-theme='light']) .pg { --pg-kw: #cf222e; --pg-str: #0a3069; --pg-num: #0550ae; --pg-fn: #8250df; --pg-tag: #116329; --pg-attr: #0550ae; --rule: var(--accent-text); }
+  .pg.exercise { --rule: var(--info); }
+  .pg::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--rule); z-index: 1; }
+  .pg.is-passed { border-color: color-mix(in oklab, var(--ok) 50%, var(--line)); }
+  .pg.is-passed::before { background: var(--ok); }
+
+  /* header */
+  .pg-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 14px 18px 0; }
+  .pg-kind { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--rule); font-weight: 600; }
+  .pg-live { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pg-live 1.6s ease-in-out infinite; }
+  :global(:root[data-theme='light']) .pg-live { background: var(--accent-text); }
+  @keyframes pg-live { 50% { opacity: 0.25; } }
+  .pg-title { flex: 1 1 auto; font-family: var(--font-display); font-size: 1.15rem; letter-spacing: -0.02em; color: var(--text); margin: 0 !important; }
+  .pg-pass { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--ok); color: #fff; opacity: 0; transform: scale(0.6); }
+  .pg.is-passed .pg-pass { animation: pg-pop 600ms var(--ease-out) forwards; }
+  @keyframes pg-pop { 0% { opacity: 0; transform: scale(0.6); } 70% { opacity: 1; transform: scale(1.12); } 100% { opacity: 1; transform: scale(1); } }
+  .pg-goal { padding: 6px 18px 0; color: var(--text-2); font-size: 15px; margin: 0 !important; }
+
+  /* editor + phone */
+  .pg-body { display: grid; grid-template-columns: minmax(0, 1fr); margin-top: 14px; border-top: 1px solid var(--line); }
+  @container (min-width: 640px) { .pg-body { grid-template-columns: minmax(0, 1fr) 250px; } .pg-phone { border-left: 1px solid var(--line); } }
+  .pg-code { display: flex; flex-direction: column; min-width: 0; }
+  .pg-tabs { display: flex; align-items: center; gap: 2px; padding: 6px 8px 0; background: var(--bg-2); border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+  .pg-tab { padding: 7px 12px; font-size: 12px; color: var(--text-3); border-radius: 8px 8px 0 0; border: 1px solid transparent; border-bottom: 0; margin-bottom: -1px; white-space: nowrap; }
+  .pg-tab[aria-selected='true'] { color: var(--text); background: var(--code-bg); border-color: var(--line); }
+  .pg-kbd { margin-left: auto; padding: 0 6px 6px; font-size: 11px; color: var(--text-3); white-space: nowrap; }
+  .pg-kbd kbd { font-family: inherit; padding: 1px 5px; border: 1px solid var(--line-2); border-radius: 4px; }
+  .pg-editor { height: 360px; overflow: auto; background: var(--code-bg); }
+  .pg-editor :global(.code-frame), .pg-editor :global(pre) { margin: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: transparent !important; }
+  .pg-editor :global(.code-head) { display: none; }
+  .pg-editor :global(.cm-editor) { height: 100%; }
+  .pg-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 12px; border-top: 1px solid var(--line); }
+  .pg-sp { flex: 1; }
+  .pg-link { font-size: 12.5px; color: var(--text-2); padding: 6px 7px; border-radius: 8px; white-space: nowrap; transition: color var(--t-fast), background var(--t-fast); }
+  .pg-link:hover:not(:disabled) { color: var(--text); background: var(--surface-2); }
+  .pg-link:disabled { opacity: 0.45; cursor: not-allowed; }
+  .pg-link[aria-expanded='true'] { color: var(--text); background: var(--surface-3); }
+  .pg-run::before { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 0 0 var(--accent-glow); opacity: 0; }
+  .pg.is-dirty .pg-run::before { animation: pg-nudge 1.6s var(--ease-out) infinite; }
+  @keyframes pg-nudge { 0% { opacity: 1; box-shadow: 0 0 0 0 var(--accent-glow); } 100% { opacity: 0; box-shadow: 0 0 0 10px var(--accent-glow); } }
+
+  .pg-phone { display: grid; place-items: center; padding: 20px 12px; background: radial-gradient(circle at 50% 42%, var(--accent-soft), transparent 62%), var(--bg-2); border-top: 1px solid var(--line); }
+  @container (min-width: 640px) { .pg-phone { border-top: 0; } }
+  .pg-phone :global(.device) { --w: 212px; }
+  .pg-screen { position: absolute; inset: 0; }
+  .pg-screen :global(iframe) { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
+  .pg-idle { display: grid; place-items: center; height: 100%; text-align: center; font-size: 13px; color: #6b7280; line-height: 1.5; }
+  .pg-idle b { color: #11181c; }
+
+  /* hint + output */
+  .pg-hint { display: flex; gap: 10px; margin: 0 !important; padding: 12px 18px; border-top: 1px solid var(--line); background: var(--info-soft); color: var(--text); font-size: 14.5px; animation: pg-in 360ms var(--ease-out); }
+  .pg-hint p { margin: 0 !important; }
+  @keyframes pg-in { from { opacity: 0; transform: translateY(-4px); } }
+  .pg-out { display: grid; gap: 1px; background: var(--line); border-top: 1px solid var(--line); margin: 0 !important; }
+  @container (min-width: 720px) { .pg-out.two { grid-template-columns: 1fr 1fr; } }
+  .pg-panel { background: var(--surface); padding: 12px 16px 14px; min-width: 0; }
+  .pg-k { font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); margin: 0 0 8px !important; }
+  .pg-console { max-height: 132px; overflow: auto; font-size: 12px; line-height: 1.6; color: var(--text-2); }
+  .pg-console :global(.pg-log) { padding: 1px 0; white-space: pre-wrap; word-break: break-word; border-bottom: 1px dashed var(--line); }
+  .pg-console :global(.pg-log::before) { content: '› '; color: var(--text-3); }
+  .pg-console :global(.pg-log.warn) { color: var(--warn); }
+  .pg-console :global(.pg-log.error) { color: var(--danger); }
+  .pg-console :global(.pg-empty) { color: var(--text-3); font-style: italic; }
+
+  .pg-checks { list-style: none; padding: 0 !important; margin: 0 !important; display: grid; gap: 6px; }
+  .pg-checks li { display: grid; grid-template-columns: 18px 1fr; column-gap: 8px; align-items: center; margin: 0 !important; font-size: 14px; color: var(--text-2); }
+  .ck { position: relative; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--line-2); display: grid; place-items: center; font-size: 10px; font-weight: 800; color: #fff; transition: background 240ms, border-color 240ms; }
+  li[data-state='running'] .ck { border-color: var(--line-2); border-top-color: var(--info); animation: pg-spin 700ms linear infinite; }
+  li[data-state='pass'] .ck { background: var(--ok); border-color: var(--ok); animation: pg-pop 420ms var(--ease-out); }
+  li[data-state='pass'] .ck::after { content: '✓'; }
+  li[data-state='fail'] .ck { background: var(--danger); border-color: var(--danger); animation: pg-pop 420ms var(--ease-out); }
+  li[data-state='fail'] .ck::after { content: '✕'; }
+  li[data-state='pass'] .ck-t { color: var(--text); }
+  @keyframes pg-spin { to { transform: rotate(360deg); } }
+  .ck-d { grid-column: 2; color: var(--danger); font-size: 12.5px; }
+  .ck-d:empty { display: none; }
+
+  .pg-solution { padding: 0 16px 16px; border-top: 1px solid var(--line); animation: pg-in 360ms var(--ease-out); }
+  .pg-solution :global(.code-frame) { margin-top: 16px !important; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pg-live, .pg.is-dirty .pg-run::before, li[data-state='running'] .ck { animation: none; }
+    .pg.is-passed .pg-pass { animation: none; opacity: 1; transform: none; }
+  }
+</style>

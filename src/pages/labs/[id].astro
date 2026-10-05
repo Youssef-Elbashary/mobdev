@@ -41,10 +41,12 @@ import GhToken from '@/components/lab/mock/GhToken.astro';
 import GcmDialog from '@/components/lab/mock/GcmDialog.astro';
 import GhPullRequest from '@/components/lab/mock/GhPullRequest.astro';
 import VsCode from '@/components/lab/mock/VsCode.astro';
+import Playground from '@/components/lab/Playground.astro';
 
 const components = {
   Part, Task, Checkpoint, Terminal, Explain, Cards, ToolGrid, TeamCards, Timeline, FileTree, AppPhone, BeforeAfter,
   GitFlow, BranchPerMember, ClickPath, SplitBar, GhSignup, GhNewRepo, GhQuickSetup, GhToken, GcmDialog, GhPullRequest, VsCode,
+  Playground,
 };
 
 export async function getStaticPaths() {
@@ -365,6 +367,8 @@ const sections = [
 </style>
 
 <script>
+  import { initPlaygrounds } from '@/scripts/playground/controller';
+
   /* Task progress (saved per lab in this browser) + legend ↔ marker highlighting */
   function init() {
     const root = document.querySelector<HTMLElement>('[data-lab]');
@@ -429,4 +433,6 @@ const sections = [
     });
   }
   document.addEventListener('astro:page-load', init);
+  // live code playgrounds (Lab 02+); after init, so solving one can tick its task
+  document.addEventListener('astro:page-load', initPlaygrounds);
 </script>
