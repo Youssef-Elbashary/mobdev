@@ -8,7 +8,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check",
-    "test": "node --test tests/attendance.test.ts tests/runner.test.ts tests/progress.test.ts"
+    "test": "node --test tests/attendance.test.ts tests/runner.test.ts tests/progress.test.ts tests/cms.test.ts"
   },
   "dependencies": {
     "@astrojs/markdown-remark": "^7.3.1",
@@ -29,7 +29,8 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-native-web": "^0.21.3",
-    "sucrase": "^3.35.1"
+    "sucrase": "^3.35.1",
+    "yaml": "^2.9.1"
   },
   "engines": {
     "node": ">=22.12.0"
