@@ -88,6 +88,32 @@ export function validateSubmission(input: unknown, labs: LabStructure[]): Valid<
   });
 }
 
+export type CheckinIn = Identity & { lab: string };
+export type ViewsIn = Identity & { lab: string; seen: string[]; activeSec: number };
+
+/** "I was here": end-of-lab check-in. */
+export function validateCheckin(input: unknown, labs: LabStructure[]): Valid<CheckinIn> {
+  return withLab(input, labs, () => ({}));
+}
+
+/** A batch of reading data: tasks that were on screen long enough + active seconds since the last batch. */
+export function validateViews(input: unknown, labs: LabStructure[]): Valid<ViewsIn> {
+  return withLab(input, labs, (o, lab, errors) => {
+    const raw = Array.isArray(o.seen) ? o.seen.map(String) : null;
+    const known = new Set(lab.tasks.map((t) => t.n));
+    if (!raw || raw.length > 100 || raw.some((n) => !known.has(n))) errors.seen = 'Invalid tasks.';
+    if (!isInt(o.activeSec) || o.activeSec < 0 || o.activeSec > 900) errors.activeSec = 'Invalid time.';
+    return { seen: [...new Set(raw ?? [])], activeSec: o.activeSec as number };
+  });
+}
+
+/** Whether a lab's check-in is open right now. */
+export function sessionState(s: { opens_at: string; closes_at: string | null } | null, now: number): { open: boolean; closesAt: string | null } {
+  if (!s) return { open: false, closesAt: null };
+  const open = Date.parse(s.opens_at) <= now && (s.closes_at === null || Date.parse(s.closes_at) > now);
+  return { open, closesAt: open ? s.closes_at : null };
+}
+
 /* ------------------------------------------------------------ device lock */
 
 /** One student ID belongs to one browser until the admin unlocks it. */

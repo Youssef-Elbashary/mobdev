@@ -9,7 +9,7 @@ import { getSecret } from 'astro:env/server';
 import { getCollection } from 'astro:content';
 import { getPlayground } from '@/lib/playgrounds';
 import { noStore } from '@/lib/attendance/server';
-import { exerciseStats, labStructure, scoreStudent, type LabStructure, type Valid } from './core';
+import { exerciseStats, labStructure, scoreStudent, sessionState, type Identity, type LabStructure, type Valid } from './core';
 import { MemoryStore, NeonStore, type ProgressStore } from './store';
 
 const env = (key: string) => getSecret(key) || undefined;
@@ -60,11 +60,14 @@ export const json = (data: unknown, status = 200) =>
 const WRITES_PER_WINDOW = 120;
 const WINDOW_SEC = 10 * 60;
 
-/** Shared flow of every student write: validate → rate limit → device lock → store. */
-export async function studentWrite<T extends { studentKey: string; name: string; studentId: string; deviceKey: string }>(
+/**
+ * Shared flow of every student write: validate → rate limit → device lock → store.
+ * `act` may return a Response (sent as is) or extra fields for the JSON answer.
+ */
+export async function studentWrite<V extends Identity>(
   request: Request,
-  validate: (body: unknown, labs: LabStructure[]) => Valid<T>,
-  act: (store: ProgressStore, value: T) => Promise<void>,
+  validate: (body: unknown, labs: LabStructure[]) => Valid<V>,
+  act: (store: ProgressStore, value: V & { studentKey: string }) => Promise<Response | Record<string, unknown> | void>,
 ) {
   let body: unknown;
   try {
@@ -82,8 +85,8 @@ export async function studentWrite<T extends { studentKey: string; name: string;
     if ((await s.touchStudent(v.value)) === 'conflict') {
       return json({ error: 'device', message: 'This student ID is already used on another device. Ask your TA to unlock it.' }, 409);
     }
-    await act(s, v.value);
-    return json({ ok: true });
+    const out = await act(s, v.value);
+    return out instanceof Response ? out : json({ ok: true, ...(out ?? {}) });
   } catch (err) {
     console.error('[progress] write failed', err);
     return json({ error: 'server' }, 500);
@@ -103,6 +106,11 @@ export type DashboardStudent = {
   tasksDone: number;
   submission: { url: string; reviewed: boolean; note: string } | null;
   cells: Record<string, { passed: number; total: number; attempts: number }>;
+  /** end-of-lab check-in time, or null */
+  attended: string | null;
+  /** tasks that were on screen long enough */
+  seen: number;
+  activeSec: number;
 };
 
 /** Everything /admin/progress shows for one lab. */
@@ -117,7 +125,11 @@ export async function buildDashboard(labParam: string | null) {
     const tasksDone = data.tasks.find((t) => t.student_key === st.student_key)?.done ?? 0;
     const sub = data.submissions.find((x) => x.student_key === st.student_key) ?? null;
     const score = scoreStudent(structure, best, tasksDone, Boolean(sub));
+    const view = data.views.find((v) => v.student_key === st.student_key);
     return {
+      attended: data.checkins.find((c) => c.student_key === st.student_key)?.at ?? null,
+      seen: view?.seen.length ?? 0,
+      activeSec: view?.active_sec ?? 0,
       key: st.student_key,
       id: st.student_id,
       name: st.name,
@@ -142,7 +154,9 @@ export async function buildDashboard(labParam: string | null) {
       avgPercent: students.length ? Math.round(students.reduce((a, b) => a + b.percent, 0) / students.length) : 0,
       solved: students.reduce((a, b) => a + b.solved, 0),
       submitted: students.filter((x) => x.submission).length,
+      checkedIn: students.filter((x) => x.attended).length,
     },
+    session: sessionState(await s.getSession(structure.lab), Date.now()),
     updatedAt: new Date().toISOString(),
   };
 }

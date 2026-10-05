@@ -209,3 +209,56 @@ test('store: hit() counts per key inside a time window', async () => {
   t += 601_000;
   assert.equal(await s.hit('k', 600), 1);
 });
+
+/* ---------------- per-lab attendance + reading ---------------- */
+
+import { validateCheckin, validateViews, sessionState } from '../src/lib/progress/core.ts';
+
+test('check-in and views validation', () => {
+  assert.equal(validateCheckin({ ...me, lab: 'lab-02' }, [LAB]).ok, true);
+  assert.equal(validateCheckin({ ...me, lab: 'nope' }, [LAB]).ok, false);
+  const v = (o: object) => validateViews({ ...me, lab: 'lab-02', seen: ['3.2'], activeSec: 30, ...o }, [LAB]);
+  assert.equal(v({}).ok, true);
+  assert.equal(v({ seen: ['9.9'] }).ok, false);
+  assert.equal(v({ seen: 'x' }).ok, false);
+  assert.equal(v({ activeSec: 901 }).ok, false);
+  assert.equal(v({ activeSec: -1 }).ok, false);
+  assert.equal(v({ activeSec: 1.5 }).ok, false);
+  const ok = v({ seen: ['3.2', '3.2', '4.2'] });
+  assert.ok(ok.ok && ok.value.seen.length === 2); // de-duplicated
+});
+
+test('sessionState: none, open with and without a limit, expired', () => {
+  const now = Date.parse('2026-10-05T12:00:00Z');
+  assert.deepEqual(sessionState(null, now), { open: false, closesAt: null });
+  assert.deepEqual(sessionState({ opens_at: '2026-10-05T11:50:00Z', closes_at: null }, now), { open: true, closesAt: null });
+  assert.deepEqual(sessionState({ opens_at: '2026-10-05T11:50:00Z', closes_at: '2026-10-05T12:20:00.000Z' }, now), { open: true, closesAt: '2026-10-05T12:20:00.000Z' });
+  assert.equal(sessionState({ opens_at: '2026-10-05T11:00:00Z', closes_at: '2026-10-05T11:30:00Z' }, now).open, false);
+});
+
+test('store: sessions, idempotent check-in, views merge, and they show in labData', async () => {
+  let t = Date.parse('2026-10-05T12:00:00Z');
+  const s = new MemoryStore(() => t);
+  assert.equal(sessionState(await s.getSession('lab-02'), t).open, false);
+  await s.openSession('lab-02', 30);
+  const sess = await s.getSession('lab-02');
+  assert.equal(sessionState(sess, t).open, true);
+  assert.equal(Date.parse(sess!.closes_at!) - t, 30 * 60_000);
+  await s.touchStudent(ident('c1'));
+  const first = await s.checkIn('c1', 'lab-02');
+  t += 60_000;
+  assert.equal(await s.checkIn('c1', 'lab-02'), first); // first time wins
+  await s.addViews('c1', 'lab-02', ['1.1', '1.2'], 40);
+  await s.addViews('c1', 'lab-02', ['1.2', '2.1'], 20);
+  const d = await s.labData('lab-02');
+  assert.equal(d.students.length, 1);
+  assert.deepEqual(d.checkins, [{ student_key: 'c1', at: first }]);
+  assert.deepEqual(d.views.map((v) => [v.student_key, [...v.seen].sort(), v.active_sec]), [['c1', ['1.1', '1.2', '2.1'], 60]]);
+  const detail = await s.studentData('lab-02', 'c1');
+  assert.equal(detail.checkin, first);
+  assert.equal(detail.views?.active_sec, 60);
+  await s.closeSession('lab-02');
+  assert.equal(sessionState(await s.getSession('lab-02'), t).open, false);
+  await s.openSession('lab-02', null);
+  assert.deepEqual(sessionState(await s.getSession('lab-02'), t), { open: true, closesAt: null });
+});

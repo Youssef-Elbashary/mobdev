@@ -14,12 +14,17 @@ export type LabData = {
   best: (Best & { student_key: string })[];
   tasks: { student_key: string; done: number }[];
   submissions: SubmissionRow[];
+  checkins: { student_key: string; at: string }[];
+  views: { student_key: string; seen: string[]; active_sec: number }[];
 };
+export type Session = { opens_at: string; closes_at: string | null };
 export type StudentData = {
   student: StudentRow | null;
   attempts: AttemptRow[];
   tasks: { task: string; done: boolean }[];
   submission: { url: string; reviewed: boolean; note: string } | null;
+  checkin: string | null;
+  views: { seen: string[]; active_sec: number } | null;
 };
 
 export interface ProgressStore {
@@ -34,6 +39,13 @@ export interface ProgressStore {
   studentData(lab: string, studentKey: string): Promise<StudentData>;
   unlock(studentKey: string): Promise<void>;
   review(studentKey: string, lab: string, reviewed: boolean, note: string): Promise<void>;
+  /* per-lab attendance + reading */
+  getSession(lab: string): Promise<Session | null>;
+  openSession(lab: string, minutes: number | null): Promise<void>;
+  closeSession(lab: string): Promise<void>;
+  /** Returns the check-in time; the first check-in is kept. */
+  checkIn(studentKey: string, lab: string): Promise<string>;
+  addViews(studentKey: string, lab: string, seen: string[], activeSec: number): Promise<void>;
 }
 
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : v == null ? null : String(v));
@@ -46,6 +58,9 @@ export class MemoryStore implements ProgressStore {
   private tasks = new Map<string, { student_key: string; lab: string; task: string; done: boolean }>();
   private subs = new Map<string, SubmissionRow & { lab: string }>();
   private hits = new Map<string, { n: number; until: number }>();
+  private sessions = new Map<string, Session>();
+  private checkins = new Map<string, { student_key: string; lab: string; at: string }>();
+  private views = new Map<string, { student_key: string; lab: string; seen: Set<string>; active_sec: number }>();
   private seq = 0;
   private now: () => number;
   constructor(now: () => number = Date.now) {
@@ -86,7 +101,9 @@ export class MemoryStore implements ProgressStore {
     const att = this.attempts.filter((a) => a.lab === lab);
     const tasks = [...this.tasks.values()].filter((t) => t.lab === lab);
     const subs = [...this.subs.values()].filter((s) => s.lab === lab);
-    const keys = new Set([...att.map((a) => a.student_key), ...tasks.map((t) => t.student_key), ...subs.map((s) => s.student_key)]);
+    const checkins = [...this.checkins.values()].filter((c) => c.lab === lab);
+    const views = [...this.views.values()].filter((v) => v.lab === lab);
+    const keys = new Set([...att, ...tasks, ...subs, ...checkins, ...views].map((r) => r.student_key));
     const groups = new Map<string, typeof att>();
     for (const a of att) groups.set(`${a.student_key}|${a.exercise}`, [...(groups.get(`${a.student_key}|${a.exercise}`) ?? []), a]);
     const best = [...groups.values()].map((g) => {
@@ -101,6 +118,8 @@ export class MemoryStore implements ProgressStore {
       best,
       tasks: [...done].map(([student_key, n]) => ({ student_key, done: n })),
       submissions: subs.map(({ lab: _lab, ...s }) => s),
+      checkins: checkins.map(({ student_key, at }) => ({ student_key, at })),
+      views: views.map((v) => ({ student_key: v.student_key, seen: [...v.seen], active_sec: v.active_sec })),
     };
   }
   async studentData(lab: string, studentKey: string): Promise<StudentData> {
@@ -110,6 +129,11 @@ export class MemoryStore implements ProgressStore {
       attempts: this.attempts.filter((a) => a.lab === lab && a.student_key === studentKey).reverse().map(({ student_key: _s, lab: _l, ...a }) => a),
       tasks: [...this.tasks.values()].filter((t) => t.lab === lab && t.student_key === studentKey).map(({ task, done }) => ({ task, done })),
       submission: sub ? { url: sub.url, reviewed: sub.reviewed, note: sub.note } : null,
+      checkin: this.checkins.get(`${studentKey}|${lab}`)?.at ?? null,
+      views: (() => {
+        const v = this.views.get(`${studentKey}|${lab}`);
+        return v ? { seen: [...v.seen], active_sec: v.active_sec } : null;
+      })(),
     };
   }
   async unlock(studentKey: string) {
@@ -120,20 +144,47 @@ export class MemoryStore implements ProgressStore {
     const sub = this.subs.get(`${studentKey}|${lab}`);
     if (sub) Object.assign(sub, { reviewed, note });
   }
+  async getSession(lab: string) {
+    return this.sessions.get(lab) ?? null;
+  }
+  async openSession(lab: string, minutes: number | null) {
+    const t = this.now();
+    this.sessions.set(lab, { opens_at: new Date(t).toISOString(), closes_at: minutes ? new Date(t + minutes * 60_000).toISOString() : null });
+  }
+  async closeSession(lab: string) {
+    const s = this.sessions.get(lab);
+    if (s) s.closes_at = this.stamp();
+  }
+  async checkIn(studentKey: string, lab: string) {
+    const k = `${studentKey}|${lab}`;
+    if (!this.checkins.has(k)) this.checkins.set(k, { student_key: studentKey, lab, at: this.stamp() });
+    return this.checkins.get(k)!.at;
+  }
+  async addViews(studentKey: string, lab: string, seen: string[], activeSec: number) {
+    const k = `${studentKey}|${lab}`;
+    const v = this.views.get(k) ?? { student_key: studentKey, lab, seen: new Set<string>(), active_sec: 0 };
+    seen.forEach((n) => v.seen.add(n));
+    v.active_sec += activeSec;
+    this.views.set(k, v);
+  }
 }
 
 /* -------------------------------------------------------------------- neon */
+
 
 type Prefix = 'progress' | 'progress_dev';
 
 export class NeonStore implements ProgressStore {
   private sql: ReturnType<typeof neon>;
   private ready: Promise<void> | null = null;
-  private t: { students: string; attempts: string; tasks: string; subs: string; hits: string };
+  private t: { students: string; attempts: string; tasks: string; subs: string; hits: string; checkins: string; sessions: string; views: string };
 
   constructor(url: string, prefix: Prefix) {
     this.sql = neon(url);
-    this.t = { students: `${prefix}_students`, attempts: `${prefix}_attempts`, tasks: `${prefix}_tasks`, subs: `${prefix}_submissions`, hits: `${prefix}_hits` };
+    this.t = {
+      students: `${prefix}_students`, attempts: `${prefix}_attempts`, tasks: `${prefix}_tasks`, subs: `${prefix}_submissions`, hits: `${prefix}_hits`,
+      checkins: `${prefix}_checkins`, sessions: `${prefix}_sessions`, views: `${prefix}_views`,
+    };
   }
 
   private async q<T = any>(text: string, params: unknown[] = []): Promise<T[]> {
@@ -163,6 +214,14 @@ export class NeonStore implements ProgressStore {
         lab text not null, url text not null, reviewed boolean not null default false, note text not null default '',
         updated_at timestamptz not null default now(), primary key (student_key, lab))`,
       `create table if not exists ${hits} (key text primary key, n int not null, until timestamptz not null)`,
+      `create table if not exists ${this.t.checkins} (
+        student_key text not null references ${students}(student_key) on delete cascade,
+        lab text not null, at timestamptz not null default now(), primary key (student_key, lab))`,
+      `create table if not exists ${this.t.sessions} (lab text primary key, opens_at timestamptz not null, closes_at timestamptz)`,
+      `create table if not exists ${this.t.views} (
+        student_key text not null references ${students}(student_key) on delete cascade,
+        lab text not null, seen text[] not null default '{}', active_sec int not null default 0,
+        updated_at timestamptz not null default now(), primary key (student_key, lab))`,
     ];
     try {
       for (const s of statements) await this.sql.query(s);
@@ -233,13 +292,15 @@ export class NeonStore implements ProgressStore {
   }
 
   async labData(lab: string): Promise<LabData> {
-    const { students, attempts, tasks, subs } = this.t;
-    const [studentRows, best, taskRows, subRows] = await Promise.all([
+    const { students, attempts, tasks, subs, checkins, views } = this.t;
+    const [studentRows, best, taskRows, subRows, checkinRows, viewRows] = await Promise.all([
       this.q(
         `select * from ${students} where student_key in (
            select student_key from ${attempts} where lab = $1
            union select student_key from ${tasks} where lab = $1
-           union select student_key from ${subs} where lab = $1)`,
+           union select student_key from ${subs} where lab = $1
+           union select student_key from ${checkins} where lab = $1
+           union select student_key from ${views} where lab = $1)`,
         [lab],
       ),
       this.q(
@@ -252,8 +313,12 @@ export class NeonStore implements ProgressStore {
       ),
       this.q(`select student_key, (count(*) filter (where done))::int as done from ${tasks} where lab = $1 group by student_key`, [lab]),
       this.q(`select student_key, url, reviewed, note, updated_at from ${subs} where lab = $1`, [lab]),
+      this.q(`select student_key, at from ${checkins} where lab = $1`, [lab]),
+      this.q(`select student_key, seen, active_sec from ${views} where lab = $1`, [lab]),
     ]);
     return {
+      checkins: checkinRows.map((r) => ({ student_key: r.student_key, at: iso(r.at)! })),
+      views: viewRows.map((r) => ({ student_key: r.student_key, seen: r.seen ?? [], active_sec: Number(r.active_sec) })),
       students: studentRows.map((r) => ({ ...r, created_at: iso(r.created_at)!, last_seen: iso(r.last_seen)! })),
       best: best.map((r) => ({
         student_key: r.student_key, exercise: r.exercise, passed: Number(r.passed), total: Number(r.total),
@@ -265,19 +330,62 @@ export class NeonStore implements ProgressStore {
   }
 
   async studentData(lab: string, studentKey: string): Promise<StudentData> {
-    const { students, attempts, tasks, subs } = this.t;
-    const [[student], attemptRows, taskRows, [sub]] = await Promise.all([
+    const { students, attempts, tasks, subs, checkins, views } = this.t;
+    const [[student], attemptRows, taskRows, [sub], [checkin], [view]] = await Promise.all([
       this.q(`select * from ${students} where student_key = $1`, [studentKey]),
       this.q(`select id, exercise, passed, total, code, created_at from ${attempts} where lab = $1 and student_key = $2 order by id desc limit 500`, [lab, studentKey]),
       this.q(`select task, done from ${tasks} where lab = $1 and student_key = $2`, [lab, studentKey]),
       this.q(`select url, reviewed, note from ${subs} where lab = $1 and student_key = $2`, [lab, studentKey]),
+      this.q(`select at from ${checkins} where lab = $1 and student_key = $2`, [lab, studentKey]),
+      this.q(`select seen, active_sec from ${views} where lab = $1 and student_key = $2`, [lab, studentKey]),
     ]);
     return {
       student: student ? { ...student, created_at: iso(student.created_at)!, last_seen: iso(student.last_seen)! } : null,
       attempts: attemptRows.map((r) => ({ ...r, id: Number(r.id), created_at: iso(r.created_at)! })),
       tasks: taskRows,
       submission: sub ?? null,
+      checkin: checkin ? iso(checkin.at) : null,
+      views: view ? { seen: view.seen ?? [], active_sec: Number(view.active_sec) } : null,
     };
+  }
+
+  async getSession(lab: string) {
+    const [row] = await this.q(`select opens_at, closes_at from ${this.t.sessions} where lab = $1`, [lab]);
+    return row ? { opens_at: iso(row.opens_at)!, closes_at: iso(row.closes_at) } : null;
+  }
+
+  async openSession(lab: string, minutes: number | null) {
+    await this.q(
+      `insert into ${this.t.sessions} (lab, opens_at, closes_at)
+       values ($1, now(), case when $2::int is null then null else now() + make_interval(mins => $2::int) end)
+       on conflict (lab) do update set opens_at = excluded.opens_at, closes_at = excluded.closes_at`,
+      [lab, minutes],
+    );
+  }
+
+  async closeSession(lab: string) {
+    await this.q(`update ${this.t.sessions} set closes_at = now() where lab = $1`, [lab]);
+  }
+
+  async checkIn(studentKey: string, lab: string) {
+    const [row] = await this.q(
+      `insert into ${this.t.checkins} as c (student_key, lab) values ($1, $2)
+       on conflict (student_key, lab) do update set at = c.at returning at`,
+      [studentKey, lab],
+    );
+    return iso(row.at)!;
+  }
+
+  async addViews(studentKey: string, lab: string, seen: string[], activeSec: number) {
+    const views = this.t.views;
+    await this.q(
+      `insert into ${views} as v (student_key, lab, seen, active_sec) values ($1, $2, $3::text[], $4)
+       on conflict (student_key, lab) do update set
+         seen = array(select distinct unnest(v.seen || excluded.seen)),
+         active_sec = v.active_sec + excluded.active_sec,
+         updated_at = now()`,
+      [studentKey, lab, seen, activeSec],
+    );
   }
 
   async unlock(studentKey: string) {
