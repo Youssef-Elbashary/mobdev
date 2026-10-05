@@ -44,11 +44,14 @@ import VsCode from '@/components/lab/mock/VsCode.astro';
 import Playground from '@/components/lab/Playground.astro';
 import AppWalkthrough from '@/components/lab/AppWalkthrough.astro';
 import MockScreen from '@/components/lab/MockScreen.astro';
+import RepoSubmit from '@/components/lab/RepoSubmit.astro';
+import MeChip from '@/components/lab/MeChip.astro';
+import IdentitySheet from '@/components/lab/IdentitySheet.astro';
 
 const components = {
   Part, Task, Checkpoint, Terminal, Explain, Cards, ToolGrid, TeamCards, Timeline, FileTree, AppPhone, BeforeAfter,
   GitFlow, BranchPerMember, ClickPath, SplitBar, GhSignup, GhNewRepo, GhQuickSetup, GhToken, GcmDialog, GhPullRequest, VsCode,
-  Playground, AppWalkthrough, MockScreen,
+  Playground, AppWalkthrough, MockScreen, RepoSubmit,
 };
 
 export async function getStaticPaths() {
@@ -91,6 +94,7 @@ const sections = [
             <span class="badge"><Icon name="clock" size={12} /> {d.estimatedTime}</span>
             {d.skills.map((s) => <span class="tag">{slug(s)}</span>)}
           </div>
+          {isMission && <div class="lh-me" data-reveal style="--d:200ms"><MeChip /></div>}
         </div>
 
         {isMission ? (
@@ -264,6 +268,7 @@ const sections = [
       </div>
     </aside>
   </div>
+  {isMission && <IdentitySheet />}
 </Base>
 
 <style>
@@ -275,6 +280,7 @@ const sections = [
   .lh-title { margin-top: 20px; max-width: 18ch; font-size: clamp(2.3rem, 1.4rem + 3.4vw, 4.4rem); }
   .lh-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 24px; }
   .lh-chips .badge { display: inline-flex; align-items: center; gap: 6px; }
+  .lh-me { margin-top: 14px; }
   .lh-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; }
   .lh-meta > div { background: var(--surface); padding: 16px; display: grid; gap: 8px; }
   .lh-meta dt { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
@@ -370,6 +376,7 @@ const sections = [
 
 <script>
   import { initPlaygrounds } from '@/scripts/playground/controller';
+  import { ensureIdentity, initProgressUi, record } from '@/scripts/progress';
 
   /* Task progress (saved per lab in this browser) + legend ↔ marker highlighting */
   function init() {
@@ -409,9 +416,12 @@ const sections = [
         b.checked ? done.add(b.value) : done.delete(b.value);
         try { localStorage.setItem(key, JSON.stringify([...done])); } catch {}
         update();
+        // progress tracking: the TA sees Done ticks (asks for name + ID the first time)
+        ensureIdentity().then((me) => me && record.task({ lab: root.dataset.lab!, task: b.value, done: b.checked }));
       }),
     );
     document.querySelector('[data-lab-reset]')?.addEventListener('click', () => {
+      boxes.filter((b) => b.checked).forEach((b) => record.task({ lab: root.dataset.lab!, task: b.value, done: false }));
       done.clear();
       boxes.forEach((b) => (b.checked = false));
       try { localStorage.removeItem(key); } catch {}
@@ -437,4 +447,5 @@ const sections = [
   document.addEventListener('astro:page-load', init);
   // live code playgrounds (Lab 02+); after init, so solving one can tick its task
   document.addEventListener('astro:page-load', initPlaygrounds);
+  document.addEventListener('astro:page-load', initProgressUi);
 </script>

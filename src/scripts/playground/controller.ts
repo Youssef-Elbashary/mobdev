@@ -4,6 +4,7 @@
  */
 import type { Check, CheckResult, Files, FromRunner, ToRunner } from '@/runner/protocol';
 import type { Editor } from './editor';
+import { ensureIdentity, record } from '../progress';
 
 type Def = { id: string; files: Files; checks: Check[] };
 const RUNNER = '/runner/index.html';
@@ -133,6 +134,9 @@ function setupPlayground(root: HTMLElement) {
     }
     const allPass = results.length > 0 && results.every((r) => r.pass);
     root.classList.toggle('is-passed', allPass);
+    // progress tracking: every Check is saved with its score and code (only when signed in)
+    const lab = root.closest<HTMLElement>('[data-lab]')?.dataset.lab;
+    if (lab) record.attempt({ lab, exercise: def.id, passed: results.filter((r) => r.pass).length, total: results.length, files });
     if (allPass) {
       // solving the exercise ticks its task → updates the ring, tracker and session plan
       const box = root.closest('.task')?.querySelector<HTMLInputElement>('[data-task-check]');
@@ -148,9 +152,10 @@ function setupPlayground(root: HTMLElement) {
     clearConsole();
     frame.send({ type: 'run', files });
   };
-  const check = () => {
+  const check = async () => {
     if (!checkBtn) return;
     checkBtn.disabled = true;
+    await ensureIdentity(); // first Check: ask for name + ID (skipping still runs the check)
     root.classList.add('is-checking');
     root.classList.remove('is-dirty');
     items.forEach((li) => {

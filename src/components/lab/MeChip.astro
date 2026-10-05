@@ -1,0 +1,26 @@
+---
+/** Lab header chip: who is signed in for progress tracking, and whether their results are saved. */
+---
+<button type="button" class="me-chip" data-me-chip data-state="anon">
+  <span class="me-dot" aria-hidden="true"></span>
+  <span class="me-txt"><b data-me-label>Track my progress</b><small data-me-sub>sign in</small></span>
+</button>
+
+<style>
+  .me-chip { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 9px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--surface); font-size: 12.5px; color: var(--text-2); transition: border-color var(--t-fast), color var(--t-fast); }
+  .me-chip:hover { border-color: var(--text-3); color: var(--text); }
+  .me-txt { display: inline-flex; align-items: baseline; gap: 6px; }
+  .me-txt b { font-weight: 600; color: var(--text); }
+  .me-txt small { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+  .me-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+  [data-state='anon'] .me-dot { background: var(--accent); box-shadow: 0 0 0 0 var(--accent-glow); animation: me-pulse 1.8s var(--ease-out) infinite; }
+  [data-state='anon'] { border-color: color-mix(in oklab, var(--accent-text) 45%, var(--line)); }
+  [data-state='synced'] .me-dot { background: var(--ok); }
+  [data-state='saving'] .me-dot { background: var(--warn); animation: me-blink 900ms ease-in-out infinite; }
+  [data-state='offline'] .me-dot { background: var(--text-3); }
+  [data-state='conflict'] .me-dot { background: var(--danger); }
+  [data-state='conflict'] { border-color: color-mix(in oklab, var(--danger) 50%, var(--line)); }
+  @keyframes me-pulse { 70% { box-shadow: 0 0 0 7px transparent; } }
+  @keyframes me-blink { 50% { opacity: 0.3; } }
+  @media (prefers-reduced-motion: reduce) { .me-dot { animation: none !important; } }
+</style>

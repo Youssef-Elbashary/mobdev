@@ -1,0 +1,49 @@
+---
+/**
+ * "Who are you?" sheet for progress tracking: full name + student ID, remembered in this browser.
+ * Opened by src/scripts/progress.ts on the first Check / Done tick, or from the header chip.
+ */
+---
+<dialog class="me-sheet" data-me-sheet aria-labelledby="me-title">
+  <form method="dialog" class="me-card" novalidate>
+    <span class="me-ic" aria-hidden="true">🎓</span>
+    <h2 class="me-title" id="me-title">Save your progress</h2>
+    <p class="me-lead">Your TA sees your exercise results, Done ticks and repo link. Type them once; this browser remembers you.</p>
+    <p class="me-error" data-me-error role="alert" hidden></p>
+    <label class="me-fld">
+      <span>Full name</span>
+      <input class="input" name="name" autocomplete="name" maxlength="60" placeholder="e.g. Mariam Ahmed" required />
+      <small data-me-err="name" hidden></small>
+    </label>
+    <label class="me-fld">
+      <span>Student ID</span>
+      <input class="input mono" name="studentId" autocomplete="off" maxlength="20" placeholder="e.g. 236541" required />
+      <small data-me-err="studentId" hidden></small>
+    </label>
+    <div class="me-actions">
+      <button class="btn btn-primary" type="submit">Save &amp; continue</button>
+      <button class="btn btn-ghost" type="button" data-me-skip>Skip for now</button>
+    </div>
+    <button class="me-out" type="button" data-me-out hidden>Not you? Sign out of this browser</button>
+  </form>
+</dialog>
+
+<style>
+  .me-sheet { padding: 0; border: 0; background: transparent; color: var(--text); max-width: min(440px, calc(100vw - 32px)); width: 100%; margin: auto; overflow: visible; }
+  .me-sheet::backdrop { background: rgb(5 7 10 / 0.6); backdrop-filter: blur(6px); }
+  .me-sheet[open] .me-card { animation: me-in 420ms var(--ease-out); }
+  @keyframes me-in { from { opacity: 0; transform: translateY(16px) scale(0.97); } }
+  .me-card { display: grid; gap: 14px; padding: 28px; border-radius: var(--r-xl); border: 1px solid var(--line-2); background: var(--surface); box-shadow: var(--shadow-lg); }
+  .me-ic { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; font-size: 26px; background: var(--accent-soft); border: 1px solid color-mix(in oklab, var(--accent-text) 30%, transparent); }
+  .me-title { font-size: var(--fs-xl); letter-spacing: -0.03em; margin: 0; }
+  .me-lead { color: var(--text-2); font-size: 14.5px; margin-top: -6px; }
+  .me-error { font-size: 13.5px; color: var(--danger); padding: 10px 12px; border-radius: 10px; background: var(--danger-soft); border: 1px solid color-mix(in oklab, var(--danger) 40%, transparent); }
+  .me-fld { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+  .me-fld .input { height: 48px; padding-left: 14px; font-size: 16px; border-radius: 12px; font-weight: 400; }
+  .me-fld .input[aria-invalid='true'] { border-color: var(--danger); }
+  .me-fld small { color: var(--danger); font-weight: 500; }
+  .me-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+  .me-out { justify-self: start; font-size: 12.5px; color: var(--text-3); text-decoration: underline; text-underline-offset: 3px; }
+  .me-out:hover { color: var(--danger); }
+  @media (prefers-reduced-motion: reduce) { .me-sheet[open] .me-card { animation: none; } }
+</style>
