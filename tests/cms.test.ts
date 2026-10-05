@@ -96,7 +96,7 @@ test('form fields match the schemas exactly', () => {
     const keys = LIST_FIELDS[name as keyof typeof LIST_FIELDS].map((f) => f.key).filter((k) => k !== 'id').sort();
     assert.deepEqual(keys, Object.keys(schema.shape).sort(), name);
   }
-  assert.deepEqual(SITE_FIELDS.map((f) => f.key).sort(), Object.keys(schemas.siteSchema.innerType?.().shape ?? schemas.siteSchema.shape).sort());
+  assert.deepEqual(SITE_FIELDS.map((f) => f.key).sort(), Object.keys(schemas.siteSchema.shape).sort());
 });
 
 test('setEntry can add and remove fields, and the file still parses', () => {

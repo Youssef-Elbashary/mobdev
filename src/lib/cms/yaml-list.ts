@@ -67,7 +67,7 @@ function render(value: Record<string, unknown>, keepFrom?: YAMLMap, indent = 2):
   return lines.map((l, k) => (k === 0 ? `${pad}- ${l}` : `${pad}  ${l}`)).join('\n') + '\n';
 }
 
-const orderedValue = (id: string, value: Record<string, unknown>) => {
+const orderedValue = (id: string, value: Record<string, unknown>): Record<string, unknown> => {
   const { id: _ignored, ...rest } = value;
   return { id, ...rest };
 };
