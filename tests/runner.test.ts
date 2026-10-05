@@ -1,6 +1,7 @@
 // Run with: node --test tests/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { compile, resolve, createModuleSystem } from '../src/runner/modules.ts';
 import { buildRoutes, matchRoute, childName, hrefOf, buildHref } from '../src/runner/routes.ts';
 
@@ -83,4 +84,35 @@ test('hrefOf and buildHref', () => {
   assert.equal(hrefOf(matchRoute(routes, '/favorites')!.route), '/favorites');
   assert.equal(buildHref('/x'), '/x');
   assert.equal(buildHref({ pathname: '/recipe/[id]', params: { id: 4, tab: 'a b' } }), '/recipe/4?tab=a+b');
+});
+
+/* ---------------- playground definitions ---------------- */
+
+test('every lab-02 playground is well-formed and its code compiles', async () => {
+  const dir = new URL('../src/playgrounds/lab-02/', import.meta.url);
+  const ids = fs.readdirSync(dir).filter((f) => f.endsWith('.ts'));
+  assert.ok(ids.length >= 18, `expected ≥ 18 playgrounds, found ${ids.length}`);
+  for (const f of ids) {
+    const def = (await import(new URL(f, dir).href)).default;
+    assert.ok(def.title, `${f}: title`);
+    assert.ok(Object.keys(def.files).length, `${f}: files`);
+    for (const [name, code] of Object.entries({ ...def.files, ...(def.solution ?? {}) })) {
+      assert.doesNotThrow(() => compile(code as string, name), `${f} → ${name} does not compile`);
+    }
+    if (/^e\d+/.test(f)) {
+      assert.ok(def.checks?.length >= 2, `${f}: needs at least 2 checks`);
+      assert.ok(def.solution, `${f}: needs a solution`);
+      assert.notDeepEqual(def.files, def.solution, `${f}: the starter is already the solution`);
+      for (const c of def.checks) for (const s of c.steps) if ('expectCode' in s) new RegExp(s.expectCode, s.flags);
+    }
+  }
+});
+
+test('code checks ignore comments (TODOs often contain the answer)', async () => {
+  const { stripComments } = await import('../src/runner/checks.ts');
+  const src = `// TODO: const ref = useRef(null);\nconst url = 'https://x.dev';\n{/* use key={id} */}\nconst a = 1; // trailing\n/* block\n useMemo( */`;
+  const out = stripComments(src);
+  assert.doesNotMatch(out, /useRef|key=|useMemo|trailing/);
+  assert.match(out, /https:\/\/x\.dev/);
+  assert.match(out, /const a = 1;/);
 });

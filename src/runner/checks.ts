@@ -4,6 +4,10 @@ import type { Check, CheckResult, Step } from './protocol.ts';
 export type CheckCtx = { source: string; settle: () => Promise<void>; error: () => string | null };
 
 export const normalize = (s: string) => s.replace(/\s+/g, ' ').trim();
+
+/** Code checks look at real code only: TODO comments often contain the answer. */
+export const stripComments = (src: string) =>
+  src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`\\])\/\/.*$/gm, '$1');
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /** The element with this testID, else the innermost element whose text matches. */

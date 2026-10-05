@@ -8,7 +8,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import * as ReactNative from 'react-native-web';
 import * as ExpoRouter from './router-shim.tsx';
 import { createModuleSystem } from './modules.ts';
-import { runCheck } from './checks.ts';
+import { runCheck, stripComments } from './checks.ts';
 import type { CheckResult, Files, FromRunner, ToRunner } from './protocol.ts';
 
 const post = (msg: FromRunner) => parent.postMessage(msg, '*');
@@ -99,7 +99,7 @@ window.addEventListener('message', async (e) => {
   } else if (msg.type === 'navigate') {
     ExpoRouter.goTo(msg.href);
   } else if (msg.type === 'check') {
-    const source = Object.values(msg.files).join('\n');
+    const source = stripComments(Object.values(msg.files).join('\n'));
     const results: CheckResult[] = [];
     for (const check of msg.checks) {
       const el = await mount(msg.files);
