@@ -21,6 +21,7 @@ export class ProgressLabBackend implements LabBackend {
       deviceKey: event.deviceId,
     });
     if (identity === 'conflict') throw new Error('identity-conflict');
+    await this.store.joinSession(event.sessionId, event.studentKey, event.group);
 
     if (event.event !== 'check' || !event.exercise) return;
     const total = 100;
@@ -32,11 +33,12 @@ export class ProgressLabBackend implements LabBackend {
       passed,
       total,
       code: JSON.stringify({ source: 'interactive-lab', result: event.result }),
+      sessionId: event.sessionId,
     });
   }
 
-  async rows(lab: string): Promise<{ students: StudentRow[]; attempts: AttemptRow[] }> {
-    const data = await this.store.labData(lab);
+  async rows(lab: string, sessionId?: string): Promise<{ students: StudentRow[]; attempts: AttemptRow[] }> {
+    const data = await this.store.labData(lab, sessionId);
     const final = LABS[lab]?.final;
     const students = data.students.map((student) => {
       const completedAt = data.best.find(

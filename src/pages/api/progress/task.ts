@@ -6,4 +6,4 @@ import { studentWrite } from '@/lib/progress/server';
 export const prerender = false;
 
 export const POST: APIRoute = ({ request }) =>
-  studentWrite(request, validateTask, (store, t) => store.setTask({ studentKey: t.studentKey, lab: t.lab, task: t.task, done: t.done }));
+  studentWrite(request, validateTask, (store, t) => store.setTask({ studentKey: t.studentKey, lab: t.lab, task: t.task, done: t.done, sessionId: t.sessionId }));

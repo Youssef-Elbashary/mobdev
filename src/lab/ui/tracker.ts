@@ -12,7 +12,7 @@ export type LabEvent = {
   score?: number;
 };
 
-type Queued = LabEvent & { name: string; studentId: string; deviceId: string; at: number };
+type Queued = LabEvent & { name: string; studentId: string; deviceId: string; group: string; sessionId: string; at: number };
 
 const QUEUE = 'lab:queue';
 
@@ -62,7 +62,7 @@ export async function flushQueue() {
 export function track(event: LabEvent) {
   const student = getStudent();
   if (!student) return; // not signed in: nothing to report yet
-  const item: Queued = { ...event, name: student.name, studentId: student.id, deviceId: deviceId(), at: Date.now() };
+  const item: Queued = { ...event, name: student.name, studentId: student.id, deviceId: deviceId(), group: student.group, sessionId: student.sessionId, at: Date.now() };
   writeQueue([...readQueue(), item]);
   void flushQueue();
 }

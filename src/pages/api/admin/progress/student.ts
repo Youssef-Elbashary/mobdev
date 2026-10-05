@@ -13,9 +13,10 @@ export const GET: APIRoute = async ({ cookies, url }) => {
   const store = getProgressStore();
   const lab = url.searchParams.get('lab') ?? '';
   const id = (url.searchParams.get('id') ?? '').toLowerCase();
+  const session = url.searchParams.get('session') ?? undefined;
   if (!store) return json({ error: 'no-database' }, 503);
   try {
-    return json(await store.studentData(lab, id));
+    return json(await store.studentData(lab, id, session));
   } catch (err) {
     console.error('[progress] student failed', err);
     return json({ error: 'server' }, 500);
@@ -31,7 +32,7 @@ export const POST: APIRoute = async ({ cookies, request }) => {
   if (!id) return json({ error: 'bad-request' }, 400);
   try {
     if (body?.action === 'unlock') await store.unlock(id);
-    else if (body?.action === 'review') await store.review(id, String(body.lab ?? ''), body.reviewed === true, String(body.note ?? '').slice(0, 500));
+    else if (body?.action === 'review') await store.review(id, String(body.lab ?? ''), body.reviewed === true, String(body.note ?? '').slice(0, 500), typeof body.sessionId === 'string' ? body.sessionId : undefined);
     else return json({ error: 'bad-request' }, 400);
     return json({ ok: true });
   } catch (err) {

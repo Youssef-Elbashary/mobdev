@@ -15,9 +15,16 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   const store = getProgressStore();
   if (!store) return json({ error: 'closed', message: 'Attendance storage is not set up.' }, 503);
   const c = valid.value;
+  const sessionId = String((body as Record<string, unknown>)?.sessionId ?? '');
 
   try {
-    const existing = await store.studentData(c.lab, c.studentKey);
+    const session = sessionId ? await store.getSessionById(sessionId) : null;
+    if (!session || session.lab !== c.lab) return json({ error: 'closed', message: 'This lab session is not active.' }, 403);
+    const existing = await store.studentData(c.lab, c.studentKey, sessionId);
+    // An accepted check-in is immutable and idempotent. Return it before checking
+    // the current browser binding so a repaired/migrated device ID cannot turn an
+    // already-successful attendance record into a misleading device error.
+    if (existing.checkin) return json({ ok: true, at: existing.checkin });
     const activeSec = existing.views?.active_sec ?? 0;
     const seen = existing.views?.seen.length ?? 0;
     const eligible = attendanceEligibility({ student: existing.student, name: c.name, deviceKey: c.deviceKey, activeSec, seen });
@@ -27,14 +34,11 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
         409,
       );
     }
-    // Idempotent retry: never lose a legitimate first check-in because the window closed later.
-    if (existing.checkin) return json({ ok: true, at: existing.checkin });
-
     // Count a student-specific attempt only after its device and immutable name
     // match. Otherwise an attacker who knows an ID could lock that student out.
     const [deviceTries, studentTries, networkTries] = await Promise.all([
-      store.hit(`checkin:device:${c.deviceKey}`, WINDOW_SEC),
-      store.hit(`checkin:student:${c.studentKey}`, WINDOW_SEC),
+      store.hit(`checkin:${sessionId}:device:${c.deviceKey}`, WINDOW_SEC),
+      store.hit(`checkin:${sessionId}:student:${c.studentKey}`, WINDOW_SEC),
       store.hit(`checkin:network:${clientIp(request, clientAddress)}`, WINDOW_SEC),
     ]);
     // The network ceiling is intentionally high because a whole lab may share campus Wi-Fi.
@@ -42,7 +46,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
       return json({ error: 'slow-down', message: 'Too many check-in attempts. Wait ten minutes or ask your TA.' }, 429);
     }
 
-    if (!sessionState(await store.getSession(c.lab), Date.now()).open) {
+    if (!sessionState(session, Date.now()).open) {
       return json({ error: 'closed', message: 'Check-in for this lab is closed. Ask your TA.' }, 403);
     }
 
@@ -57,7 +61,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
       );
     }
 
-    return json({ ok: true, at: await store.checkIn(c.studentKey, c.lab) });
+    return json({ ok: true, at: await store.checkIn(c.studentKey, c.lab, sessionId) });
   } catch (error) {
     console.error('[progress] secure check-in failed', error);
     return json({ error: 'server', message: 'Could not verify attendance. Try again in a moment.' }, 500);

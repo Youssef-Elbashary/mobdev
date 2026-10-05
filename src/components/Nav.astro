@@ -1,5 +1,6 @@
 ---
 import Icon from './Icon.astro';
+import InstitutionBrand from './InstitutionBrand.astro';
 import Logo from './Logo.astro';
 import { nav, secondaryNav, course } from '@/site.config';
 const path = Astro.url.pathname.replace(/\/$/, '') || '/';
@@ -11,9 +12,11 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path === href 
       <Logo />
       <span class="brand-text">
         <span class="brand-name">{course.name}</span>
-        <span class="brand-sub mono">course workspace</span>
+        <span class="brand-sub mono">BUE · Faculty of Informatics &amp; Computer Science</span>
       </span>
     </a>
+
+    <div class="nav-institution"><InstitutionBrand compact /></div>
 
     <nav aria-label="Primary" class="nav-links">
       <ul>
@@ -81,6 +84,8 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path === href 
   .brand-name { font-family: var(--font-display); font-weight: 650; letter-spacing: -0.02em; font-size: 16px; }
   .brand-sub { font-size: 10.5px; color: var(--text-3); letter-spacing: 0.02em; }
   .nav[data-scrolled] .brand-sub { display: none; }
+  .nav-institution { display: none; }
+  @media (min-width: 1500px) { .nav-institution { display: block; } }
 
   .nav-links { margin-inline: auto; display: none; }
   .nav-links ul { display: flex; gap: 2px; list-style: none; padding: 4px; border-radius: var(--r-full); }

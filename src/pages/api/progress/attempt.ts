@@ -7,5 +7,5 @@ export const prerender = false;
 
 export const POST: APIRoute = ({ request }) =>
   studentWrite(request, validateAttempt, (store, a) =>
-    store.addAttempt({ studentKey: a.studentKey, lab: a.lab, exercise: a.exercise, passed: a.passed, total: a.total, code: a.code }),
+    store.addAttempt({ studentKey: a.studentKey, lab: a.lab, exercise: a.exercise, passed: a.passed, total: a.total, code: a.code, sessionId: a.sessionId }),
   );

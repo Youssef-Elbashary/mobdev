@@ -101,15 +101,35 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
   .pa-h { font-size: var(--fs-2xl); letter-spacing: -0.04em; }
   .pa-t { font-size: var(--fs-lg); letter-spacing: -0.02em; }
 
-  .pa-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
-  .pa-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .pa-head { display: grid; gap: 18px; }
+  .pa-tools { display: grid; grid-template-columns: minmax(260px, 380px) minmax(0, 1fr) auto auto auto; align-items: center; gap: 10px; }
+  .pa-select { grid-column: 1; min-width: 0; }
   .pa-select select { height: 38px; padding: 0 12px; border-radius: 10px; max-width: min(380px, 80vw); }
-  .pa-ci { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 4px 4px 4px 12px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--surface); }
+  .pa-ci { grid-column: 1 / -1; grid-row: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px; border-radius: var(--r-lg); border: 1px solid var(--line-2); background: var(--surface); }
+  .pa-tools > .pa-live { grid-column: 3; grid-row: 1; }
+  .pa-tools > [data-pa-csv] { grid-column: 4; grid-row: 1; }
+  .pa-tools > form { grid-column: 5; grid-row: 1; }
   .pa-ci :global(.ci-state) { font-size: 12px; color: var(--text-3); display: inline-flex; align-items: center; gap: 6px; }
   .pa-ci :global(.ci-state)::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
   .pa-ci :global(.ci-state.on) { color: var(--ok); font-weight: 600; }
   .pa-ci :global(.ci-state.on)::before { background: var(--ok); animation: pa-pulse 2s var(--ease-out) infinite; }
-  .pa-ci :global(.ci-len) { height: 32px; padding: 0 8px; border-radius: 999px; font-size: 13px; }
+  .pa-ci :global(.ci-len) { width: auto; min-width: 120px; height: 36px; padding: 0 12px; border-radius: 10px; font-size: 13px; }
+  .pa-ci :global(.ci-picker) { flex: 2 1 280px; }
+  .pa-ci :global(.ci-ta) { flex: 1 1 160px; }
+  .pa-ci :global(.ci-slot) { flex: 1.5 1 220px; }
+  .pa-ci :global(.ci-duration) { flex: 0 1 130px; }
+  .pa-ci :global(.ci-action) { flex: none; }
+  @media (max-width: 719px) {
+    .pa-tools { grid-template-columns: minmax(0, 1fr) auto auto; }
+    .pa-select { grid-column: 1 / -1; grid-row: 1; }
+    .pa-select select { max-width: none; }
+    .pa-tools > .pa-live { grid-column: 1; grid-row: 2; }
+    .pa-tools > [data-pa-csv] { grid-column: 2; grid-row: 2; }
+    .pa-tools > form { grid-column: 3; grid-row: 2; }
+    .pa-ci { grid-row: 3; }
+    .pa-ci :global(.ci-len) { flex-basis: 100%; }
+    .pa-ci :global(.ci-action) { width: 100%; }
+  }
   .pa-table :global(.att) { font: 600 12.5px var(--font-mono); }
   .pa-table :global(.att.yes) { color: var(--ok); }
   .pa-table :global(.att.no) { color: var(--text-3); }
@@ -215,14 +235,16 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
 
 <script>
   type Cell = { passed: number; total: number; attempts: number };
-  type Student = { key: string; id: string; name: string; lastSeen: string; locked: boolean; percent: number; solved: number; tasksDone: number; submission: { url: string; reviewed: boolean; note: string } | null; cells: Record<string, Cell>; attended: string | null; seen: number; activeSec: number };
+  type Student = { key: string; id: string; name: string; group: string; lastSeen: string; locked: boolean; percent: number; solved: number; tasksDone: number; submission: { url: string; reviewed: boolean; note: string } | null; cells: Record<string, Cell>; attended: string | null; seen: number; activeSec: number };
+  type Session = { id: string; lab: string; ta_name: string; time_slot: string; opens_at: string; closes_at: string | null; open: boolean; closesAt: string | null };
   type Data = {
     labs: { id: string; title: string }[];
     structure: { lab: string; title: string; tasks: { n: string; title: string }[]; exercises: { id: string; task: string; title: string; checks: number }[]; hasSubmission: boolean };
     students: Student[];
     exercises: { id: string; solvedPct: number; avgAttempts: number; medianSolveMs: number | null }[];
     totals: { active: number; avgPercent: number; solved: number; submitted: number; checkedIn: number };
-    session: { open: boolean; closesAt: string | null };
+    session: (Session & { open: boolean; closesAt: string | null }) | { open: false; closesAt: null };
+    sessions: Session[];
   };
   type Attempt = { id: number; exercise: string; passed: number; total: number; code: string; created_at: string };
   type Detail = { attempts: Attempt[]; tasks: { task: string; done: boolean }[]; submission: { url: string; reviewed: boolean; note: string } | null; checkin: string | null; views: { seen: string[]; active_sec: number } | null };
@@ -272,6 +294,7 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
     if (!root || !root.querySelector('[data-pa-rows]')) return;
     const $ = <T extends Element = HTMLElement>(s: string) => root.querySelector<T>(s)!;
     let lab = root.dataset.lab || '';
+    let sessionId = new URLSearchParams(location.search).get('session') ?? '';
     let data: Data | null = null;
     let sort: 'percent' | 'name' | 'lastSeen' = 'percent';
     let query = '';
@@ -282,11 +305,12 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
     const live = $('[data-pa-live]');
     async function load() {
       try {
-        const res = await fetch(`/api/admin/progress?lab=${encodeURIComponent(lab)}`, { cache: 'no-store' });
+        const res = await fetch(`/api/admin/progress?lab=${encodeURIComponent(lab)}${sessionId ? `&session=${encodeURIComponent(sessionId)}` : ''}`, { cache: 'no-store' });
         if (res.status === 401) return void location.assign('/admin');
         if (!res.ok) throw new Error(String(res.status));
         data = (await res.json()) as Data;
         lab = data.structure.lab;
+        if ('id' in data.session) sessionId = data.session.id;
         live.className = 'pa-live mono on';
         live.textContent = `live · ${new Date().toLocaleTimeString('en-GB')}`;
         render();
@@ -311,7 +335,7 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
       const sel = $<HTMLSelectElement>('[data-pa-lab]');
       if (sel.options.length !== d.labs.length) sel.replaceChildren(...d.labs.map((l) => h('option', { value: l.id }, l.title)));
       sel.value = d.structure.lab;
-      $<HTMLAnchorElement>('[data-pa-csv]').href = `/api/admin/progress/export?lab=${encodeURIComponent(d.structure.lab)}`;
+      $<HTMLAnchorElement>('[data-pa-csv]').href = `/api/admin/progress/export?lab=${encodeURIComponent(d.structure.lab)}${sessionId ? `&session=${encodeURIComponent(sessionId)}` : ''}`;
       // stats
       for (const k of ['active', 'avgPercent', 'solved', 'checkedIn', 'submitted'] as const) countTo($(`[data-pa-stat="${k}"]`), d.totals[k]);
       $('[data-pa-of]').textContent = d.structure.hasSubmission ? ` / ${d.totals.active}` : ' · none asked';
@@ -339,6 +363,7 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
       $('[data-pa-head]').replaceChildren(
         h('tr', {},
           h('th', { scope: 'col' }, 'Student'),
+          h('th', { scope: 'col' }, 'Group'),
           h('th', { scope: 'col' }, 'Attended'),
           h('th', { scope: 'col' }, 'Progress'),
           ...d.structure.exercises.map((e) => h('th', { scope: 'col', class: 'cell-h', title: e.title }, short(e.id))),
@@ -362,6 +387,7 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
           seen.set(s.key, sig);
           const tr = h('tr', { class: `st-row${changed ? ' flash' : ''}`, tabindex: 0, 'data-key': s.key, onclick: () => openStudent(s.key), onkeydown: (e: KeyboardEvent) => e.key === 'Enter' && openStudent(s.key) },
             h('td', { class: 'who' }, h('b', {}, s.name), h('small', {}, s.id)),
+            h('td', { class: 'mono dim' }, s.group),
             h('td', {}, s.attended
               ? h('span', { class: 'att yes', title: new Date(s.attended).toLocaleString('en-GB') }, `✓ ${clock(s.attended)}`)
               : h('span', { class: 'att no' }, '–')),
@@ -385,15 +411,11 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
     }
 
     /* ------- check-in control ------- */
-    async function setSession(payload: Record<string, unknown>) {
-      if (!data) return;
-      await fetch('/api/admin/progress/session', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lab: data.structure.lab, ...payload }) });
-      await load();
-    }
     function countdown() {
       const left = root!.querySelector<HTMLElement>('[data-ci-left]');
-      const closesAt = data?.session.closesAt;
-      if (!left || !data?.session.open) return;
+      const active = data && 'id' in data.session && data.session.open ? data.session : null;
+      const closesAt = active?.closesAt;
+      if (!left || !active) return;
       if (!closesAt) return void (left.textContent = 'Check-in open · no time limit');
       const ms = Date.parse(closesAt) - Date.now();
       if (ms <= 0) return void load();
@@ -401,25 +423,27 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
     }
     function renderCheckinControl(d: Data) {
       const box = $('[data-pa-ci]');
-      const sig = d.structure.lab + JSON.stringify(d.session);
-      if (box.dataset.sig !== sig) {
-        box.dataset.sig = sig;
-        if (d.session.open) {
-          box.replaceChildren(
-            h('span', { class: 'ci-state on mono', 'data-ci-left': '' }),
-            h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: () => setSession({ action: 'close' }) }, 'Close now'),
-          );
-        } else {
-          const len = h('select', { class: 'input ci-len', 'aria-label': 'How long check-in stays open' },
-            h('option', { value: '15' }, '15 min'), h('option', { value: '30', selected: true }, '30 min'), h('option', { value: '60' }, '60 min'), h('option', { value: '' }, 'No limit')) as HTMLSelectElement;
-          box.replaceChildren(
-            h('span', { class: 'ci-state mono' }, 'Check-in closed'),
-            len,
-            h('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: () => setSession({ action: 'open', minutes: len.value ? Number(len.value) : null }) }, 'Open check-in'),
-          );
+      {
+        const insightsSig = d.structure.lab + JSON.stringify(d.session) + JSON.stringify(d.sessions);
+        if (box.dataset.sig !== insightsSig) {
+          box.dataset.sig = insightsSig;
+          const children: HTMLElement[] = [];
+          if (d.sessions.length) children.push(h('select', { class: 'input ci-len ci-picker', 'aria-label': 'Session time slot', onchange: (event: Event) => {
+            sessionId = (event.target as HTMLSelectElement).value;
+            history.replaceState(null, '', `?lab=${encodeURIComponent(d.structure.lab)}&session=${encodeURIComponent(sessionId)}`);
+            seen.clear();
+            load();
+          }}, ...d.sessions.map((session) => h('option', { value: session.id, selected: 'id' in d.session && session.id === d.session.id }, `${session.time_slot} - ${session.ta_name}${session.open ? ' - LIVE' : ''}`))) as HTMLSelectElement);
+          const active = 'id' in d.session && d.session.open ? d.session : null;
+          children.push(active
+            ? h('span', { class: 'ci-state on mono', 'data-ci-left': '' })
+            : h('span', { class: 'ci-state mono' }, 'No active session'));
+          children.push(h('a', { class: 'btn btn-ghost btn-sm ci-action', href: '/admin#sessions' }, 'Manage sessions'));
+          box.replaceChildren(...children);
         }
+        countdown();
+        return;
       }
-      countdown();
     }
     const countdownTimer = window.setInterval(() => (root!.isConnected ? countdown() : clearInterval(countdownTimer)), 1000);
 
@@ -443,7 +467,7 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
       drawer.focus();
       const box = $('[data-pa-detail]');
       box.replaceChildren(h('p', { class: 'dim' }, 'Loading…'));
-      const res = await fetch(`/api/admin/progress/student?lab=${encodeURIComponent(data.structure.lab)}&id=${encodeURIComponent(key)}`, { cache: 'no-store' });
+      const res = await fetch(`/api/admin/progress/student?lab=${encodeURIComponent(data.structure.lab)}&id=${encodeURIComponent(key)}&session=${encodeURIComponent(sessionId)}`, { cache: 'no-store' });
       if (!res.ok || openKey !== key) return;
       const detail = (await res.json()) as Detail;
       drawDetail(s, detail);
@@ -454,7 +478,7 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
       const done = new Set(detail.tasks.filter((t) => t.done).map((t) => t.task));
       const seenSet = new Set(detail.views?.seen ?? []);
       const action = async (payload: Record<string, unknown>) => {
-        await fetch('/api/admin/progress/student', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: s.key, lab: d.structure.lab, ...payload }) });
+        await fetch('/api/admin/progress/student', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: s.key, lab: d.structure.lab, sessionId, ...payload }) });
         await load();
         const fresh = data?.students.find((x) => x.key === s.key);
         if (fresh && openKey === s.key) openStudent(s.key);
@@ -465,7 +489,7 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
       box.replaceChildren(
         h('div', { class: 'd-head' },
           h('span', { class: 'd-name' }, s.name),
-          h('span', { class: 'd-id' }, `${s.id} · last seen ${ago(s.lastSeen)}`),
+          h('span', { class: 'd-id' }, `${s.id} · group ${s.group} · last seen ${ago(s.lastSeen)}`),
           h('div', { class: 'prog', style: 'display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center' }, bar(s.percent), h('b', { class: 'mono' }, `${s.percent}%`)),
           h('div', { class: 'd-row' },
             s.locked
@@ -538,6 +562,7 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
     /* ------- controls ------- */
     $<HTMLSelectElement>('[data-pa-lab]').addEventListener('change', (e) => {
       lab = (e.target as HTMLSelectElement).value;
+      sessionId = '';
       seen.clear();
       history.replaceState(null, '', `?lab=${encodeURIComponent(lab)}`);
       load();

@@ -150,6 +150,17 @@ test('toCsv quotes commas, quotes and newlines', () => {
 /* ---------------- memory store ---------------- */
 
 import { MemoryStore } from '../src/lib/progress/store.ts';
+import { sessionDetails } from '../src/lib/progress/session-input.ts';
+
+test('session details accept normal timetable notation', () => {
+  assert.deepEqual(sessionDetails('  Ali   Motawea ', ' Wed 9:00 - 11:00 SE G1 + G2 '), {
+    taName: 'Ali Motawea',
+    timeSlot: 'Wed 9:00 - 11:00 SE G1 + G2',
+    valid: true,
+  });
+  assert.equal(sessionDetails('Ali Motawea', 'Wed 9:00–11:00 (G1 & G2)').valid, true);
+  assert.equal(sessionDetails('<script>', 'Wed 9:00–11:00').valid, false);
+});
 
 const ident = (key: string, device = DEVICE, name = 'Mariam Ahmed') => ({ name, studentId: key.toUpperCase(), studentKey: key, deviceKey: device });
 
@@ -274,4 +285,68 @@ test('store: sessions, idempotent check-in, views merge, and they show in labDat
   assert.equal(sessionState(await s.getSession('lab-02'), t).open, false);
   await s.openSession('lab-02', null);
   assert.deepEqual(sessionState(await s.getSession('lab-02'), t), { open: true, closesAt: null });
+});
+
+test('store: repeated time slots keep students, progress and attendance in separate session insights', async () => {
+  let t = Date.parse('2026-10-05T08:00:00Z');
+  const s = new MemoryStore(() => t);
+  const first = await s.openSession('lab-02', null, 'Nour Hassan', 'Monday 10:00–12:00');
+  await s.touchStudent(ident('s1'));
+  await s.joinSession(first.id, 's1', 'G1');
+  await s.addAttempt({ studentKey: 's1', lab: 'lab-02', exercise: 'e05-counter', passed: 5, total: 5, code: '{}', sessionId: first.id });
+  await s.checkIn('s1', 'lab-02', first.id);
+  await s.closeSession('lab-02', first.id);
+
+  t += 4 * 60 * 60 * 1000;
+  const second = await s.openSession('lab-02', null, 'Omar Ali', 'Monday 14:00–16:00');
+  await s.joinSession(second.id, 's1', 'G3');
+  await s.setTask({ studentKey: 's1', lab: 'lab-02', task: '3.2', done: true, sessionId: second.id });
+
+  const firstData = await s.labData('lab-02', first.id);
+  const secondData = await s.labData('lab-02', second.id);
+  assert.equal(firstData.students[0].group_name, 'G1');
+  assert.equal(firstData.best.length, 1);
+  assert.equal(firstData.checkins.length, 1);
+  assert.equal(secondData.students[0].group_name, 'G3');
+  assert.equal(secondData.best.length, 0);
+  assert.deepEqual(secondData.tasks, [{ student_key: 's1', done: 1 }]);
+  assert.deepEqual((await s.listSessions('lab-02')).map((session) => [session.ta_name, session.time_slot]), [
+    ['Omar Ali', 'Monday 14:00–16:00'],
+    ['Nour Hassan', 'Monday 10:00–12:00'],
+  ]);
+});
+
+test('store: parallel sessions for the same lab remain open independently', async () => {
+  const t = Date.parse('2026-10-05T08:00:00Z');
+  const s = new MemoryStore(() => t);
+  const first = await s.openSession('lab-02', 120, 'Nour Hassan', 'G1 · Room A');
+  const second = await s.openSession('lab-02', 90, 'Omar Ali', 'G2 · Room B');
+  assert.equal(sessionState(await s.getSessionById(first.id), t).open, true);
+  assert.equal(sessionState(await s.getSessionById(second.id), t).open, true);
+  await s.closeSession('lab-02', first.id);
+  assert.equal(sessionState(await s.getSessionById(first.id), t).open, false);
+  assert.equal(sessionState(await s.getSessionById(second.id), t).open, true);
+});
+
+test('store: admins can create, edit, start, end and delete a session', async () => {
+  let t = Date.parse('2026-10-05T08:00:00Z');
+  const s = new MemoryStore(() => t);
+  const draft = await s.createSession('lab-02', 'Nour Hassan', 'Monday 10:00–12:00', 120);
+  assert.equal(sessionState(draft, t).open, false);
+  assert.equal(draft.duration_minutes, 120);
+  const edited = await s.updateSession('lab-02', draft.id, 'Nour A. Hassan', 'Monday 11:00–13:00', 60);
+  assert.equal(edited?.ta_name, 'Nour A. Hassan');
+  assert.equal(edited?.time_slot, 'Monday 11:00–13:00');
+  assert.equal(edited?.duration_minutes, 60);
+  const started = await s.startSession('lab-02', draft.id, 90);
+  assert.equal(sessionState(started, t).open, true);
+  assert.equal(started?.duration_minutes, 90);
+  assert.equal(Date.parse(started!.closes_at!) - t, 90 * 60_000);
+  const extended = await s.updateSession('lab-02', draft.id, 'Nour A. Hassan', 'Monday 11:00–13:00', 120);
+  assert.equal(Date.parse(extended!.closes_at!) - t, 120 * 60_000);
+  await s.closeSession('lab-02', draft.id);
+  assert.equal(sessionState(await s.getSessionById(draft.id), t).open, false);
+  assert.equal(await s.deleteSession('lab-02', draft.id), true);
+  assert.equal(await s.getSessionById(draft.id), null);
+  assert.equal(await s.deleteSession('lab-02', draft.id), false);
 });

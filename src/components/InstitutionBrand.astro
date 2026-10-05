@@ -1,0 +1,37 @@
+---
+interface Props { compact?: boolean }
+const { compact = false } = Astro.props;
+import bueLogo from '@/assets/branding/bue-logo.png';
+---
+<div class:list={['institution-brand', { compact }]} aria-label="The British University in Egypt, Faculty of Informatics and Computer Science">
+  <a class="bue-mark" href="https://www.bue.edu.eg/" target="_blank" rel="noopener" aria-label="The British University in Egypt">
+    <img src={bueLogo.src} width={bueLogo.width} height={bueLogo.height} alt="The British University in Egypt" />
+  </a>
+  <span class="brand-rule" aria-hidden="true"></span>
+  <a class="faculty-mark" href="https://www.bue.edu.eg/faculty/informatics-computer-science" target="_blank" rel="noopener" aria-label="Faculty of Informatics and Computer Science">
+    <span class="ics-badge" aria-hidden="true"><b>ICS</b><i>{`{ }`}</i></span>
+    <span class="faculty-copy"><small>Faculty of</small><strong>Informatics &amp;<br />Computer Science</strong></span>
+  </a>
+</div>
+
+<style>
+  .institution-brand { display: flex; flex: none; align-items: center; gap: 16px; width: fit-content; }
+  .bue-mark { display: grid; flex: none; place-items: center; padding: 9px 12px; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px rgb(15 23 42 / 0.12); }
+  .bue-mark img { display: block; width: 154px; height: auto; }
+  .brand-rule { width: 1px; height: 52px; background: var(--line-2); }
+  .faculty-mark { display: flex; align-items: center; gap: 11px; color: var(--text); }
+  .ics-badge { position: relative; width: 52px; height: 52px; flex: none; display: grid; place-items: center; overflow: hidden; border-radius: 14px; color: #fff; background: linear-gradient(145deg, #17386f, #0d1d3d); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.16); }
+  .ics-badge::before { content: ''; position: absolute; inset: auto -12px -20px 12px; height: 42px; rotate: -18deg; background: #c51f35; }
+  .ics-badge b { position: relative; z-index: 1; font: 800 17px/1 var(--font-display); letter-spacing: -0.04em; }
+  .ics-badge i { position: absolute; z-index: 1; right: 4px; bottom: 3px; font: 700 8px/1 var(--font-mono); color: rgb(255 255 255 / 0.72); }
+  .faculty-copy { display: grid; gap: 2px; line-height: 1.05; }
+  .faculty-copy small { font: 600 9px/1 var(--font-mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); }
+  .faculty-copy strong { font-family: var(--font-display); font-size: 14px; letter-spacing: -0.01em; }
+  .compact { gap: 9px; }
+  .compact .bue-mark { position: relative; width: 34px; height: 34px; padding: 0; overflow: hidden; border-radius: 9px; }
+  .compact .bue-mark img { position: absolute; left: 0; top: 0; width: auto; max-width: none; height: 34px; }
+  .compact .brand-rule { height: 32px; }
+  .compact .ics-badge { width: 34px; height: 34px; border-radius: 9px; }
+  .compact .ics-badge b { font-size: 12px; }
+  .compact .ics-badge i, .compact .faculty-copy { display: none; }
+</style>

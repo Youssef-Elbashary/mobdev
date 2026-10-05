@@ -9,7 +9,7 @@ export const GET: APIRoute = async ({ cookies, url }) => {
   if (!isAdmin(cookies)) return json({ error: 'unauthorised' }, 401);
   if (!progressSetup().database) return json({ error: 'no-database' }, 503);
   try {
-    const data = await buildDashboard(url.searchParams.get('lab'));
+    const data = await buildDashboard(url.searchParams.get('lab'), url.searchParams.get('session'));
     return data ? json(data) : json({ error: 'no-labs' }, 404);
   } catch (err) {
     console.error('[progress] dashboard failed', err);

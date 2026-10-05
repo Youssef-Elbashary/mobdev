@@ -8,17 +8,19 @@ const { id, lab = 'this lab' } = Astro.props;
   <div class="ls-in" data-ls-form>
     <p class="ls-k mono">Before you start</p>
     <h2>Who’s doing {lab}?</h2>
-    <p>Type your name and student ID once. Your work is saved on this device, and your instructor can see which exercises you solved.</p>
+    <p data-ls-status>Waiting for your TA to start this lab session. You can read the content in the meantime.</p>
     <form novalidate>
+      <label class="ls-session" data-ls-session hidden>Teaching session<select class="input" name="sessionId" aria-label="Choose your teaching session"></select></label>
       <label>Full name<input class="input" name="name" autocomplete="name" placeholder="e.g. Mariam Ahmed" required maxlength="60" /></label>
       <label>Student ID<input class="input mono" name="studentId" autocomplete="off" placeholder="e.g. 236541" required maxlength="20" /></label>
+      <label>Group<input class="input" name="group" autocomplete="off" placeholder="e.g. G1" required maxlength="30" /></label>
       <button class="btn btn-primary btn-lg" type="submit">Start →</button>
     </form>
     <p class="ls-err" data-ls-error role="alert"></p>
   </div>
   <div class="ls-signed" data-ls-signed hidden>
     <span class="ls-ok" aria-hidden="true">✓</span>
-    <span>Signed in as <b data-ls-name></b> · <span class="mono" data-ls-id></span></span>
+    <span>Signed in as <b data-ls-name></b> · <span class="mono" data-ls-id></span> · group <span class="mono" data-ls-group></span></span>
     <button type="button" data-ls-change>not you? change</button>
   </div>
 </section>

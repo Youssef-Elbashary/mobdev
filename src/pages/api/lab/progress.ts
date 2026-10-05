@@ -5,6 +5,8 @@
 import type { APIRoute } from 'astro';
 import { validateLabEvent } from '@/lib/lab/core';
 import { getLabBackend } from '@/lib/lab/server';
+import { sessionState } from '@/lib/progress/core';
+import { getProgressStore } from '@/lib/progress/server';
 import { noStore } from '@/lib/attendance/server';
 
 export const prerender = false;
@@ -21,6 +23,15 @@ export const POST: APIRoute = async ({ request }) => {
   const body = await request.json().catch(() => null);
   const v = validateLabEvent(body);
   if (!v.ok) return json({ ok: false, error: v.error }, 400);
+
+  const progress = getProgressStore();
+  const session = progress ? await progress.getSessionById(v.event.sessionId).catch(() => null) : null;
+  if (!session || session.lab !== v.event.lab || !sessionState(session, Date.now()).open) {
+    return json({ ok: false, error: 'session-closed', message: 'Your TA has not started this lab session yet. You can read the content, but you cannot start or record attendance.' }, 403);
+  }
+  if (v.event.event !== 'start' && !(await progress!.isSessionStudent(v.event.sessionId, v.event.studentKey))) {
+    return json({ ok: false, error: 'not-started', message: 'Enter your name, ID and group at the top of the lab first.' }, 403);
+  }
 
   const tries = await backend.hit(`device:${v.event.deviceId}`, WINDOW_SEC).catch(() => 0);
   if (tries > MAX_EVENTS) return json({ ok: false, error: 'Too many events — slow down a little.' }, 429);

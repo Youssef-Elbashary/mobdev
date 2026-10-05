@@ -1,24 +1,17 @@
-/** GET /api/admin/lab?lab=lab-02 — live lab progress for /admin (admin login required). */
+/** Compatibility endpoint for the admin summary; supports every published lab and session. */
 import type { APIRoute } from 'astro';
-import { aggregate, LABS } from '@/lib/lab/core';
-import { getLabBackend } from '@/lib/lab/server';
-import { isAdmin, noStore } from '@/lib/attendance/server';
+import { isAdmin } from '@/lib/attendance/server';
+import { buildDashboard, json } from '@/lib/progress/server';
 
 export const prerender = false;
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...noStore } });
-
 export const GET: APIRoute = async ({ cookies, url }) => {
   if (!isAdmin(cookies)) return json({ error: 'Unauthorized' }, 401);
-  const lab = url.searchParams.get('lab') ?? 'lab-02';
-  if (!LABS[lab]) return json({ error: 'Unknown lab' }, 400);
-  const backend = getLabBackend();
-  if (!backend) return json({ error: 'Progress tracking is not set up yet.' }, 503);
   try {
-    const { students, attempts } = await backend.rows(lab);
-    return json(aggregate(lab, students, attempts));
+    const data = await buildDashboard(url.searchParams.get('lab'), url.searchParams.get('session'));
+    return data ? json(data) : json({ error: 'No published labs or progress database.' }, 404);
   } catch (error) {
-    console.error('[lab] could not load progress', error);
+    console.error('[admin] could not load lab summary', error);
     return json({ error: 'Could not load progress.' }, 500);
   }
 };

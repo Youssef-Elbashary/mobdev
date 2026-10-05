@@ -57,18 +57,40 @@ const error = Astro.url.searchParams.get('e');
       <>
       <div class="adm-tabs" role="tablist" aria-label="Admin sections">
         <button role="tab" type="button" aria-selected="true" data-tab="att">Attendance</button>
-        <button role="tab" type="button" aria-selected="false" data-tab="lab">Lab 02 progress</button>
+        <button role="tab" type="button" aria-selected="false" data-tab="lab">Lab progress</button>
+        <button role="tab" type="button" aria-selected="false" data-tab="sessions">Sessions</button>
+        <label class="tab-filter"><span>Lab</span><select class="input" data-admin-lab aria-label="Select lab"></select></label>
+        <label class="tab-filter"><span>Attendance session</span><select class="input" data-admin-session aria-label="Select attendance session"></select></label>
+      </div>
+      <div data-panel="sessions" hidden>
+        <section class="session-admin">
+          <header class="session-head">
+            <div>
+              <p class="adm-k mono">Lab sessions</p>
+              <h1 class="adm-h">Manage teaching sessions</h1>
+              <p class="muted">Create a time slot first, then start it when students may begin the lab.</p>
+            </div>
+          </header>
+          <form class="session-create" data-session-create>
+            <label><span>TA name</span><input class="input" name="taName" required maxlength="60" placeholder="Teaching assistant name" /></label>
+            <label><span>Time slot</span><input class="input" name="timeSlot" required maxlength="80" placeholder="e.g. Monday 10:00–12:00" /></label>
+            <label><span>Duration</span><select class="input" name="minutes"><option value="60">60 min</option><option value="90" selected>90 min</option><option value="120">120 min</option><option value="180">180 min</option><option value="">No limit</option></select></label>
+            <button class="btn btn-primary" type="submit">Create session</button>
+          </form>
+          <p class="session-message small" data-session-message role="status"></p>
+          <div class="session-list" data-session-list></div>
+        </section>
       </div>
       <div data-panel="lab" hidden>
-        <div class="labp" data-labp data-lab="lab-02">
+        <div class="labp" data-labp data-lab="">
           <header class="board-head">
             <div>
-              <p class="adm-k mono">Lab 02 · React &amp; React Native</p>
+              <p class="adm-k mono" data-lab-title>Lab progress</p>
               <h1 class="board-count"><b data-lp-started>–</b> <span>students started</span></h1>
             </div>
             <div class="board-actions">
               <span class="live mono" data-lp-live>loading…</span>
-              <a class="btn btn-ghost btn-sm" href="/labs/lab-02" target="_blank" rel="noopener">Open lab ↗</a>
+              <a class="btn btn-ghost btn-sm" data-open-lab href="/labs" target="_blank" rel="noopener">Open lab ↗</a>
             </div>
           </header>
           <div class="kpis" data-lp-kpis></div>
@@ -78,7 +100,7 @@ const error = Astro.url.searchParams.get('e');
           </section>
           <section class="lp-sec">
             <h2 class="lp-h">Exercises</h2>
-            <div class="table-wrap"><table class="table ex-table"><thead><tr><th>#</th><th>Exercise</th><th>Attempted</th><th>Solved</th><th>Not solved</th><th>Success</th><th>Avg tries</th><th>Hints</th></tr></thead><tbody data-lp-ex></tbody></table></div>
+            <div class="table-wrap"><table class="table ex-table"><thead><tr><th>#</th><th>Exercise</th><th>Solved</th><th>Average tries</th><th>Median solve</th></tr></thead><tbody data-lp-ex></tbody></table></div>
           </section>
           <section class="lp-sec">
             <h2 class="lp-h">Students</h2>
@@ -91,23 +113,24 @@ const error = Astro.url.searchParams.get('e');
       <div class="board" data-lab-attendance>
         <header class="board-head">
           <div>
-            <p class="adm-k mono">Lab 02 · attendance</p>
+            <p class="adm-k mono"><span data-att-lab>Selected lab</span> · attendance</p>
             <h1 class="board-count"><b data-att-count>–</b> <span data-att-summary>students identified</span></h1>
           </div>
-          <div class="board-actions">
-            <span class="live mono" data-att-live>loading…</span>
-            <a class="btn btn-ghost btn-sm" href="/admin/progress">Lab progress →</a>
+            <div class="board-actions">
+              <span class="live mono" data-att-live>loading…</span>
+              <button class="btn btn-primary btn-sm" type="button" data-open-sessions>Manage selected session</button>
+              <a class="btn btn-ghost btn-sm" data-session-insights href="/admin/progress">Session insights →</a>
             <a class="btn btn-ghost btn-sm" href="/admin/cms">CMS →</a>
             <form method="post" action="/api/admin/logout"><button class="btn btn-ghost btn-sm" type="submit">Log out</button></form>
           </div>
         </header>
-        <p class="muted small">Students appear here after entering their name and ID at the start of Lab 02. The final column confirms the separate end-of-lab attendance check-in. The legacy <a href="/attendance">/attendance</a> list is not used here.</p>
+        <p class="muted small">This attendance list belongs only to the teaching session selected above. Students, check-ins and progress from parallel sessions remain separate.</p>
         <div class="table-wrap board-table">
           <table class="table">
-            <thead><tr><th scope="col">Name</th><th scope="col">Student ID</th><th scope="col">Started</th><th scope="col">Last seen</th><th scope="col">Presence</th><th scope="col">End check-in</th></tr></thead>
+            <thead><tr><th scope="col">Name</th><th scope="col">Student ID</th><th scope="col">Group</th><th scope="col">Started</th><th scope="col">Last seen</th><th scope="col">Progress</th><th scope="col">Attendance</th></tr></thead>
             <tbody data-att-rows></tbody>
           </table>
-          <p class="empty-row" data-att-empty>Waiting for the first student to start Lab 02…</p>
+          <p class="empty-row" data-att-empty>No students have started this session yet.</p>
         </div>
       </div>
       </div>
@@ -156,9 +179,39 @@ const error = Astro.url.searchParams.get('e');
   @media (max-width: 700px) { .board-table :global(th:nth-child(3)), .board-table :global(td:nth-child(3)) { display: none; } }
 
   /* tabs */
-  .adm-tabs { display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 28px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); }
+  .adm-tabs { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; margin-bottom: 28px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); }
   .adm-tabs button { padding: 8px 16px; border-radius: 10px; font-weight: 600; font-size: 14px; color: var(--text-3); }
   .adm-tabs button[aria-selected='true'] { background: var(--accent); color: var(--accent-ink); }
+  .adm-tabs select { height: 34px; padding: 0 10px; border-radius: 10px; max-width: min(280px, 40vw); }
+  .tab-filter { display: flex; align-items: center; gap: 7px; padding-left: 8px; font-size: 11px; font-weight: 700; color: var(--text-3); }
+  .tab-filter span { white-space: nowrap; }
+
+  /* session CRUD */
+  .session-admin { display: grid; gap: 22px; }
+  .session-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; }
+  .session-head .muted { margin-top: 8px; }
+  .session-create { display: grid; grid-template-columns: minmax(180px, 0.8fr) minmax(240px, 1.2fr) 120px auto; align-items: end; gap: 12px; padding: 18px; border: 1px solid var(--line-2); border-radius: var(--r-lg); background: var(--surface); }
+  .session-create label, .session-list :global(label) { display: grid; gap: 6px; min-width: 0; font-size: 12px; font-weight: 650; color: var(--text-2); }
+  .session-create .input, .session-list :global(.input) { height: 40px; padding: 0 12px; border-radius: 10px; }
+  .session-message { min-height: 1.25em; color: var(--text-3); }
+  .session-message.err { color: var(--danger); }
+  .session-list { display: grid; gap: 12px; }
+  .session-list :global(.session-row) { display: grid; grid-template-columns: minmax(150px, 0.8fr) minmax(210px, 1.2fr) 120px; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+  .session-list :global(.session-row.live-row) { border-color: color-mix(in oklab, var(--ok) 48%, var(--line)); box-shadow: inset 3px 0 0 var(--ok); }
+  .session-list :global(.session-meta) { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-size: 12px; color: var(--text-3); }
+  .session-list :global(.session-state) { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+  .session-list :global(.session-state)::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+  .session-list :global(.session-state.live)::before { background: var(--ok); }
+  .session-list :global(.session-actions) { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
+  .session-list :global(.danger) { color: var(--danger); margin-left: auto; }
+  .session-list :global(.empty-session) { padding: 32px; text-align: center; border: 1px dashed var(--line-2); border-radius: var(--r-lg); color: var(--text-3); }
+  @media (max-width: 760px) {
+    .adm-tabs { display: flex; flex-wrap: wrap; }
+    .adm-tabs select { max-width: 100%; flex: 1 1 220px; }
+    .session-create, .session-list :global(.session-row) { grid-template-columns: 1fr; }
+    .session-list :global(.session-meta), .session-list :global(.session-actions) { grid-column: 1; }
+    .session-list :global(.danger) { margin-left: 0; }
+  }
 
   /* lab progress panel (rows are built by the script → :global) */
   .labp { display: grid; gap: 28px; }
@@ -191,15 +244,16 @@ const error = Astro.url.searchParams.get('e');
 </style>
 
 <script>
-  /* Tabs (Attendance | Lab 02) + the Lab 02 progress dashboard (polls /api/admin/lab every 4 s while open). */
-  type ExStats = { id: string; n: number; title: string; attempted: number; solved: number; notSolved: number; successRate: number | null; avgAttempts: number | null; hints: number };
-  type StStats = { name: string; studentId: string; startedAt: string; solved: number; pct: number; completed: boolean; minutes: number; lastSeen: string; checkedInAt: string | null; active: boolean; states: Record<string, string> };
+  /* Dynamic attendance + progress summary. Detailed controls live at /admin/progress. */
+  type Session = { id: string; ta_name: string; time_slot: string; opens_at: string; closes_at: string | null; duration_minutes: number | null; open: boolean; closesAt?: string | null };
   type LabStats = {
-    generatedAt: string;
-    totals: { started: number; completed: number; active: number; avgCompletion: number; avgMinutesToComplete: number | null };
-    exercises: ExStats[];
-    hardest: string[];
-    students: StStats[];
+    labs: { id: string; title: string }[];
+    structure: { lab: string; title: string; exercises: { id: string; title: string }[]; tasks: unknown[] };
+    totals: { active: number; avgPercent: number; solved: number; checkedIn: number; submitted: number };
+    exercises: { id: string; solvedPct: number; avgAttempts: number; medianSolveMs: number | null }[];
+    students: { key: string; name: string; id: string; group: string; startedAt: string; percent: number; solved: number; lastSeen: string; attended: string | null; checkedInAt: string | null; cells: Record<string, { passed: number; total: number; attempts: number }> }[];
+    session: (Session & { closesAt: string | null }) | { open: false; closesAt: null };
+    sessions: Session[];
   };
 
   let timer: number | undefined;
@@ -212,20 +266,94 @@ const error = Astro.url.searchParams.get('e');
   };
   const clock = (iso: string) => new Date(iso).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
+  function sessionMessage(message: string, error = false) {
+    const node = document.querySelector<HTMLElement>('[data-session-message]');
+    if (!node) return;
+    node.textContent = message;
+    node.classList.toggle('err', error);
+  }
+
+  async function sessionAction(action: string, values: Record<string, unknown> = {}) {
+    const root = document.querySelector<HTMLElement>('[data-labp]');
+    const lab = document.querySelector<HTMLSelectElement>('[data-admin-lab]')?.value || root?.dataset.lab || '';
+    if (!root || !lab) return false;
+    sessionMessage('Saving…');
+    try {
+      const response = await fetch('/api/admin/progress/session', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ lab, action, ...values }),
+      });
+      if (response.status === 401) return location.reload();
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message ?? 'Could not save the session.');
+      sessionMessage(action === 'delete' ? 'Session deleted.' : 'Session saved.');
+      await load(root);
+      return true;
+    } catch (error) {
+      sessionMessage(error instanceof Error ? error.message : 'Could not save the session.', true);
+      return false;
+    }
+  }
+
+  function renderSessionManager(stats: LabStats) {
+    const list = document.querySelector<HTMLElement>('[data-session-list]');
+    if (!list) return;
+    const signature = stats.structure.lab + JSON.stringify(stats.sessions);
+    if (list.dataset.signature === signature) return;
+    list.dataset.signature = signature;
+    if (!stats.sessions.length) {
+      list.innerHTML = '<p class="empty-session">No sessions for this lab yet. Create the first time slot above.</p>';
+      return;
+    }
+    list.innerHTML = stats.sessions.map((session) => `<article class="session-row ${session.open ? 'live-row' : ''}" data-session-id="${esc(session.id)}">
+      <div class="session-meta mono">
+        <span class="session-state ${session.open ? 'live' : ''}">${session.open ? 'Live' : 'Inactive'}</span>
+        <span>Started ${clock(session.opens_at)}</span>
+        <span>${session.closes_at ? `Ends/ended ${clock(session.closes_at)}` : 'No time limit'}</span>
+      </div>
+      <label><span>TA name</span><input class="input" data-session-ta maxlength="60" value="${esc(session.ta_name)}" /></label>
+      <label><span>Time slot</span><input class="input" data-session-slot maxlength="80" value="${esc(session.time_slot)}" /></label>
+      <label><span>Duration</span><select class="input" data-session-duration><option value="60" ${session.duration_minutes === 60 ? 'selected' : ''}>60 min</option><option value="90" ${session.duration_minutes === 90 ? 'selected' : ''}>90 min</option><option value="120" ${session.duration_minutes === 120 ? 'selected' : ''}>120 min</option><option value="180" ${session.duration_minutes === 180 ? 'selected' : ''}>180 min</option><option value="" ${session.duration_minutes === null ? 'selected' : ''}>No limit</option></select></label>
+      <div class="session-actions">
+        <button class="btn btn-ghost btn-sm" type="button" data-session-action="update">Save changes</button>
+        ${session.open
+          ? '<button class="btn btn-ghost btn-sm" type="button" data-session-action="close">End session</button>'
+          : '<button class="btn btn-primary btn-sm" type="button" data-session-action="start">Start session</button>'}
+        <a class="btn btn-ghost btn-sm" href="/admin/progress?lab=${encodeURIComponent(stats.structure.lab)}&session=${encodeURIComponent(session.id)}">View insights</a>
+        <button class="btn btn-ghost btn-sm danger" type="button" data-session-action="delete">Delete</button>
+      </div>
+    </article>`).join('');
+    list.querySelectorAll<HTMLButtonElement>('[data-session-action]').forEach((button) => button.addEventListener('click', () => {
+      const row = button.closest<HTMLElement>('[data-session-id]')!;
+      const action = button.dataset.sessionAction!;
+      const sessionId = row.dataset.sessionId!;
+      if (action === 'delete' && !confirm('Delete this session and all of its attendance and progress data? This cannot be undone.')) return;
+      const taName = row.querySelector<HTMLInputElement>('[data-session-ta]')!.value;
+      const timeSlot = row.querySelector<HTMLInputElement>('[data-session-slot]')!.value;
+      const rawMinutes = row.querySelector<HTMLSelectElement>('[data-session-duration]')!.value;
+      void sessionAction(action, { sessionId, taName, timeSlot, minutes: rawMinutes ? Number(rawMinutes) : null });
+    }));
+  }
+
   function renderAttendance(s: LabStats) {
     const board = document.querySelector<HTMLElement>('[data-lab-attendance]');
     if (!board) return;
     const checked = s.students.filter((student) => student.checkedInAt).length;
     board.querySelector<HTMLElement>('[data-att-count]')!.textContent = String(s.students.length);
-    board.querySelector<HTMLElement>('[data-att-summary]')!.textContent = `${checked} checked in · ${s.totals.active} active now`;
+    board.querySelector<HTMLElement>('[data-att-summary]')!.textContent = `${checked} checked in · ${'id' in s.session ? `${s.session.time_slot} · ${s.session.ta_name}` : 'no session selected'}`;
+    board.querySelector<HTMLElement>('[data-att-lab]')!.textContent = s.structure.title;
+    const insights = board.querySelector<HTMLAnchorElement>('[data-session-insights]')!;
+    insights.href = `/admin/progress?lab=${encodeURIComponent(s.structure.lab)}${'id' in s.session ? `&session=${encodeURIComponent(s.session.id)}` : ''}`;
     board.querySelector<HTMLTableSectionElement>('[data-att-rows]')!.innerHTML = [...s.students]
-      .sort((a, b) => Number(b.active) - Number(a.active) || Date.parse(b.lastSeen) - Date.parse(a.lastSeen))
+      .sort((a, b) => Date.parse(b.lastSeen) - Date.parse(a.lastSeen))
       .map((student) => `<tr>
         <td>${esc(student.name)}</td>
-        <td class="mono">${esc(student.studentId)}</td>
+        <td class="mono">${esc(student.id)}</td>
+        <td class="mono faint">${esc(student.group)}</td>
         <td class="mono faint">${clock(student.startedAt)}</td>
         <td class="mono faint">${ago(student.lastSeen)}</td>
-        <td>${student.active ? '<span class="att-state active">● Viewing now</span>' : '<span class="att-state">Away</span>'}</td>
+        <td class="mono">${student.percent}% · ${student.solved} solved</td>
         <td>${student.checkedInAt ? `<span class="att-state checked">✓ ${clock(student.checkedInAt)}</span>` : '<span class="faint">Not yet</span>'}</td>
       </tr>`)
       .join('');
@@ -235,35 +363,45 @@ const error = Astro.url.searchParams.get('e');
   function render(root: HTMLElement, s: LabStats) {
     renderAttendance(s);
     const t = s.totals;
-    root.querySelector('[data-lp-started]')!.textContent = String(t.started);
+    root.dataset.lab = s.structure.lab;
+    root.querySelector('[data-lab-title]')!.textContent = `${s.structure.title}${'id' in s.session ? ` · ${s.session.time_slot} · ${s.session.ta_name}` : ''}`;
+    (root.querySelector('[data-open-lab]') as HTMLAnchorElement).href = `/labs/${encodeURIComponent(s.structure.lab)}`;
+    root.querySelector('[data-lp-started]')!.textContent = String(t.active);
     root.querySelector('[data-lp-kpis]')!.innerHTML = [
-      ['accent', t.completed, 'completed the lab'],
-      ['', t.active, 'active in the last 2 min'],
-      ['', `${Math.round(t.avgCompletion * 100)}%`, 'average progress'],
-      ['', t.avgMinutesToComplete === null ? '–' : `${t.avgMinutesToComplete} min`, 'average time to finish'],
+      ['accent', t.checkedIn, 'checked in'],
+      ['', t.solved, 'exercises solved'],
+      ['', `${t.avgPercent}%`, 'average progress'],
+      ['', t.submitted, 'repositories submitted'],
     ]
       .map(([cls, v, label]) => `<div class="kpi ${cls}"><b>${v}</b><span>${label}</span></div>`)
       .join('');
 
-    const hard = s.hardest.map((id) => s.exercises.find((e) => e.id === id)!).filter(Boolean);
+    const attempted = s.exercises.filter((exercise) => exercise.solvedPct < 100);
+    const hard = attempted.sort((a, b) => a.solvedPct - b.solvedPct).slice(0, 3);
     root.querySelector('[data-lp-hardest]')!.innerHTML = hard.length
-      ? hard.map((e) => `<div class="hard-chip"><b>Ex ${e.n} · ${esc(e.title)}</b><span>${pct(e.successRate)} success · ${e.notSolved} stuck · ${e.avgAttempts ?? '–'} tries on average</span></div>`).join('')
+      ? hard.map((e) => {
+          const meta = s.structure.exercises.find((item) => item.id === e.id);
+          return `<div class="hard-chip"><b>${esc(meta?.title ?? e.id)}</b><span>${e.solvedPct}% solved · ${e.avgAttempts || 0} tries on average</span></div>`;
+        }).join('')
       : '<p class="faint small">Nothing stands out yet.</p>';
 
     root.querySelector('[data-lp-ex]')!.innerHTML = s.exercises
-      .map((e) => {
-        const r = e.successRate;
-        const tone = r === null ? '' : r < 0.5 ? 'low' : r < 0.8 ? 'mid' : '';
-        return `<tr class="${s.hardest.includes(e.id) ? 'is-hard' : ''}"><td class="mono faint">${e.n}</td><td>${esc(e.title)}</td><td class="mono">${e.attempted}</td><td class="mono">${e.solved}</td><td class="mono">${e.notSolved}</td><td><span class="rate ${tone}"><i style="--w:${r === null ? 0 : Math.round(r * 100)}%"></i><span class="mono">${pct(r)}</span></span></td><td class="mono">${e.avgAttempts ?? '–'}</td><td class="mono">${e.hints}</td></tr>`;
+      .map((e, index) => {
+        const meta = s.structure.exercises.find((item) => item.id === e.id);
+        return `<tr><td class="mono faint">${index + 1}</td><td>${esc(meta?.title ?? e.id)}</td><td class="mono">${e.solvedPct}%</td><td class="mono">${e.avgAttempts || '–'}</td><td class="mono">${e.medianSolveMs == null ? '–' : `${Math.round(e.medianSolveMs / 60000)} min`}</td></tr>`;
       })
       .join('');
 
-    root.querySelector('[data-lp-st-head]')!.innerHTML = `<tr><th>Student</th><th>ID</th><th>Progress</th><th>Done</th><th>Time</th><th>Seen</th>${s.exercises.map((e) => `<th class="c mono" title="${esc(e.title)}">${e.n}</th>`).join('')}</tr>`;
+    root.querySelector('[data-lp-st-head]')!.innerHTML = `<tr><th>Student</th><th>ID</th><th>Group</th><th>Progress</th><th>Attendance</th>${s.structure.exercises.map((e, index) => `<th class="c mono" title="${esc(e.title)}">${index + 1}</th>`).join('')}</tr>`;
     root.querySelector('[data-lp-st]')!.innerHTML = s.students
       .map(
         (st) =>
-          `<tr><td>${st.active ? '<span class="dot-on" title="active now">●</span> ' : ''}${esc(st.name)}</td><td class="mono faint">${esc(st.studentId)}</td><td><span class="prog"><i style="--w:${Math.round(st.pct * 100)}%"></i><span class="mono">${st.solved}/${s.exercises.length}</span></span></td><td>${st.completed ? '✓' : ''}</td><td class="mono faint">${st.minutes} min</td><td class="mono faint">${ago(st.lastSeen)}</td>${s.exercises
-            .map((e) => `<td class="c"><span class="cell ${st.states[e.id] ?? 'new'}" title="Ex ${e.n} · ${esc(e.title)}: ${st.states[e.id] ?? 'new'}"></span></td>`)
+          `<tr><td>${esc(st.name)}</td><td class="mono faint">${esc(st.id)}</td><td class="mono faint">${esc(st.group)}</td><td><span class="prog"><i style="--w:${st.percent}%"></i><span class="mono">${st.percent}%</span></span></td><td>${st.attended ? '✓' : '–'}</td>${s.structure.exercises
+            .map((e) => {
+              const cell = st.cells[e.id];
+              const state = !cell ? 'new' : cell.passed >= cell.total ? 'solved' : 'trying';
+              return `<td class="c"><span class="cell ${state}" title="${esc(e.title)}: ${state}"></span></td>`;
+            })
             .join('')}</tr>`,
       )
       .join('');
@@ -274,11 +412,26 @@ const error = Astro.url.searchParams.get('e');
     const live = root.querySelector<HTMLElement>('[data-lp-live]')!;
     const attendanceLive = document.querySelector<HTMLElement>('[data-att-live]');
     try {
-      const res = await fetch(`/api/admin/lab?lab=${encodeURIComponent(root.dataset.lab!)}`, { cache: 'no-store' });
+      const selectedSession = (document.querySelector('[data-admin-session]') as HTMLSelectElement | null)?.value ?? '';
+      const res = await fetch(`/api/admin/progress?lab=${encodeURIComponent(root.dataset.lab ?? '')}${selectedSession ? `&session=${encodeURIComponent(selectedSession)}` : ''}`, { cache: 'no-store' });
       if (res.status === 401) return location.reload();
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? String(res.status));
-      render(root, data as LabStats);
+      const stats = data as LabStats;
+      const labSelect = document.querySelector<HTMLSelectElement>('[data-admin-lab]');
+      const sessionSelect = document.querySelector<HTMLSelectElement>('[data-admin-session]');
+      if (labSelect) {
+        labSelect.replaceChildren(...stats.labs.map((lab) => new Option(lab.title, lab.id, false, lab.id === stats.structure.lab)));
+        labSelect.value = stats.structure.lab;
+      }
+      if (sessionSelect) {
+        sessionSelect.replaceChildren(...(stats.sessions.length
+          ? stats.sessions.map((session) => new Option(`${session.time_slot} · ${session.ta_name}${session.open ? ' · LIVE' : ''}`, session.id, false, 'id' in stats.session && session.id === stats.session.id))
+          : [new Option('No sessions yet', '')]));
+        if ('id' in stats.session) sessionSelect.value = stats.session.id;
+      }
+      renderSessionManager(stats);
+      render(root, stats);
       live.classList.add('on');
       live.textContent = `live · ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
       attendanceLive?.classList.add('on');
@@ -299,10 +452,29 @@ const error = Astro.url.searchParams.get('e');
     const show = (name: string) => {
       tabs.forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === name)));
       document.querySelectorAll<HTMLElement>('[data-panel]').forEach((p) => (p.hidden = p.dataset.panel !== name));
-      history.replaceState(null, '', name === 'lab' ? '#lab' : location.pathname + location.search);
+      history.replaceState(null, '', name === 'att' ? location.pathname + location.search : `#${name}`);
     };
     tabs.forEach((t) => t.addEventListener('click', () => show(t.dataset.tab!)));
-    show(location.hash === '#lab' ? 'lab' : 'att');
+    document.querySelectorAll<HTMLButtonElement>('[data-open-sessions]').forEach((button) => button.addEventListener('click', () => show('sessions')));
+    document.querySelector<HTMLSelectElement>('[data-admin-lab]')?.addEventListener('change', (event) => {
+      if (!root) return;
+      root.dataset.lab = (event.target as HTMLSelectElement).value;
+      const sessions = document.querySelector<HTMLSelectElement>('[data-admin-session]');
+      if (sessions) sessions.value = '';
+      void load(root);
+    });
+    document.querySelector<HTMLSelectElement>('[data-admin-session]')?.addEventListener('change', () => root && void load(root));
+    const create = document.querySelector<HTMLFormElement>('[data-session-create]');
+    if (create && !create.dataset.wired) {
+      create.dataset.wired = '1';
+      create.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const form = new FormData(create);
+        const rawMinutes = String(form.get('minutes') ?? '');
+        void sessionAction('create', { taName: form.get('taName'), timeSlot: form.get('timeSlot'), minutes: rawMinutes ? Number(rawMinutes) : null }).then((saved) => saved && create.reset());
+      });
+    }
+    show(location.hash === '#lab' ? 'lab' : location.hash === '#sessions' ? 'sessions' : 'att');
     if (root) {
       void load(root);
       clearInterval(timer);

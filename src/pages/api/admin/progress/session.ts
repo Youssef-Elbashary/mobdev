@@ -2,12 +2,12 @@
 import type { APIRoute } from 'astro';
 import { isAdmin } from '@/lib/attendance/server';
 import { sessionState } from '@/lib/progress/core';
+import { sessionDetails } from '@/lib/progress/session-input';
 import { getProgressStore, getStructures, json } from '@/lib/progress/server';
 
 export const prerender = false;
 
-const LENGTHS = [15, 30, 60];
-
+const LENGTHS = [15, 30, 60, 90, 120, 180];
 export const POST: APIRoute = async ({ cookies, request }) => {
   if (!isAdmin(cookies)) return json({ error: 'unauthorised' }, 401);
   const store = getProgressStore();
@@ -16,13 +16,38 @@ export const POST: APIRoute = async ({ cookies, request }) => {
   const lab = String(body?.lab ?? '');
   if (!(await getStructures()).some((l) => l.lab === lab)) return json({ error: 'bad-request' }, 400);
   try {
-    if (body?.action === 'open') {
-      const minutes = body.minutes == null ? null : Number(body.minutes);
-      if (minutes !== null && !LENGTHS.includes(minutes)) return json({ error: 'bad-request' }, 400);
-      await store.openSession(lab, minutes);
-    } else if (body?.action === 'close') await store.closeSession(lab);
-    else return json({ error: 'bad-request' }, 400);
-    return json(sessionState(await store.getSession(lab), Date.now()));
+    const action = String(body?.action ?? '');
+    const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
+    const readDetails = () => sessionDetails(body?.taName, body?.timeSlot);
+    const minutes = body?.minutes === undefined ? 90 : body.minutes == null || body.minutes === '' ? null : Number(body.minutes);
+    if (['create', 'update', 'open', 'start'].includes(action) && minutes !== null && !LENGTHS.includes(minutes)) return json({ error: 'bad-request', message: 'Choose a valid session duration.' }, 400);
+
+    let changed = null;
+    if (action === 'create' || action === 'open') {
+      const { taName, timeSlot, valid } = readDetails();
+      if (!valid) return json({ error: 'invalid', message: 'Enter the TA name and a valid time slot.' }, 400);
+      changed = action === 'open'
+        ? await store.openSession(lab, minutes, taName, timeSlot)
+        : await store.createSession(lab, taName, timeSlot, minutes);
+    } else if (action === 'update') {
+      const { taName, timeSlot, valid } = readDetails();
+      if (!sessionId || !valid) return json({ error: 'invalid', message: 'Enter the TA name and a valid time slot.' }, 400);
+      changed = await store.updateSession(lab, sessionId, taName, timeSlot, minutes);
+    } else if (action === 'start') {
+      if (!sessionId) return json({ error: 'bad-request' }, 400);
+      changed = await store.startSession(lab, sessionId, minutes);
+    } else if (action === 'close') {
+      if (!sessionId) return json({ error: 'bad-request' }, 400);
+      await store.closeSession(lab, sessionId);
+      changed = await store.getSessionById(sessionId);
+    } else if (action === 'delete') {
+      if (!sessionId) return json({ error: 'bad-request' }, 400);
+      const deleted = await store.deleteSession(lab, sessionId);
+      return deleted ? json({ ok: true, deleted: sessionId }) : json({ error: 'not-found' }, 404);
+    } else return json({ error: 'bad-request' }, 400);
+
+    if (!changed) return json({ error: 'not-found' }, 404);
+    return json({ ok: true, session: { ...changed, ...sessionState(changed, Date.now()) } });
   } catch (err) {
     console.error('[progress] session change failed', err);
     return json({ error: 'server' }, 500);

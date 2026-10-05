@@ -26,16 +26,18 @@
 .ls h2 { margin: 0 !important; font-size: var(--fs-xl); letter-spacing: -0.03em; }
 .ls p { margin: 0 !important; color: var(--text-2); }
 .ls form { display: grid; gap: 10px; }
-@media (min-width: 720px) { .ls form { grid-template-columns: 1.4fr 1fr auto; align-items: end; } }
+.ls form[hidden] { display: none; }
+@media (min-width: 720px) { .ls form { grid-template-columns: 1.4fr 1fr 0.7fr auto; align-items: end; } }
+.ls .ls-session { grid-column: 1 / -1; }
+[data-lab][data-session-access='readonly'] :is([data-exercise], [data-playground], [data-repo-submit], [data-checkin], [data-task-check]) { opacity: 0.62; }
+[data-lab][data-session-access='readonly'] :is(.cm-editor, [data-exercise] button, [data-playground] button, [data-repo-submit] input, [data-repo-submit] button, [data-checkin] button, [data-task-check]) { cursor: not-allowed !important; }
 .ls label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: var(--text); }
-.ls input { height: 46px; padding: 0 14px; font-size: 16px; border-radius: 12px; }
+.ls input, .ls select { height: 46px; padding: 0 14px; font-size: 16px; border-radius: 12px; }
 .ls .ls-err { color: var(--danger) !important; font-size: 14px; min-height: 1em; }
 .ls-signed { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px 20px; font-size: 15px; }
 .ls-signed .ls-ok { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--ok); color: #fff; font-weight: 800; font-size: 14px; }
 .ls-signed button { font-size: 12px; color: var(--text-3); text-decoration: underline; text-underline-offset: 3px; }
 .ls.is-signed { border-color: color-mix(in oklab, var(--ok) 45%, var(--line)); background: var(--surface); box-shadow: none; }
-.doc-main > .ls:not(.is-signed) ~ * { display: none; }
-
 /* ---------- sticky lab progress ---------- */
 .lp { position: fixed; z-index: 40; left: 0; right: 0; top: var(--nav-h); transform: translateY(-110%); opacity: 0; pointer-events: none; transition: transform var(--t-med) var(--ease-out), opacity var(--t-med); background: var(--glass); backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4); border-bottom: 1px solid var(--line); }
 .lp.is-on { transform: none; opacity: 1; pointer-events: auto; }

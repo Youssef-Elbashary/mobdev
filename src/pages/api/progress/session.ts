@@ -10,9 +10,14 @@ export const GET: APIRoute = async ({ url }) => {
   const lab = url.searchParams.get('lab') ?? '';
   if (!store || !lab) return json({ open: false, closesAt: null });
   try {
-    return json(sessionState(await store.getSession(lab), Date.now()));
+    const now = Date.now();
+    const sessions = (await store.listSessions(lab))
+      .map((session) => ({ ...session, ...sessionState(session, now) }))
+      .filter((session) => session.open);
+    // Retain the top-level session fields for older clients while exposing every live session.
+    return json(sessions[0] ? { ...sessions[0], sessions } : { open: false, closesAt: null, sessions: [] });
   } catch (err) {
     console.error('[progress] session failed', err);
-    return json({ open: false, closesAt: null, error: 'server' }, 500);
+    return json({ open: false, closesAt: null, sessions: [], error: 'server' }, 500);
   }
 };

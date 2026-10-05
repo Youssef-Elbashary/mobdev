@@ -11,7 +11,7 @@ export type ExerciseState = {
   answer?: unknown;
   solvedAt?: number;
 };
-export type Student = { name: string; id: string };
+export type Student = { name: string; id: string; group: string; sessionId: string };
 
 const ls = {
   get(key: string) {
@@ -68,7 +68,7 @@ export const ID_RE = /^[A-Za-z0-9-]{3,20}$/;
 export function getStudent(): Student | null {
   try {
     const s = JSON.parse(ls.get(STUDENT) ?? 'null') as Student | null;
-    return s && NAME_RE.test(s.name) && ID_RE.test(s.id) ? s : null;
+    return s && NAME_RE.test(s.name) && ID_RE.test(s.id) && typeof s.group === 'string' && typeof s.sessionId === 'string' ? s : null;
   } catch {
     return null;
   }

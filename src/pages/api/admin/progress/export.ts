@@ -8,14 +8,17 @@ export const prerender = false;
 
 export const GET: APIRoute = async ({ cookies, url }) => {
   if (!isAdmin(cookies)) return new Response('Unauthorised', { status: 401 });
-  const d = await buildDashboard(url.searchParams.get('lab'));
+  const d = await buildDashboard(url.searchParams.get('lab'), url.searchParams.get('session'));
   if (!d) return new Response('No data', { status: 404 });
   const ex = d.structure.exercises;
   const rows: (string | number)[][] = [
-    ['Name', 'Student ID', 'Attended', 'Check-in time', 'Progress %', 'Exercises solved', ...ex.map((e) => `${e.id} (best)`), 'Tasks done', 'Tasks seen', 'Active minutes', 'Repository', 'Reviewed', 'Last seen'],
+    ['Name', 'Student ID', 'Group', 'TA', 'Time slot', 'Attended', 'Check-in time', 'Progress %', 'Exercises solved', ...ex.map((e) => `${e.id} (best)`), 'Tasks done', 'Tasks seen', 'Active minutes', 'Repository', 'Reviewed', 'Last seen'],
     ...d.students.map((s) => [
       s.name,
       s.id,
+      s.group,
+      d.session.ta_name ?? '',
+      d.session.time_slot ?? '',
       s.attended ? 'yes' : 'no',
       s.attended ?? '',
       s.percent,

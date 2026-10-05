@@ -8,11 +8,13 @@ const interactiveCss = fs.readFileSync(new URL('../src/styles/lab-interactive.cs
 const admin = fs.readFileSync(new URL('../src/pages/admin.astro', import.meta.url), 'utf8');
 const labStart = fs.readFileSync(new URL('../src/lab/ui/start.ts', import.meta.url), 'utf8');
 
-test('every mission lab asks for identity before rendering its lesson content', () => {
+test('every mission lab asks for identity but keeps lesson content visible in read-only mode', () => {
   const start = page.indexOf('<LabStart');
   const content = page.indexOf('<Content components={components}');
   assert.ok(start > 0 && content > start, 'the required identity card must precede the lesson');
-  assert.match(interactiveCss, /\.ls:not\(\.is-signed\)\s*~\s*\*\s*\{\s*display:\s*none/);
+  assert.doesNotMatch(interactiveCss, /\.ls:not\(\.is-signed\)\s*~\s*\*\s*\{\s*display:\s*none/);
+  assert.match(interactiveCss, /data-session-access='readonly'/);
+  assert.match(labStart, /dataset\.sessionAccess = current \? 'active' : 'readonly'/);
 });
 
 test('attendance is the final lab card before previous/next navigation', () => {

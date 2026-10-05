@@ -3,7 +3,7 @@
  *
  * Needs, in Vercel → Project → Storage: a Neon database connected to the project
  * (it adds DATABASE_URL). Previews and laptops use the progress_dev_* tables, production progress_*.
- * On a laptop without DATABASE_URL an in-memory store is used (it resets when the dev server restarts).
+ * Local development requires LOCAL_DATABASE_URL; there is no runtime in-memory fallback.
  */
 import { getSecret } from 'astro:env/server';
 import { getCollection } from 'astro:content';
@@ -11,11 +11,13 @@ import { getPlayground } from '@/lib/playgrounds';
 import { EXERCISES as LAB02_EXERCISES } from '@/lab/exercises/lab-02/meta';
 import { noStore } from '@/lib/attendance/server';
 import { exerciseStats, labStructure, scoreStudent, sessionState, type Identity, type LabStructure, type Valid } from './core';
-import { MemoryStore, NeonStore, type ProgressStore } from './store';
+import { NeonStore, type ProgressStore } from './store';
 
 const env = (key: string) => getSecret(key) || undefined;
 const onVercel = () => Boolean(env('VERCEL'));
-const databaseUrl = () => env('DATABASE_URL') ?? env('POSTGRES_URL');
+const databaseUrl = () => onVercel()
+  ? env('DATABASE_URL') ?? env('POSTGRES_URL')
+  : env('LOCAL_DATABASE_URL') ?? env('DATABASE_URL') ?? env('POSTGRES_URL');
 
 let store: ProgressStore | null | undefined;
 
@@ -23,12 +25,12 @@ let store: ProgressStore | null | undefined;
 export function getProgressStore(): ProgressStore | null {
   if (store !== undefined) return store;
   const url = databaseUrl();
-  if (url) store = new NeonStore(url, env('VERCEL_ENV') === 'production' ? 'progress' : 'progress_dev');
-  else store = onVercel() ? null : new MemoryStore();
+  if (url) store = new NeonStore(url, env('VERCEL_ENV') === 'production' ? 'progress' : 'progress_dev', onVercel() ? 'neon' : 'postgres');
+  else store = null;
   return store;
 }
 
-export const progressSetup = () => ({ database: Boolean(databaseUrl()) || !onVercel() });
+export const progressSetup = () => ({ database: Boolean(databaseUrl()) });
 
 /* ---------------------------------------------------------- lab structure */
 
@@ -69,7 +71,7 @@ const WINDOW_SEC = 10 * 60;
 export async function studentWrite<V extends Identity>(
   request: Request,
   validate: (body: unknown, labs: LabStructure[]) => Valid<V>,
-  act: (store: ProgressStore, value: V & { studentKey: string }) => Promise<Response | Record<string, unknown> | void>,
+  act: (store: ProgressStore, value: V & { studentKey: string; sessionId: string }) => Promise<Response | Record<string, unknown> | void>,
 ) {
   let body: unknown;
   try {
@@ -83,11 +85,19 @@ export async function studentWrite<V extends Identity>(
   const s = getProgressStore();
   if (!s) return json({ error: 'closed', message: 'Progress tracking is not set up yet.' }, 503);
   try {
+    const sessionId = String((body as Record<string, unknown>)?.sessionId ?? '');
+    const session = sessionId ? await s.getSessionById(sessionId) : null;
+    if (!session || session.lab !== (v.value as any).lab || !sessionState(session, Date.now()).open) {
+      return json({ error: 'session-closed', message: 'This lab session has not been started, or it has already ended. You can still read the lab content.' }, 403);
+    }
+    if (!(await s.isSessionStudent(sessionId, v.value.studentKey))) {
+      return json({ error: 'not-started', message: 'Enter your name, ID and group at the top of the lab before starting.' }, 403);
+    }
     if ((await s.hit(`w:${v.value.deviceKey}`, WINDOW_SEC)) > WRITES_PER_WINDOW) return json({ error: 'slow-down' }, 429);
     if ((await s.touchStudent(v.value)) === 'conflict') {
       return json({ error: 'device', message: 'This browser is linked to another student, or this student ID is linked to another device. Ask your TA to use “Allow new device”.' }, 409);
     }
-    const out = await act(s, v.value);
+    const out = await act(s, { ...v.value, sessionId });
     return out instanceof Response ? out : json({ ok: true, ...(out ?? {}) });
   } catch (err) {
     console.error('[progress] write failed', err);
@@ -101,6 +111,8 @@ export type DashboardStudent = {
   key: string;
   id: string;
   name: string;
+  group: string;
+  startedAt: string;
   lastSeen: string;
   locked: boolean;
   percent: number;
@@ -110,18 +122,23 @@ export type DashboardStudent = {
   cells: Record<string, { passed: number; total: number; attempts: number }>;
   /** end-of-lab check-in time, or null */
   attended: string | null;
+  checkedInAt: string | null;
   /** tasks that were on screen long enough */
   seen: number;
   activeSec: number;
 };
 
 /** Everything /admin/progress shows for one lab. */
-export async function buildDashboard(labParam: string | null) {
+export async function buildDashboard(labParam: string | null, sessionParam?: string | null) {
   const labs = await getStructures();
   const structure = labs.find((l) => l.lab === labParam) ?? labs.find((l) => l.exercises.length) ?? labs[0];
   const s = getProgressStore();
   if (!structure || !s) return null;
-  const data = await s.labData(structure.lab);
+  const sessions = await s.listSessions(structure.lab);
+  const selected = sessions.find((session) => session.id === sessionParam) ?? sessions[0] ?? null;
+  const data = selected
+    ? await s.labData(structure.lab, selected.id)
+    : { students: [], best: [], tasks: [], submissions: [], checkins: [], views: [] };
   const students: DashboardStudent[] = data.students.map((st) => {
     const best = data.best.filter((b) => b.student_key === st.student_key);
     const tasksDone = data.tasks.find((t) => t.student_key === st.student_key)?.done ?? 0;
@@ -130,11 +147,14 @@ export async function buildDashboard(labParam: string | null) {
     const view = data.views.find((v) => v.student_key === st.student_key);
     return {
       attended: data.checkins.find((c) => c.student_key === st.student_key)?.at ?? null,
+      checkedInAt: data.checkins.find((c) => c.student_key === st.student_key)?.at ?? null,
       seen: view?.seen.length ?? 0,
       activeSec: view?.active_sec ?? 0,
       key: st.student_key,
       id: st.student_id,
       name: st.name,
+      group: st.group_name ?? '—',
+      startedAt: st.session_started_at ?? st.created_at,
       lastSeen: st.last_seen,
       locked: st.device_key !== null,
       percent: score.percent,
@@ -158,7 +178,8 @@ export async function buildDashboard(labParam: string | null) {
       submitted: students.filter((x) => x.submission).length,
       checkedIn: students.filter((x) => x.attended).length,
     },
-    session: sessionState(await s.getSession(structure.lab), Date.now()),
+    session: selected ? { ...selected, ...sessionState(selected, Date.now()) } : { open: false, closesAt: null },
+    sessions: sessions.map((session) => ({ ...session, ...sessionState(session, Date.now()) })),
     updatedAt: new Date().toISOString(),
   };
 }

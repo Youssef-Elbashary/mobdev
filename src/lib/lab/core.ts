@@ -14,6 +14,8 @@ export type LabEventKind = 'start' | 'check' | 'hint';
 export type CheckResult = 'pass' | 'partial' | 'fail';
 export type LabEvent = {
   lab: string;
+  sessionId: string;
+  group: string;
   name: string;
   studentId: string;
   /** lower-case student ID — one row per student per lab, even across devices */
@@ -32,6 +34,14 @@ export function validateLabEvent(body: unknown): { ok: true; event: LabEvent } |
   if (!def) return { ok: false, error: 'Unknown lab.' };
   const who = validateCheckIn({ name: o.name, studentId: o.studentId, deviceId: o.deviceId });
   if (!who.ok) return { ok: false, error: Object.values(who.errors)[0] ?? 'Invalid student.' };
+  const rawSessionId = String(o.sessionId ?? '').trim();
+  const rawGroup = String(o.group ?? '').normalize('NFC').trim().replace(/\s+/g, ' ');
+  // Legacy defaults keep the pure core/backend usable for old data and unit tests.
+  // The HTTP endpoint still requires a real, currently-open session ID.
+  const sessionId = rawSessionId || 'legacy';
+  const group = rawGroup || '—';
+  if (rawSessionId && !/^s_[A-Za-z0-9_]{6,80}$/.test(rawSessionId)) return { ok: false, error: 'This lab session is not available. Refresh the page.' };
+  if (rawGroup && (rawGroup.length > 30 || !/^[\p{L}\p{M}\p{N} ._/-]+$/u.test(rawGroup))) return { ok: false, error: 'Enter your group (for example, G1).' };
   const event = String(o.event ?? '') as LabEventKind;
   if (!['start', 'check', 'hint'].includes(event)) return { ok: false, error: 'Unknown event.' };
   let exercise: string | null = null;
@@ -50,7 +60,7 @@ export function validateLabEvent(body: unknown): { ok: true; event: LabEvent } |
   }
   return {
     ok: true,
-    event: { lab, name: who.name, studentId: who.studentId, studentKey: who.studentId.toLowerCase(), deviceId: who.deviceId, event, exercise, result, score },
+    event: { lab, sessionId, group, name: who.name, studentId: who.studentId, studentKey: who.studentId.toLowerCase(), deviceId: who.deviceId, event, exercise, result, score },
   };
 }
 
@@ -70,7 +80,7 @@ export type AttemptRow = { student_key: string; exercise: string; attempts: numb
 
 export interface LabBackend {
   record(event: LabEvent): Promise<void>;
-  rows(lab: string): Promise<{ students: StudentRow[]; attempts: AttemptRow[] }>;
+  rows(lab: string, sessionId?: string): Promise<{ students: StudentRow[]; attempts: AttemptRow[] }>;
   /** rate limiting: count of hits for this key in the current window */
   hit(key: string, windowSec: number): Promise<number>;
 }

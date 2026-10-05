@@ -3,7 +3,7 @@
  * and sending their checks, Done ticks and repo link to /api/progress/*.
  * Sends go through a small queue in localStorage, so nothing is lost on bad Wi-Fi.
  */
-type Identity = { name: string; studentId: string; deviceKey: string };
+type Identity = { name: string; studentId: string; deviceKey: string; group: string; sessionId: string };
 type Item = { path: string; body: Record<string, unknown> };
 type ChipState = 'anon' | 'synced' | 'saving' | 'offline' | 'conflict';
 
@@ -45,9 +45,9 @@ export const getIdentity = (): Identity | null => read<Identity | null>(ME, null
 const labId = () => document.querySelector<HTMLElement>('[data-lab]')?.dataset.lab ?? '';
 
 /** Keep the attendance/reading identity in sync with the lab's required start card. */
-export function setProgressIdentity(name: string, studentId: string): Identity {
+export function setProgressIdentity(name: string, studentId: string, group = '', sessionId = '', deviceKeyOverride?: string): Identity {
   const before = getIdentity();
-  const me: Identity = { name, studentId, deviceKey: deviceKey() };
+  const me: Identity = { name, studentId, deviceKey: deviceKeyOverride ?? deviceKey(), group, sessionId };
   write(ME, me);
   write(SKIP, null, sessionStorage);
   if (state === 'conflict') state = 'saving';
@@ -177,12 +177,18 @@ function showSheetError(message: string) {
 }
 
 function openSheet(): Promise<Identity | null> {
+  const start = document.querySelector<HTMLElement>('[data-lab-start]');
+  if (start) {
+    start.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return Promise.resolve(getIdentity());
+  }
   const dlg = sheet();
   if (!dlg) return Promise.resolve(null);
   const me = getIdentity();
   const form = dlg.querySelector('form')!;
   (form.elements.namedItem('name') as HTMLInputElement).value = me?.name ?? '';
   (form.elements.namedItem('studentId') as HTMLInputElement).value = me?.studentId ?? '';
+  (form.elements.namedItem('group') as HTMLInputElement).value = me?.group ?? '';
   dlg.querySelector<HTMLElement>('[data-me-out]')!.hidden = !me;
   if (state !== 'conflict') showSheetError('');
   if (!dlg.open) dlg.showModal();
@@ -219,17 +225,34 @@ function wireSheet() {
     el.hidden = !msg;
     field(n).setAttribute('aria-invalid', String(!!msg));
   };
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = field('name').value.normalize('NFC').trim().replace(/\s+/g, ' ');
     const studentId = field('studentId').value.trim();
+    const group = field('group').value.trim().replace(/\s+/g, ' ');
     const badName = name.length < 2 || name.length > 60 || !NAME_RE.test(name);
     const badId = !ID_RE.test(studentId);
+    const badGroup = !group || group.length > 30;
     err('name', badName ? 'Please type your full name (letters only).' : '');
     err('studentId', badId ? 'Your student ID should be 3–20 letters or numbers.' : '');
-    if (badName || badId) return (badName ? field('name') : field('studentId')).focus();
-    const me = setProgressIdentity(name, studentId);
-    closeSheet(me);
+    err('group', badGroup ? 'Enter your group (for example, G1).' : '');
+    if (badName || badId || badGroup) return (badName ? field('name') : badId ? field('studentId') : field('group')).focus();
+    const lab = labId();
+    try {
+      const sessionResponse = await fetch(`/api/progress/session?lab=${encodeURIComponent(lab)}`, { cache: 'no-store' });
+      const session = await sessionResponse.json();
+      if (!session.open || !session.id) return showSheetError('Your TA has not started this lab session yet. You can read the content for now.');
+      const deviceKeyValue = deviceKey();
+      const response = await fetch('/api/progress/start', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name, studentId, deviceKey: deviceKeyValue, group, lab, sessionId: session.id }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) return showSheetError(data.message ?? 'Could not start the lab. Ask your TA.');
+      closeSheet(setProgressIdentity(name, studentId, group, session.id));
+    } catch {
+      showSheetError('Could not reach the server. Check your connection and try again.');
+    }
   });
   dlg.querySelector('[data-me-skip]')!.addEventListener('click', () => {
     if (!getIdentity()) write(SKIP, true, sessionStorage);
