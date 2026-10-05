@@ -146,3 +146,66 @@ test('exerciseStats: solved %, attempts and median time', () => {
 test('toCsv quotes commas, quotes and newlines', () => {
   assert.equal(toCsv([['a', 'b,c'], ['say "hi"', 'x\ny'], [1, 2]]), 'a,"b,c"\r\n"say ""hi""","x\ny"\r\n1,2');
 });
+
+/* ---------------- memory store ---------------- */
+
+import { MemoryStore } from '../src/lib/progress/store.ts';
+
+const ident = (key: string, device = DEVICE, name = 'Mariam Ahmed') => ({ name, studentId: key.toUpperCase(), studentKey: key, deviceKey: device });
+
+test('store: a student ID is locked to the first device until unlocked', async () => {
+  const s = new MemoryStore();
+  assert.equal(await s.touchStudent(ident('236541')), 'ok');
+  assert.equal(await s.touchStudent(ident('236541', DEVICE, 'Mariam A. Ahmed')), 'ok');
+  assert.equal((await s.studentData('lab-02', '236541')).student?.name, 'Mariam A. Ahmed'); // name refreshed
+  assert.equal(await s.touchStudent(ident('236541', 'dev-bbbbbbbbbbbbbbbbbbbb')), 'conflict');
+  await s.unlock('236541');
+  assert.equal(await s.touchStudent(ident('236541', 'dev-bbbbbbbbbbbbbbbbbbbb')), 'ok');
+  assert.equal(await s.touchStudent(ident('236541')), 'conflict');
+});
+
+test('store: attempts roll up into best score, attempts and solve time', async () => {
+  let t = Date.parse('2026-10-05T10:00:00Z');
+  const s = new MemoryStore(() => t);
+  await s.touchStudent(ident('a1'));
+  const at = (exercise: string, passed: number, total = 5) => s.addAttempt({ studentKey: 'a1', lab: 'lab-02', exercise, passed, total, code: `{"App.tsx":"${passed}"}` });
+  await at('e05-counter', 2);
+  t += 60_000;
+  await at('e05-counter', 5);
+  t += 60_000;
+  await at('e05-counter', 3); // a worse later try does not lower the best
+  await at('e10-todo-add', 1, 4);
+  const d = await s.labData('lab-02');
+  assert.equal(d.students.length, 1);
+  const e05 = d.best.find((b) => b.exercise === 'e05-counter')!;
+  assert.deepEqual([e05.passed, e05.total, e05.attempts], [5, 5, 3]);
+  assert.equal(Date.parse(e05.solvedAt!) - Date.parse(e05.firstAt), 60_000);
+  assert.equal(d.best.find((b) => b.exercise === 'e10-todo-add')!.solvedAt, null);
+  const detail = await s.studentData('lab-02', 'a1');
+  assert.equal(detail.attempts.length, 4);
+  assert.equal(detail.attempts[0].exercise, 'e10-todo-add'); // newest first
+});
+
+test('store: tasks toggle, submissions can be reviewed, other labs are separate', async () => {
+  const s = new MemoryStore();
+  await s.touchStudent(ident('a1'));
+  await s.setTask({ studentKey: 'a1', lab: 'lab-02', task: '3.2', done: true });
+  await s.setTask({ studentKey: 'a1', lab: 'lab-02', task: '4.2', done: true });
+  await s.setTask({ studentKey: 'a1', lab: 'lab-02', task: '4.2', done: false });
+  await s.setSubmission({ studentKey: 'a1', lab: 'lab-02', url: 'https://github.com/a/b' });
+  await s.review('a1', 'lab-02', true, 'Nice work');
+  const d = await s.labData('lab-02');
+  assert.deepEqual(d.tasks, [{ student_key: 'a1', done: 1 }]);
+  assert.equal(d.submissions[0].reviewed, true);
+  assert.equal(d.submissions[0].note, 'Nice work');
+  assert.equal((await s.labData('lab-03')).students.length, 0);
+});
+
+test('store: hit() counts per key inside a time window', async () => {
+  let t = 0;
+  const s = new MemoryStore(() => t);
+  assert.equal(await s.hit('k', 600), 1);
+  assert.equal(await s.hit('k', 600), 2);
+  t += 601_000;
+  assert.equal(await s.hit('k', 600), 1);
+});
