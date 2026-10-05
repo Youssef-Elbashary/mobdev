@@ -14,12 +14,26 @@
     "@astrojs/markdown-remark": "^7.3.1",
     "@astrojs/mdx": "^8.0.2",
     "@astrojs/vercel": "^11.0.11",
+    "@codemirror/autocomplete": "^6.20.3",
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.13",
+    "@lezer/highlight": "^1.2.5",
     "@shikijs/transformers": "^4.4.3",
     "@supabase/supabase-js": "^2.117.2",
     "@upstash/redis": "^1.39.0",
-    "astro": "^7.3.5"
+    "astro": "^7.3.5",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-native-web": "^0.21.3",
+    "sucrase": "^3.35.1"
   },
   "engines": {
     "node": ">=22.12.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }
