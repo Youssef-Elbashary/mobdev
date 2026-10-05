@@ -1,16 +1,583 @@
 ---
 number: 2
 title: 'React & React Native: Syntax, Hooks & Your First Multi-Page App'
-description: 'Work in progress.'
+description: 'Learn JSX, components, props and hooks by running real code on this page, build the To-Do list from the slides, explore a live 4-page Recipes app, then build your own 4-page Movies app.'
 difficulty: Beginner
 estimatedTime: 3 hours
-skills: [JSX, useState]
+skills: [JSX, Components, Props, useState, useEffect, useRef, useMemo, Expo Router]
+roadmapStage: logic
+objectives:
+  - Explain what React is and why apps are built from components
+  - Write correct JSX and pass data between components with props
+  - Show lists (with keys) and show things only when a condition is true
+  - Manage state and side effects with useState, useEffect, useRef and useMemo
+  - Move between pages with Expo Router (Stack, Tabs, route params)
+  - Build a 4-page app on your own and merge it on GitHub
+prerequisites:
+  - '[Lab 01](/labs/lab-01) done: an Expo app running on your phone, and Git set up'
+  - '**Expo Go** on your phone, or the Android emulator'
+  - 'Your GitHub account and token (Lab 01, Task 4.5)'
+troubleshooting:
+  - problem: '"Text strings must be rendered within a <Text> component"'
+    cause: Text was placed directly inside a View.
+    solution: 'Wrap every piece of text in `<Text>…</Text>`.'
+  - problem: '"Each child in a list should have a unique key prop"'
+    cause: 'A `.map()` returns items without a `key`.'
+    solution: 'Add `key={item.id}` to the outer element, or use `keyExtractor` on a FlatList.'
+  - problem: '"Too many re-renders"'
+    cause: 'The state is set while rendering, e.g. `onPress={setCount(1)}` calls it immediately.'
+    solution: 'Pass a function instead: `onPress={() => setCount(1)}`.'
+  - problem: '"Rendered more hooks than during the previous render"'
+    cause: 'A hook is inside an `if`, a loop or after an early `return`.'
+    solution: Call every hook at the top of the component, always in the same order.
+  - problem: The app re-renders or fetches again and again
+    cause: 'A `useEffect` without a dependency array sets state, which re-renders, which runs the effect again…'
+    solution: 'Add a dependency array: `[]` to run once, or `[something]` to run when it changes.'
+  - problem: '"Unmatched route" / the page is not found'
+    cause: 'The file is not inside `app/`, or the link does not match the file name.'
+    solution: '`app/movie/[id].tsx` is opened with `href="/movie/3"`. Check the spelling of both.'
+  - problem: Expo Go keeps loading / can't connect
+    cause: The phone and laptop are on different networks, or the campus Wi-Fi blocks them.
+    solution: Stop the server with Ctrl + C and start it in tunnel mode.
+    commands: ['npx expo start --tunnel']
+submission:
+  - 'All **11 exercises** on this page show **✓ Solved**: show your TA before you leave'
+  - 'Link to your **movies-app** GitHub repo, with `feature/movies-app` merged into `main`'
+  - 'A screenshot of each of the **4 pages** running on your phone'
+extraChallenge: 'Make the watchlist survive closing the app: install `@react-native-async-storage/async-storage`, save the watchlist in a `useEffect` whenever it changes, and load it once when the app starts.'
+resources:
+  - { label: 'React: Describing the UI (components, JSX, props, lists)', href: 'https://react.dev/learn/describing-the-ui' }
+  - { label: 'React: Adding interactivity (events, state)', href: 'https://react.dev/learn/adding-interactivity' }
+  - { label: 'React: Built-in hooks reference', href: 'https://react.dev/reference/react/hooks' }
+  - { label: 'React Native: Core components', href: 'https://reactnative.dev/docs/components-and-apis' }
+  - { label: 'Expo Router: Introduction', href: 'https://docs.expo.dev/router/introduction/' }
+  - { label: 'Expo Router: Tabs', href: 'https://docs.expo.dev/router/advanced/tabs/' }
 ---
+
+export const flow = [
+  { label: 'New branch', where: 'laptop', lane: 'branch', cmd: 'git switch -c' },
+  { label: 'Commit each page', where: 'laptop', lane: 'branch', cmd: 'git commit' },
+  { label: 'Push the branch', where: 'both', lane: 'branch', cmd: 'git push' },
+  { label: 'Pull request + merge', where: 'github', lane: 'main' },
+  { label: 'Pull it back', where: 'down', lane: 'main', cmd: 'git pull' },
+];
+
+> [!TIP]
+> Every grey phone on this page is a **real app**. Edit the code, press **▶ Run** (or `Ctrl + Enter`), and the phone updates. Exercises have a **✓ Check** button: when all checks pass, the task is ticked for you.
+
+<Part n="1" title="React in one picture" time="15 min" />
+
+<Task n="1.1" title="Single-page vs multi-page apps" time="4 min">
+
+<Cards cols={2} items={[
+  { icon: 'link', title: 'Multi-page app', sub: 'classic websites', tone: 'bad', points: ['Every click asks the server for a **new page**', '- The whole screen reloads', '- Feels slower, less like an app'] },
+  { icon: 'phone', title: 'Single-page app (SPA)', sub: 'React apps', tone: 'good', tag: 'React', points: ['One page; JavaScript **swaps the content**', '+ Instant, smooth, app-like', '+ Only what changed is redrawn', '- Bigger first download, routing is more work'] },
+]} />
+
+A mobile app is always "single-page": it is installed once, and the screens change **inside** it. That is exactly how React thinks.
+
+</Task>
+
+<Task n="1.2" title="What is React?" time="4 min">
+
+React is a JavaScript library (made by Meta) for building user interfaces. You describe **what** the screen should look like for the current data, and React works out **how** to update it.
+
+You build the screen from **components**: small, reusable pieces, each with its own look and logic, nested like boxes:
+
+<FileTree title="the To-Do app as components" lines={[
+  'App # the whole screen *',
+  '  Header # title + counter',
+  '  AddForm # input + Add button',
+  '  TodoList # the list',
+  '    TodoItem # one row (used 3 times) *',
+  '    TodoItem',
+  '    TodoItem',
+]} />
+
+</Task>
+
+<Task n="1.3" title="Function vs class components" time="3 min">
+
+Old React code uses **classes**. Since React 16.8, **function components + hooks** do the same job with less code, and that is all we write in this course.
+
+```tsx title="Class component (old style — just recognise it)"
+class Counter extends React.Component {
+  state = { count: 0 };
+  render() {
+    return <Text onPress={() => this.setState({ count: this.state.count + 1 })}>{this.state.count}</Text>;
+  }
+}
+```
+
+```tsx title="Function component + hook (what we write)"
+function Counter() {
+  const [count, setCount] = useState(0);
+  return <Text onPress={() => setCount(count + 1)}>{count}</Text>;
+}
+```
+
+</Task>
+
+<Task n="1.4" title="React (web) vs React Native" time="4 min">
+
+Same React, different building blocks. On a phone there is no HTML, so React Native gives you native components instead:
+
+<Cards compact items={[
+  { icon: 'layers', title: '<div> → <View>', text: 'A box that holds other things' },
+  { icon: 'file', title: '<p>, <span> → <Text>', text: '**All** text must be inside `<Text>`' },
+  { icon: 'camera', title: '<img> → <Image>', text: '`source={{ uri: … }}` instead of `src`' },
+  { icon: 'cmd', title: '<input> → <TextInput>', text: '`onChangeText` gives you the text' },
+  { icon: 'play', title: '<button> → <Pressable>', text: '`onPress` instead of `onClick`' },
+  { icon: 'grid', title: 'ul + map → <FlatList>', text: 'Fast, scrollable lists' },
+  { icon: 'sparkle', title: 'CSS → StyleSheet', text: 'camelCase, numbers not px, Flexbox **column** by default' },
+  { icon: 'map', title: 'React Router → Expo Router', text: 'Files in `app/` become screens (Part 5)' },
+]} />
+
+</Task>
+
+<Part n="2" title="JSX & components" time="30 min" />
+
+<Task n="2.1" title="JSX: HTML-like code inside JavaScript" time="8 min">
+
+JSX lets you write the UI as tags, and put JavaScript inside `{ }`:
+
+<Explain parts={[
+  ['<Text', 'a component (capital letter = component)'],
+  ['style={styles.title}', 'a prop; `{ }` means "this is JavaScript"'],
+  ['>Hello {name}', 'text, with a JavaScript value inside'],
+  ['</Text>', 'every tag must be closed'],
+]} />
+
+<Cards compact items={[
+  { icon: 'layers', title: 'One parent', text: 'Return **one** element. Wrap siblings in a `View`, or in `<>…</>`' },
+  { icon: 'cmd', title: '{ } = JavaScript', text: '`{user.name}`, `{2 + 2}`, `{isOpen ? "Yes" : "No"}`' },
+  { icon: 'sparkle', title: 'style, not class', text: '`style={styles.box}` or `style={{ color: "red" }}`' },
+  { icon: 'check', title: 'Close every tag', text: 'Even empty ones: `<Image />`, `<TextInput />`' },
+]} />
+
+<Playground ex="demo-jsx" demo />
+
+<Playground ex="e01-fix-jsx" />
+
+</Task>
+
+<Task n="2.2" title="Components & props" time="8 min">
+
+A component is a **function that returns UI**. **Props** are its arguments: data passed from the parent, read-only inside the child.
+
+```tsx {1,8}
+function Greeting({ name }: { name: string }) {   // receives the prop
+  return <Text>Hello, {name}!</Text>;
+}
+
+export default function App() {
+  return (
+    <View>
+      <Greeting name="Mariam" />                    {/* passes the prop */}
+      <Greeting name="Omar" />
+    </View>
+  );
+}
+```
+
+<Playground ex="demo-props" demo />
+
+<Playground ex="e02-props-card" />
+
+</Task>
+
+<Task n="2.3" title="Show it only if…" time="5 min">
+
+Use plain JavaScript to decide what to show:
+
+<Cards cols={2} items={[
+  { icon: 'branch', title: 'Either / or', code: '{online ? <Online /> : <Offline />}', text: 'The ternary `a ? b : c` picks one of two' },
+  { icon: 'check', title: 'Only if true', code: '{error && <Text>{error}</Text>}', text: '`&&` shows the right side only when the left is true' },
+]} />
+
+<Playground ex="e03-conditional" />
+
+</Task>
+
+<Task n="2.4" title="Lists & keys" time="9 min">
+
+Turn an array into components with `.map()`. Each item needs a **`key`**: a unique, stable id, so React knows which row is which when the list changes. For long lists use **`FlatList`**: it only draws the rows that are on screen.
+
+<Playground ex="e04-list-keys" />
+
+<Playground ex="demo-list" demo />
+
+</Task>
 
 <Part n="3" title="Hooks" time="45 min" />
 
-<Task n="3.2" title="useState" time="12 min">
+<Task n="3.1" title="Hooks in one picture" time="3 min">
+
+**Hooks** are functions starting with `use` that give a function component React features. These are the four from the slides:
+
+<Cards cols={2} items={[
+  { icon: 'layers', title: 'useState', sub: 'remember a value', text: 'Data that changes over time. Changing it **redraws** the screen.' },
+  { icon: 'clock', title: 'useEffect', sub: 'do something after drawing', text: 'Side effects: timers, fetching data, subscriptions, cleanup.' },
+  { icon: 'target', title: 'useRef', sub: 'reach a component / keep a value', text: 'Focus an input, or keep a value **without** redrawing.' },
+  { icon: 'rocket', title: 'useMemo', sub: 'cache a calculation', text: 'Skip slow work until its inputs change.' },
+]} />
+
+> [!IMPORTANT]
+> **Rules of hooks:** call them only at the **top level** of a component (never inside `if`, loops or nested functions), and only from components or your own custom hooks.
+
+</Task>
+
+<Task n="3.2" title="useState + events" time="12 min">
+
+<Explain parts={[
+  ['const [count, setCount]', 'the current value + the function that changes it'],
+  ['= useState', 'the hook'],
+  ['(0)', 'the starting value'],
+]} />
+
+- Calling `setCount(5)` stores the new value **and redraws** the component.
+- Never change state directly (`count++` does nothing on screen). For arrays and objects, make a **new** one: `[...todos, newTodo]`.
+- When the new value depends on the old one, use the updater: `setCount((c) => c + 1)`.
+- Events take a **function**: `onPress={() => setCount(count + 1)}`, not `onPress={setCount(count + 1)}`.
+
+<Playground ex="demo-use-state" demo />
 
 <Playground ex="e05-counter" />
+
+A `TextInput` is **controlled** when its text lives in state: `value={name}` plus `onChangeText={setName}`.
+
+<Playground ex="e06-greeting" />
+
+</Task>
+
+<Task n="3.3" title="useEffect" time="12 min">
+
+`useEffect` runs code **after** the screen is drawn: the place for timers, fetching data and subscriptions (what class components did in `componentDidMount`, `componentDidUpdate` and `componentWillUnmount`).
+
+| You write | It runs |
+| --- | --- |
+| `useEffect(fn)` | after **every** render (rarely what you want) |
+| `useEffect(fn, [])` | **once**, after the first render |
+| `useEffect(fn, [query])` | after the first render, then whenever `query` changes |
+| `return () => …` inside `fn` | the **cleanup**: before the next run, and when the component leaves the screen |
+
+<Playground ex="demo-use-effect" demo />
+
+<Playground ex="e07-stopwatch" />
+
+The most common use: load data when the screen opens.
+
+```tsx title="Fetching data (you'll do this in a later lab)"
+const [movies, setMovies] = useState<Movie[]>([]);
+const [loading, setLoading] = useState(true);
+
+useEffect(() => {
+  fetch('https://example.com/movies.json')
+    .then((res) => res.json())
+    .then((data) => setMovies(data))
+    .finally(() => setLoading(false));
+}, []); // [] → only once, when the screen opens
+```
+
+</Task>
+
+<Task n="3.4" title="useRef" time="8 min">
+
+`useRef` gives you a box (`ref.current`) that survives redraws. Two uses:
+
+<Cards cols={2} items={[
+  { icon: 'target', title: 'Reach a component', code: 'inputRef.current?.focus()', text: 'Attach it with `ref={inputRef}`, then call its methods' },
+  { icon: 'layers', title: 'Remember silently', code: 'renders.current += 1', text: 'Changing a ref does **not** redraw the screen' },
+]} />
+
+<Playground ex="demo-use-ref" demo />
+
+<Playground ex="e08-focus-ref" />
+
+</Task>
+
+<Task n="3.5" title="useMemo" time="10 min">
+
+`useMemo(() => calculate(), [inputs])` remembers the result and only recalculates when one of the **inputs** changes. It is useful for filtering big lists or slow calculations.
+
+<Playground ex="demo-use-memo" demo />
+
+<Playground ex="e09-search-memo" />
+
+> [!TIP]
+> Don't wrap everything in `useMemo`; most calculations are fast. Use it when the work is slow or the list is big.
+
+</Task>
+
+<Part n="4" title="Practical: To-Do List" time="20 min" />
+
+<Task n="4.1" title="The plan" time="3 min">
+
+The slides' practical, built with React Native. What we want:
+
+<Cards cols={2} items={[
+  { icon: 'cmd', title: 'Add', text: 'An input + a button to add a new task' },
+  { icon: 'grid', title: 'List', text: 'A list showing all the tasks' },
+  { icon: 'check', title: 'Check', text: 'Tap a task to mark it done' },
+  { icon: 'close', title: 'Delete', text: 'Remove a task from the list' },
+]} />
+
+<Timeline items={[
+  { when: 'Step 3', title: 'State', text: '`useState` holds all the todos' },
+  { when: 'Step 4', title: 'List', text: 'A `FlatList` shows them' },
+  { when: 'Step 5', title: 'Input', text: '`TextInput` + `useRef`' },
+  { when: 'Steps 6–7', title: 'Add', text: 'A button and its `addTodo` handler' },
+  { when: 'Challenge', title: 'Check + delete', text: '`map` to toggle, `filter` to remove' },
+]} />
+
+</Task>
+
+<Task n="4.2" title="Add a task" time="9 min">
+
+<Playground ex="e10-todo-add" />
+
+</Task>
+
+<Task n="4.3" title="Challenge: check and delete" time="8 min">
+
+<Playground ex="e11-todo-check-delete" />
+
+<Checkpoint>
+
+Your To-Do list can add, check, un-check and delete tasks, and you changed state the React way: always with a **new** array (`[...]`, `map`, `filter`), never by editing the old one.
+
+</Checkpoint>
+
+</Task>
+
+<Part n="5" title="Navigation + the Recipes app" time="30 min" />
+
+<Task n="5.1" title="Routing on mobile: Expo Router" time="6 min">
+
+On the web, React Router maps **URLs → components**. In Expo, **Expo Router** maps **files → screens**: every file inside `app/` is a page, and its path is its URL.
+
+<FileTree title="app/ → URLs" lines={[
+  'app/',
+  '  _layout.tsx # wraps every page (a Stack) -',
+  '  (tabs)/ # a group: not part of the URL -',
+  '    _layout.tsx # the bottom tab bar -',
+  '    index.tsx # → /  *',
+  '    favorites.tsx # → /favorites *',
+  '    add.tsx # → /add *',
+  '  recipe/',
+  '    [id].tsx # → /recipe/1, /recipe/2 … *',
+]} />
+
+<Cards cols={3} items={[
+  { icon: 'layers', title: 'Stack', code: '<Stack />', text: 'Pages slide **on top** of each other, with a Back button' },
+  { icon: 'grid', title: 'Tabs', code: '<Tabs />', text: 'A bottom bar to **switch** between main pages' },
+  { icon: 'link', title: 'Navigate', code: "router.push('/add')", text: 'Or `<Link href="/add">` around anything' },
+]} />
+
+</Task>
+
+<Task n="5.2" title="Route params" time="5 min">
+
+Square brackets make a **dynamic** page: `app/recipe/[id].tsx` opens for `/recipe/1`, `/recipe/2`… and reads the value with `useLocalSearchParams`:
+
+<Explain parts={[
+  ['<Link', 'a tappable link'],
+  ['href={`/recipe/${recipe.id}`}', 'builds the URL, e.g. /recipe/3'],
+  ['asChild>', 'lets the child (a Pressable card) be the link'],
+]} />
+
+```tsx title="app/recipe/[id].tsx"
+const { id } = useLocalSearchParams<{ id: string }>();  // "3"
+const recipe = recipes.find((r) => r.id === id);
+```
+
+> [!WARNING]
+> Params are always **strings**. If your ids are numbers, compare with `r.id === Number(id)`.
+
+</Task>
+
+<Task n="5.3" title="Sharing state between pages" time="5 min">
+
+Favorites are set on the Details page but shown on the Favorites page. The state must live **above** both, in a **Context**:
+
+```tsx title="context/recipes.tsx (short version)"
+const RecipesContext = createContext(null);              // 1. the shared box
+
+export function RecipesProvider({ children }) {           // 2. owns the state
+  const [favorites, setFavorites] = useState<string[]>([]);
+  return <RecipesContext.Provider value={{ favorites, setFavorites }}>{children}</RecipesContext.Provider>;
+}
+
+export const useRecipes = () => useContext(RecipesContext); // 3. any page reads it
+```
+
+Wrap the app with `<RecipesProvider>` in `app/_layout.tsx`, then call `useRecipes()` in any page.
+
+</Task>
+
+<Task n="5.4" title="Walk through the Recipes app" time="14 min">
+
+The complete, solved 4-page app. Click a file to read it (the phone jumps to that page), or use the app and watch the file follow:
+
+<AppWalkthrough ex="recipes" />
+
+Try these, and find the line of code that makes each one happen:
+
+1. Search for "fal": which hook filters the list?
+2. Open **Koshari** and tap **♡ Add to favorites**, then open the **Favorites** tab. How does that page know?
+3. In **Add**, press **Save recipe** with an empty title. Where is the error set, and what does `titleRef` do?
+4. Add a recipe: it appears on Home. Which function adds it, and why doesn't it use `push`?
+
+</Task>
+
+<Part n="6" title="Your turn: the Movies app" time="40 min" />
+
+You now build the same kind of app **on your own**, in a real Expo project on your phone: a **Movies watchlist** with 4 pages. Use the Recipes app above as your guide.
+
+<Task n="6.1" title="Create the project" time="5 min">
+
+The **tabs** template already has Expo Router, a Stack and a tab bar set up:
+
+<Terminal title="Terminal — create" lines={[
+  '$ npx create-expo-app@latest movies-app --template tabs',
+  '> ✅ Your project is ready!',
+  '$ cd movies-app',
+  '$ git switch -c feature/movies-app',
+  "Switched to a new branch 'feature/movies-app'",
+  '$ npx expo start',
+  '[qr]',
+]} />
+
+Shape it like this (rename `two.tsx` to `watchlist.tsx`; delete the files marked dim when you no longer need them):
+
+<FileTree title="movies-app" lines={[
+  'app/',
+  '  _layout.tsx # Stack + MoviesProvider',
+  '  (tabs)/',
+  '    _layout.tsx # 3 tabs: Movies · Watchlist · Add',
+  '    index.tsx # Page 1: Movies *',
+  '    watchlist.tsx # Page 3: Watchlist *',
+  '    add.tsx # Page 4: Add movie *',
+  '  movie/',
+  '    [id].tsx # Page 2: Movie details *',
+  '  modal.tsx # from the template -',
+  'components/',
+  '  MovieCard.tsx # props: one movie',
+  'context/',
+  '  movies.tsx # shared state + useMovies()',
+  'data/',
+  '  movies.ts # the starting movies',
+]} />
+
+Create `data/movies.ts`:
+
+```ts title="data/movies.ts"
+export type Movie = { id: string; title: string; year: number; genre: string; rating: number; emoji: string };
+
+export const MOVIES: Movie[] = [
+  { id: '1', title: 'Inception', year: 2010, genre: 'Sci-Fi', rating: 8.8, emoji: '🌀' },
+  { id: '2', title: 'The Lion King', year: 1994, genre: 'Animation', rating: 8.5, emoji: '🦁' },
+  { id: '3', title: 'Interstellar', year: 2014, genre: 'Sci-Fi', rating: 8.7, emoji: '🪐' },
+  { id: '4', title: 'Spirited Away', year: 2001, genre: 'Animation', rating: 8.6, emoji: '🐉' },
+  { id: '5', title: 'The Dark Knight', year: 2008, genre: 'Action', rating: 9.0, emoji: '🦇' },
+  { id: '6', title: 'Coco', year: 2017, genre: 'Animation', rating: 8.4, emoji: '💀' },
+];
+```
+
+</Task>
+
+<Task n="6.2" title="Page 1: Movies" time="8 min">
+
+<div style={{ display: 'flex', flexWrap: 'wrap', gap: '28px', justifyContent: 'center' }}>
+
+<MockScreen title="Movies" tab={0} search rows={['🌀 Inception · 2010 · ⭐ 8.8', '🦁 The Lion King · 1994', '🪐 Interstellar · 2014', '🐉 Spirited Away · 2001', '🦇 The Dark Knight · 2008']} caption="app/(tabs)/index.tsx" />
+
+</div>
+
+<Cards cols={1} items={[
+  { icon: 'check', title: 'Must have', points: ['+ A `FlatList` of all movies, with `keyExtractor`', '+ A `MovieCard` component that receives **one movie as a prop** and shows emoji, title, year and rating', '+ Tapping a card opens `/movie/<id>` (`Link` with `asChild`)', '+ A search box that filters by title, with `useMemo`', '+ "No movie matches…" when the search finds nothing'] },
+]} />
+
+<Terminal lines={['$ git add .', '$ git commit -m "Page 1: movies list with search"']} />
+
+</Task>
+
+<Task n="6.3" title="Page 2: Movie details" time="8 min">
+
+<div style={{ display: 'flex', flexWrap: 'wrap', gap: '28px', justifyContent: 'center' }}>
+
+<MockScreen title="Inception" variant="detail" back rows={['🌀 Inception', '2010 · Sci-Fi', '⭐ 8.8 / 10']} button="☆ Add to watchlist" caption="app/movie/[id].tsx" />
+
+</div>
+
+<Cards cols={1} items={[
+  { icon: 'check', title: 'Must have', points: ['+ Reads `id` with `useLocalSearchParams` and finds the movie', '+ Shows emoji, title, year, genre and rating', '+ The header title is the movie title (`<Stack.Screen options>`)', '+ A button that toggles: **Add to watchlist** / **Remove from watchlist**', '+ "Movie not found" for a wrong id'] },
+]} />
+
+The watchlist is shared by pages 2 and 3, so it lives in `context/movies.tsx` (copy the idea of `context/recipes.tsx`).
+
+<Terminal lines={['$ git add .', '$ git commit -m "Page 2: movie details + watchlist toggle"']} />
+
+</Task>
+
+<Task n="6.4" title="Page 3: Watchlist" time="7 min">
+
+<div style={{ display: 'flex', flexWrap: 'wrap', gap: '28px', justifyContent: 'center' }}>
+
+<MockScreen title="Watchlist" tab={1} rows={['2 movies to watch', '🌀 Inception · 2010', '🦇 The Dark Knight · 2008']} caption="with movies" />
+
+<MockScreen title="Watchlist" tab={1} variant="empty" rows={['Your watchlist is empty: add a movie from its page']} caption="empty state" />
+
+</div>
+
+<Cards cols={1} items={[
+  { icon: 'check', title: 'Must have', points: ['+ Only the movies in the watchlist (reuse `MovieCard`)', '+ A count: "2 movies to watch" (and "1 movie", not "1 movies")', '+ A friendly empty state'] },
+]} />
+
+<Terminal lines={['$ git add .', '$ git commit -m "Page 3: watchlist"']} />
+
+</Task>
+
+<Task n="6.5" title="Page 4: Add movie" time="7 min">
+
+<div style={{ display: 'flex', flexWrap: 'wrap', gap: '28px', justifyContent: 'center' }}>
+
+<MockScreen title="Add movie" tab={2} variant="form" rows={['Title', 'Year', 'Genre']} button="Save movie" caption="app/(tabs)/add.tsx" />
+
+</div>
+
+<Cards cols={1} items={[
+  { icon: 'check', title: 'Must have', points: ['+ Controlled inputs for title, year and genre (`useState`)', '+ Validation: title is required; year is a number between 1900 and 2030', '+ The error message is shown in red, and the wrong field gets focus (`useRef`)', '+ On save: add the movie to the shared list, clear the form, `router.push(\'/\')`'] },
+]} />
+
+<Terminal lines={['$ git add .', '$ git commit -m "Page 4: add movie form with validation"']} />
+
+</Task>
+
+<Task n="6.6" title="Push & merge" time="5 min">
+
+The same flow as Lab 01, now with your own app:
+
+<GitFlow steps={flow} current={3} compact branch="feature/movies-app" />
+
+1. Create an empty repo called `movies-app` on GitHub (Lab 01, Task 4.4).
+2. Connect it and push your branch:
+
+<Terminal title="Terminal — push" lines={[
+  '$ git remote add origin https://github.com/your-username/movies-app.git',
+  '$ git push -u origin feature/movies-app',
+  '>  * [new branch]      feature/movies-app -> feature/movies-app',
+]} />
+
+3. On GitHub: **Compare & pull request → Create pull request → Merge pull request** (Lab 01, Task 4.9).
+4. Back on your laptop:
+
+<Terminal lines={['$ git switch main', '$ git pull', '# main now has your 4 pages']} />
+
+<Checkpoint title="Mission complete">
+
+Your Movies app has 4 working pages on your phone, the watchlist is shared between them, and the code is merged into `main` on GitHub. 🎬
+
+</Checkpoint>
 
 </Task>

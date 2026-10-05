@@ -1,0 +1,129 @@
+---
+/**
+ * A whole multi-page app explained file by file, running live in a phone.
+ *   <AppWalkthrough ex="recipes" />
+ * Click a file → its code + a note, and the phone jumps to that screen.
+ * Navigate inside the phone → the matching file is selected.
+ * Definition: src/playgrounds/<lab>/<id>.ts with `files` and a `tree` (order + notes + href).
+ */
+import { Code } from 'astro:components';
+import Device from '../Device.astro';
+import { inline } from '@/lib/content';
+import { getPlayground, type Walkthrough } from '@/lib/playgrounds';
+
+interface Props { ex: string }
+const { ex } = Astro.props;
+const def = getPlayground<Walkthrough>(ex);
+const themes = { light: 'github-light', dark: 'github-dark-default' } as const;
+const titled = (title: string) => [{ pre(node: any) { node.properties['data-title'] = title; } }];
+const json = JSON.stringify({ id: ex, files: def.files, checks: [] }).replace(/</g, '\\u003c');
+
+// tree rows: a folder row the first time each folder appears, then the file
+type Row = { kind: 'dir'; name: string; depth: number } | { kind: 'file'; name: string; depth: number; file: string; href?: string; screen: boolean; page?: string };
+const rows: Row[] = [];
+const seen = new Set<string>();
+def.tree.forEach((t) => {
+  const parts = t.file.split('/');
+  parts.slice(0, -1).forEach((name, i) => {
+    const path = parts.slice(0, i + 1).join('/');
+    if (!seen.has(path)) { seen.add(path); rows.push({ kind: 'dir', name, depth: i }); }
+  });
+  const screen = t.file.startsWith('app/') && !t.file.endsWith('_layout.tsx');
+  rows.push({ kind: 'file', name: parts[parts.length - 1], depth: parts.length - 1, file: t.file, href: t.href, screen, page: t.note.match(/\*\*Page (\d)/)?.[1] });
+});
+---
+<section class="aw" data-walkthrough data-reveal aria-label={`Walkthrough: ${def.title}`}>
+  <script type="application/json" data-pg-def set:html={json} />
+  <div class="aw-grid">
+    <nav class="aw-tree" aria-label="Project files">
+      <p class="aw-k mono">Project</p>
+      <ul>
+        {rows.map((r, i) => r.kind === 'dir' ? (
+          <li class="aw-dir mono stg" style={`--d:${r.depth}; --i:${i}`}>
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" /></svg>{r.name}
+          </li>
+        ) : (
+          <li class="stg" style={`--d:${r.depth}; --i:${i}`}>
+            <button type="button" class="aw-file mono" data-aw-file={r.file} data-href={r.href} data-screen={String(r.screen)} aria-current={String(r.file === def.tree[0].file)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" /><path d="M14 3v5h5" /></svg>
+              <span class="aw-name">{r.name}</span>
+              <span class="aw-path">{r.file.replace(/^app\//, '')}</span>
+              {r.page && <span class="aw-page">P{r.page}</span>}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </nav>
+
+    <div class="aw-code">
+      {def.tree.map((t, i) => (
+        <div class="aw-pane" data-aw-pane={t.file} hidden={i > 0}>
+          <p class="aw-note" set:html={inline(t.note)} />
+          <Code code={def.files[t.file]} lang="tsx" themes={themes} defaultColor={false} transformers={titled(t.file)} />
+        </div>
+      ))}
+    </div>
+
+    <div class="aw-phone">
+      <Device light interactive label={`Live app: ${def.title}`}>
+        <div class="pg-screen" data-pg-screen><p class="aw-idle">Starting…</p></div>
+      </Device>
+      <p class="aw-cap mono">● live: tap around</p>
+      <button type="button" class="aw-restart mono" data-aw-restart>↺ Restart app</button>
+    </div>
+  </div>
+</section>
+
+<style>
+  .aw { container-type: inline-size; margin-block: 8px !important; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); overflow: hidden; }
+  /* narrow: chips / code / phone stacked · ≥600: chips on top, code | phone · ≥880: tree | code | phone */
+  .aw-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
+  @container (min-width: 600px) {
+    .aw-grid { grid-template-columns: minmax(0, 1fr) 240px; }
+    .aw-tree { grid-column: 1 / -1; }
+    .aw-phone { border-left: 1px solid var(--line); border-top: 0 !important; }
+  }
+  @container (min-width: 880px) {
+    .aw-grid { grid-template-columns: 210px minmax(0, 1fr) 250px; }
+    .aw-tree { grid-column: auto; border-right: 1px solid var(--line); border-bottom: 0 !important; }
+    .aw-tree ul { display: grid !important; }
+    .aw-path { display: none; }
+  }
+  @container (max-width: 879px) { .aw-name { display: none; } }
+
+  /* file tree */
+  .aw-tree { padding: 14px 10px; background: var(--bg-2); border-bottom: 1px solid var(--line); min-width: 0; }
+  .aw-k { font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); margin: 0 6px 8px !important; }
+  .aw-tree ul { list-style: none; padding: 0 !important; margin: 0 !important; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: thin; }
+  .aw-tree li { margin: 0 !important; padding-left: calc(var(--d) * 14px); flex: none; }
+  .aw-dir { display: flex; align-items: center; gap: 6px; padding: 5px 8px; font-size: 12px; color: var(--text-3); }
+  .aw-dir svg { width: 14px; height: 14px; opacity: 0.7; }
+  @container (max-width: 879px) { .aw-dir { display: none; } .aw-tree li { padding-left: 0; } }
+  .aw-file { display: flex; align-items: center; gap: 6px; width: 100%; padding: 5px 8px; border-radius: 8px; font-size: 12.5px; color: var(--text-2); text-align: left; white-space: nowrap; transition: background var(--t-fast), color var(--t-fast); }
+  .aw-file svg { width: 14px; height: 14px; flex: none; color: var(--text-3); }
+  .aw-file:hover { background: var(--surface-2); color: var(--text); }
+  .aw-file[aria-current='true'] { background: var(--accent-soft); color: var(--accent-text); box-shadow: inset 2px 0 0 var(--accent-text); font-weight: 600; }
+  .aw-file[aria-current='true'] svg { color: var(--accent-text); }
+  .aw-name, .aw-path { overflow: hidden; text-overflow: ellipsis; }
+  .aw-page { margin-left: auto; padding: 0 6px; border-radius: 999px; font-size: 10px; font-weight: 700; background: var(--surface-3); color: var(--text-2); }
+  .aw-file[aria-current='true'] .aw-page { background: var(--accent); color: var(--accent-ink); }
+
+  /* code */
+  .aw-code { min-width: 0; padding: 14px 16px 16px; max-height: 600px; overflow: auto; }
+  .aw-pane:not([hidden]) { animation: aw-in 360ms var(--ease-out); }
+  @keyframes aw-in { from { opacity: 0; transform: translateY(6px); } }
+  .aw-note { margin: 0 0 12px !important; padding: 10px 12px; border-radius: var(--r-md); background: var(--accent-soft); border: 1px solid color-mix(in oklab, var(--accent-text) 25%, transparent); color: var(--text); font-size: 14.5px; }
+  .aw-pane :global(.code-frame) { margin: 0 !important; }
+
+  /* phone */
+  .aw-phone { display: grid; justify-items: center; align-content: start; gap: 10px; padding: 20px 12px; border-top: 1px solid var(--line); background: radial-gradient(circle at 50% 35%, var(--accent-soft), transparent 60%), var(--bg-2); }
+  .aw-phone :global(.device) { --w: 220px; }
+  .aw-phone .pg-screen { position: absolute; inset: 0; }
+  .aw-phone .pg-screen :global(iframe) { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
+  .aw-idle { display: grid; place-items: center; height: 100%; font-size: 13px; color: #6b7280; }
+  .aw-cap { font-size: 11px; color: var(--ok); }
+  .aw-restart { font-size: 12px; color: var(--text-3); text-decoration: underline; text-underline-offset: 3px; }
+  .aw-restart:hover { color: var(--text); }
+
+  @media (prefers-reduced-motion: reduce) { .aw-pane:not([hidden]) { animation: none; } }
+</style>

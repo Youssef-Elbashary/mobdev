@@ -102,6 +102,38 @@ Lab 01 is written in MDX (`src/content/labs/lab-01.mdx`). It uses the lab compon
 
 A numbered list written right after a mockup or `<AppPhone markers />` becomes its legend automatically. Item 1 explains marker ①, and so on.
 
+### Interactive playgrounds (Lab 02)
+
+Students edit real React Native code on the page and see it run in a phone. Exercises also check the answer automatically.
+
+| Component | What it shows |
+| --- | --- |
+| `<Playground ex="e05-counter" />` | **Exercise**: editor + live phone + console + ✅/❌ checks, 💡 hint, 👁 solution (unlocks after the first Check). Passing every check ticks the surrounding `<Task>` |
+| `<Playground ex="demo-use-state" demo />` | **Live demo**: editable, starts by itself when scrolled into view |
+| `<AppWalkthrough ex="recipes" />` | A multi-page app: file tree + code + live phone. Clicking a file moves the phone to that page and the other way round |
+| `<MockScreen title="Movies" tab={0} rows={[…]} />` | A static phone mockup of a screen students must build (`variant`: `list`, `detail`, `form`, `empty`) |
+
+Each playground is one file in `src/playgrounds/<lab>/<id>.ts`:
+
+```ts
+import type { Playground } from '@/lib/playgrounds';
+
+export default {
+  title: 'Counter',
+  goal: 'Add a **−** button…',            // `code`, **bold**, [links](…)
+  hint: 'Use `Math.max(0, count - 1)`',
+  files: { 'App.tsx': `…starter code with TODOs…` },
+  solution: { 'App.tsx': `…` },
+  checks: [
+    { name: '+ adds 1', steps: [{ press: '+' }, { expectText: '1', exact: true }] },
+  ],
+} satisfies Playground;
+```
+
+Check steps act on the running app the way a student would: `press` (visible text or `testID`), `type` + `into` (placeholder or `testID`), `expectText` / `expectNoText` (`exact: true` = an element's whole text), `expectFocused`, `expectStyle` (computed CSS), `expectCode` (a regex over the code, with comments removed), and `wait` (ms). Every check starts from a fresh app. `npm test` verifies that every playground compiles and that each exercise has a solution and checks. A multi-file playground with an `app/` folder runs with Expo Router (`Stack`, `Tabs`, `Link`, `router`, `useLocalSearchParams`).
+
+**How it runs:** `src/runner/` is bundled by `src/integrations/runner.mjs` (esbuild, on `astro dev` and `astro build`) into `public/runner/runtime.js`, which is git-ignored. The bundle contains React (development build, for readable errors), react-native-web and Sucrase. It runs in an `<iframe sandbox="allow-scripts">`, so student code can't touch the site. Code can import `react`, `react-native`, `expo-router` and its own files (`./x`, `@/x`).
+
 ### Markdown features
 
 - **Numbered steps:** `## Step 3 — Title` is shown as a numbered step and listed in the sidebar.
@@ -144,6 +176,8 @@ src/
 ├── site.config.ts       ← course name, overview text, navigation
 ├── pages/               ← one template per content type ([id].astro)
 ├── components/          ← reusable UI (Device, CmdLine, ProblemList, Rubric, Toc…)
+├── playgrounds/         ← live-code exercises & demos, one .ts file each (Lab 02+)
+├── runner/              ← the sandboxed in-browser React Native runtime for playgrounds
 ├── layouts/Base.astro   ← nav, footer, search palette, theme
 ├── scripts/             ← app.ts (global behaviour) + search.ts (⌘K palette)
 ├── styles/global.css    ← design system tokens + components

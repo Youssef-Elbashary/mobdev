@@ -1,0 +1,70 @@
+---
+/**
+ * A static phone mockup of an app screen: what the student's page should look like.
+ *   <MockScreen title="Movies" tab={0} rows={['🎬 Inception · 2010', '🦁 The Lion King · 1994']} />
+ *   variant: 'list' (default) · 'detail' (rows[0] = big emoji + title, rest = lines, button = label)
+ *            'form' (rows = field labels, button = label) · 'empty' (rows[0] = message)
+ *   tab: which bottom tab is active (0 Movies · 1 Watchlist · 2 Add); omit for no tab bar.
+ */
+import Device from '../Device.astro';
+interface Props { title: string; rows?: string[]; variant?: 'list' | 'detail' | 'form' | 'empty'; tab?: number; button?: string; back?: boolean; search?: boolean; caption?: string; size?: number }
+const { title, rows = [], variant = 'list', tab, button, back = false, search = false, caption, size = 200 } = Astro.props;
+const TABS = [['🎬', 'Movies'], ['⭐', 'Watchlist'], ['＋', 'Add']];
+const [heroEmoji, ...heroTitle] = (rows[0] ?? '').split(' ');
+---
+<figure class="ms" data-reveal style={`--ms-w:${size}px`}>
+  <Device light label={`Mockup of the ${title} screen`}>
+    <div class="ms-app">
+      <div class="ms-head">{back && <span class="ms-back">‹ Back</span>}<b>{title}</b></div>
+      <div class:list={['ms-body', `v-${variant}`]}>
+        {search && <span class="ms-input stg" style="--i:0">Search movies</span>}
+        {variant === 'list' && rows.map((r, i) => <span class="ms-card stg" style={`--i:${i + 1}`}>{r}</span>)}
+        {variant === 'detail' && (
+          <>
+            <span class="ms-hero stg" style="--i:0">{heroEmoji}</span>
+            <b class="ms-title stg" style="--i:1">{heroTitle.join(' ')}</b>
+            {rows.slice(1).map((r, i) => <span class="ms-line stg" style={`--i:${i + 2}`}>{r}</span>)}
+          </>
+        )}
+        {variant === 'form' && rows.map((r, i) => (
+          <span class="ms-field stg" style={`--i:${i}`}><small>{r}</small><span class="ms-input" /></span>
+        ))}
+        {variant === 'empty' && <span class="ms-empty stg" style="--i:0">{rows[0]}</span>}
+        {button && <span class="ms-btn stg" style={`--i:${rows.length + 2}`}>{button}</span>}
+      </div>
+      {tab !== undefined && (
+        <div class="ms-tabs">
+          {TABS.map(([icon, label], i) => <span class:list={['ms-tab', { on: i === tab }]}><i>{icon}</i>{label}</span>)}
+        </div>
+      )}
+    </div>
+  </Device>
+  {caption && <figcaption class="ms-cap mono">{caption}</figcaption>}
+</figure>
+
+<style>
+  .ms { margin: 0; display: grid; justify-items: center; gap: 10px; }
+  .ms :global(.device) { --w: var(--ms-w); }
+  .ms-app { position: absolute; inset: 0; display: flex; flex-direction: column; color: #11181c; font-size: 11px; }
+  .ms-head { position: relative; flex: none; height: 34px; display: grid; place-items: center; border-bottom: 1px solid #e5e7eb; font-size: 12px; }
+  .ms-back { position: absolute; left: 8px; top: 50%; translate: 0 -50%; color: #7c3aed; font-size: 11px; }
+  .ms-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; padding: 10px; overflow: hidden; }
+  .ms-body.v-detail { align-items: center; text-align: center; }
+  .ms-body.v-empty { justify-content: center; }
+  .ms-card { padding: 8px 9px; border-radius: 9px; background: #f5f3ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ms-input { display: block; height: 22px; padding: 4px 8px; border: 1px solid #ddd6fe; border-radius: 8px; color: #94a3b8; font-size: 10.5px; }
+  .ms-hero { font-size: 40px; line-height: 1.1; margin-top: 6px; }
+  .ms-title { font-size: 15px; }
+  .ms-line { color: #475569; }
+  .ms-field { display: grid; gap: 3px; }
+  .ms-field small { font-weight: 700; font-size: 10.5px; }
+  .ms-empty { color: #94a3b8; text-align: center; padding: 0 12px; }
+  .ms-btn { align-self: stretch; margin-top: 6px; padding: 8px; border-radius: 9px; background: #7c3aed; color: #fff; font-weight: 700; text-align: center; }
+  .ms-body.v-detail .ms-btn { align-self: center; padding: 6px 14px; border-radius: 999px; }
+  .ms-tabs { flex: none; display: flex; border-top: 1px solid #e5e7eb; padding: 5px 0 14px; }
+  .ms-tab { flex: 1; display: grid; justify-items: center; gap: 1px; font-size: 9px; color: #8e8e93; }
+  .ms-tab i { font-style: normal; font-size: 13px; filter: grayscale(1); opacity: 0.7; }
+  .ms-tab.on { color: #7c3aed; font-weight: 700; }
+  .ms-tab.on i { filter: none; opacity: 1; }
+  .ms-cap { font-size: 11.5px; color: var(--text-3); text-align: center; }
+</style>
