@@ -110,3 +110,112 @@ test('setEntry can add and remove fields, and the file still parses', () => {
   assert.equal(listEntries(out).length, listEntries(src).length);
   assert.deepEqual(listEntries(out).slice(1), listEntries(src).slice(1)); // others untouched
 });
+
+/* ---------------- repos ---------------- */
+
+import os from 'node:os';
+import path from 'node:path';
+import { GitHubRepo, LocalRepo, RepoError } from '../src/lib/cms/repo.ts';
+import { FakeGitHub } from './fake-github.ts';
+
+const A = 'src/content/data/a.yaml';
+const B = 'src/content/data/b.yaml';
+const setup = () => {
+  const gh = new FakeGitHub({ [A]: 'a: 1\n', [B]: 'b: 1\n', 'astro.config.mjs': 'x' });
+  const repo = new GitHubRepo({ token: 't', repo: 'owner/mobdev', fetch: gh.fetch as typeof fetch, api: 'https://api.test' });
+  return { gh, repo };
+};
+
+test('github: the first save creates cms-drafts; main is untouched until Publish', async () => {
+  const { gh, repo } = setup();
+  const a = (await repo.read(A))!;
+  assert.equal(a.content, 'a: 1\n');
+  await repo.commit([{ path: A, content: 'a: 2\n', baseSha: a.sha }], 'CMS: edit a (by Ali Motawea)');
+  assert.equal(gh.file('cms-drafts', A), 'a: 2\n');
+  assert.equal(gh.file('main', A), 'a: 1\n');
+  assert.equal((await repo.read(A))!.content, 'a: 2\n'); // reads come from the drafts now
+});
+
+test('github: two files in one save are one commit', async () => {
+  const { gh, repo } = setup();
+  const [a, b] = [(await repo.read(A))!, (await repo.read(B))!];
+  const before = gh.commits.size;
+  await repo.commit([{ path: A, content: 'a: 2\n', baseSha: a.sha }, { path: B, content: null, baseSha: b.sha }], 'CMS: two (by Ali Motawea)');
+  assert.equal(gh.commits.size, before + 1);
+  assert.equal(gh.file('cms-drafts', B), null);
+});
+
+test('github: a stale save is refused with who saved last', async () => {
+  const { repo } = setup();
+  const a = (await repo.read(A))!;
+  await repo.commit([{ path: A, content: 'a: 2\n', baseSha: a.sha }], 'CMS: first (by Ramy Abousaif)');
+  await assert.rejects(
+    repo.commit([{ path: A, content: 'a: 3\n', baseSha: a.sha }], 'CMS: second (by Ali Motawea)'),
+    (e: RepoError) => e.status === 409 && e.info?.by === 'Ramy Abousaif',
+  );
+});
+
+test('github: status, preview link, publish and history', async () => {
+  const { gh, repo } = setup();
+  assert.equal((await repo.status()).ahead, 0);
+  const a = (await repo.read(A))!;
+  await repo.commit([{ path: A, content: 'a: 2\n', baseSha: a.sha }], 'CMS: edit a (by Ali Motawea)');
+  const s = await repo.status();
+  assert.deepEqual(s.changed, [{ path: A, status: 'modified' }]);
+  assert.equal(s.ahead, 1);
+  assert.equal(s.previewUrl, 'https://mobdev-git-cms-drafts.vercel.app');
+  assert.deepEqual((await repo.history()).map((h) => h.message), ['CMS: edit a (by Ali Motawea)']);
+  const r = await repo.publish();
+  assert.ok('merged' in r);
+  assert.equal(gh.file('main', A), 'a: 2\n');
+  assert.equal(gh.refs.has('cms-drafts'), false);
+  assert.equal((await repo.status()).ahead, 0);
+});
+
+test('github: publish keeps changes made on main meanwhile, and reports conflicts', async () => {
+  const { gh, repo } = setup();
+  const a = (await repo.read(A))!;
+  await repo.commit([{ path: A, content: 'a: 2\n', baseSha: a.sha }], 'CMS: edit a (by Ali Motawea)');
+  gh.push('main', B, 'b: from vscode\n');
+  await repo.publish();
+  assert.equal(gh.file('main', A), 'a: 2\n');
+  assert.equal(gh.file('main', B), 'b: from vscode\n');
+
+  const a2 = (await repo.read(A))!;
+  await repo.commit([{ path: A, content: 'a: 3\n', baseSha: a2.sha }], 'CMS: again (by Ali Motawea)');
+  gh.forceConflict = true;
+  const r = await repo.publish();
+  assert.ok('conflict' in r && r.prUrl.includes('/pull/'));
+});
+
+test('github: discard throws the drafts away and closes the pull request', async () => {
+  const { gh, repo } = setup();
+  const a = (await repo.read(A))!;
+  await repo.commit([{ path: A, content: 'a: 2\n', baseSha: a.sha }], 'CMS: edit a (by Ali Motawea)');
+  gh.forceConflict = true;
+  await repo.publish(); // leaves an open PR
+  await repo.discard();
+  assert.equal(gh.refs.has('cms-drafts'), false);
+  assert.ok(gh.pulls.every((p) => p.state === 'closed'));
+  assert.equal((await repo.read(A))!.content, 'a: 1\n');
+});
+
+test('repos only write course content', async () => {
+  const { repo } = setup();
+  await assert.rejects(repo.read('astro.config.mjs'), /can't write/);
+  await assert.rejects(repo.commit([{ path: 'src/content/../site.config.ts', content: 'x', baseSha: null }], 'CMS: x'), /can't write/);
+});
+
+test('local: read, save, stale save refused', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cms-'));
+  fs.mkdirSync(path.join(root, 'src/content/data'), { recursive: true });
+  fs.writeFileSync(path.join(root, A), 'a: 1\n');
+  const repo = new LocalRepo(root);
+  const a = (await repo.read(A))!;
+  await repo.commit([{ path: A, content: 'a: 2\n', baseSha: a.sha }], 'CMS: edit (by Youssef Mahmoud)');
+  assert.equal(fs.readFileSync(path.join(root, A), 'utf8'), 'a: 2\n');
+  await assert.rejects(repo.commit([{ path: A, content: 'a: 3\n', baseSha: a.sha }], 'CMS: late (by Ali Motawea)'), (e: RepoError) => e.status === 409 && e.info?.by === 'Youssef Mahmoud');
+  assert.equal((await repo.history())[0].message, 'CMS: edit (by Youssef Mahmoud)');
+  await assert.rejects(repo.publish(), /local mode|live site/);
+  fs.rmSync(root, { recursive: true, force: true });
+});
