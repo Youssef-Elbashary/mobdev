@@ -8,16 +8,18 @@
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check",
-    "test": "node --test tests/attendance.test.ts tests/runner.test.ts tests/progress.test.ts tests/cms.test.ts"
+    "test": "node --test tests/*.test.ts"
   },
   "dependencies": {
     "@astrojs/markdown-remark": "^7.3.1",
     "@astrojs/mdx": "^8.0.2",
     "@astrojs/vercel": "^11.0.11",
+    "@babel/parser": "^7.29.9",
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.11.1",
     "@codemirror/lang-javascript": "^6.2.5",
     "@codemirror/language": "^6.12.4",
+    "@codemirror/lint": "^6.9.7",
     "@codemirror/state": "^6.7.6",
     "@codemirror/view": "^6.43.13",
     "@lezer/highlight": "^1.2.5",
@@ -26,6 +28,7 @@
     "@supabase/supabase-js": "^2.117.2",
     "@upstash/redis": "^1.39.0",
     "astro": "^7.3.5",
+    "codemirror": "^6.0.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-native-web": "^0.21.3",
@@ -39,6 +42,8 @@
     "@types/node": "^24.19.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "esbuild": "^0.28.2"
+    "@happy-dom/global-registrator": "^20.14.5",
+    "esbuild": "^0.28.2",
+    "happy-dom": "^20.14.5"
   }
 }

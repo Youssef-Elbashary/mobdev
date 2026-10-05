@@ -128,20 +128,21 @@ export function decideLock(existing: { device_key: string | null } | null, devic
 
 const attr = (src: string, name: string) => src.match(new RegExp(`\\b${name}="([^"]*)"`))?.[1];
 
-/** Tasks come from <Task>, exercises from <Playground ex="…"> (not `demo`) inside them. */
-export function labStructure(lab: string, title: string, body: string, info: (id: string) => { title: string; checks: number } | null): LabStructure {
-  const tasks = parseLabOutline(body).flatMap((p) => p.tasks.map((t) => ({ n: t.n, title: t.title })));
+/** Tasks come from <Task>; exercises come from legacy <Playground> or interactive <Exercise> blocks. */
+export function labStructure(lab: string, title: string, body: string, info: (id: string) => { title: string; checks: number; task?: string } | null): LabStructure {
+  let tasks = parseLabOutline(body).flatMap((p) => p.tasks.map((t) => ({ n: t.n, title: t.title })));
   const exercises: LabStructure['exercises'] = [];
   let task = '';
-  for (const m of body.matchAll(/<(Task|Playground)\b([^>]*)>/g)) {
+  for (const m of body.matchAll(/<(Part|Task|Playground|Exercise)\b([^>]*)>/g)) {
     const [, kind, attrs] = m;
-    if (kind === 'Task') task = attr(attrs, 'n') ?? '';
-    else if (!/\bdemo\b/.test(attrs)) {
-      const id = attr(attrs, 'ex');
+    if (kind === 'Part' || kind === 'Task') task = attr(attrs, 'n') ?? task;
+    else if (kind === 'Exercise' || !/\bdemo\b/.test(attrs)) {
+      const id = attr(attrs, kind === 'Exercise' ? 'id' : 'ex');
       const meta = id ? info(id) : null;
-      if (id && meta && meta.checks > 0) exercises.push({ id, task, title: meta.title, checks: meta.checks });
+      if (id && meta && meta.checks > 0) exercises.push({ id, task: meta.task ?? task, title: meta.title, checks: meta.checks });
     }
   }
+  if (!tasks.length && exercises.length) tasks = exercises.map((e) => ({ n: e.id, title: e.title }));
   return { lab, title, tasks, exercises, hasSubmission: /<RepoSubmit\b/.test(body) };
 }
 

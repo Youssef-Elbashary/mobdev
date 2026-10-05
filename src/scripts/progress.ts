@@ -44,6 +44,26 @@ function deviceKey(): string {
 export const getIdentity = (): Identity | null => read<Identity | null>(ME, null);
 const labId = () => document.querySelector<HTMLElement>('[data-lab]')?.dataset.lab ?? '';
 
+/** Keep the attendance/reading identity in sync with the lab's required start card. */
+export function setProgressIdentity(name: string, studentId: string): Identity {
+  const before = getIdentity();
+  const me: Identity = { name, studentId, deviceKey: deviceKey() };
+  write(ME, me);
+  write(SKIP, null, sessionStorage);
+  if (state === 'conflict') state = 'saving';
+  setState('saving');
+  if (!before || before.studentId !== studentId) syncTicks();
+  flushViews(true);
+  flush();
+  return me;
+}
+
+export function clearProgressIdentity() {
+  write(ME, null);
+  write(QUEUE, []);
+  setState('anon');
+}
+
 /* ---------------------------------------------------------------- chip */
 
 let state: ChipState = 'anon';
@@ -208,25 +228,15 @@ function wireSheet() {
     err('name', badName ? 'Please type your full name (letters only).' : '');
     err('studentId', badId ? 'Your student ID should be 3–20 letters or numbers.' : '');
     if (badName || badId) return (badName ? field('name') : field('studentId')).focus();
-    const before = getIdentity();
-    const me: Identity = { name, studentId, deviceKey: deviceKey() };
-    write(ME, me);
-    write(SKIP, null, sessionStorage);
-    if (state === 'conflict') state = 'saving';
-    setState('saving');
+    const me = setProgressIdentity(name, studentId);
     closeSheet(me);
-    if (!before || before.studentId !== studentId) syncTicks();
-    flushViews(true); // reading gathered before signing in
-    flush();
   });
   dlg.querySelector('[data-me-skip]')!.addEventListener('click', () => {
     if (!getIdentity()) write(SKIP, true, sessionStorage);
     closeSheet(getIdentity());
   });
   dlg.querySelector('[data-me-out]')!.addEventListener('click', () => {
-    write(ME, null);
-    write(QUEUE, []);
-    setState('anon');
+    clearProgressIdentity();
     closeSheet(null);
   });
   dlg.addEventListener('cancel', () => {
@@ -343,7 +353,7 @@ function initReadingTracker() {
   reading?.stop();
   reading = null;
   const lab = labId();
-  const tasks = Array.from(document.querySelectorAll<HTMLElement>('.task[data-task]'));
+  const tasks = Array.from(document.querySelectorAll<HTMLElement>('.task[data-task], [data-exercise]'));
   if (!lab || !tasks.length || !('IntersectionObserver' in window)) return;
   const get = () => read<Pending>(viewsKey(lab), { seen: [], sec: 0, sent: [] });
   const timers = new Map<Element, number>();
@@ -357,7 +367,8 @@ function initReadingTracker() {
   const io = new IntersectionObserver(
     (entries) =>
       entries.forEach((e) => {
-        const n = (e.target as HTMLElement).dataset.task!;
+        const target = e.target as HTMLElement;
+        const n = target.dataset.task ?? target.dataset.exercise!;
         const inView = e.isIntersecting && (e.intersectionRatio >= 0.4 || e.intersectionRect.height >= window.innerHeight * 0.5);
         if (inView && !timers.has(e.target)) timers.set(e.target, window.setTimeout(() => markSeen(n), SEEN_MS));
         if (!inView && timers.has(e.target)) {

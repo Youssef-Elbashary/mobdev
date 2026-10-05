@@ -1,0 +1,54 @@
+---
+/** The useState loop: tap → setter → React re-renders → screen shows the new value → (repeat). */
+const steps = [
+  { t: 'Tap', s: 'onPress / onClick runs' },
+  { t: 'setCount(count + 1)', s: 'the setter saves the new value', mono: true },
+  { t: 'React re-renders', s: 'calls App() again with count = 1' },
+  { t: 'Screen updates', s: 'Count: 1 is drawn' },
+];
+---
+<figure class="sl" data-reveal>
+  <div class="sl-ring">
+    {steps.map((st, i) => (
+      <div class="sl-step" style={`--i:${i}`}>
+        <span class="sl-n mono">{i + 1}</span>
+        <b class:list={[{ mono: st.mono }]}>{st.t}</b>
+        <small>{st.s}</small>
+      </div>
+    ))}
+    <div class="sl-core" aria-hidden="true">
+      <code>const [count, setCount] = useState(0);</code>
+      <div class="sl-phone"><span>Count: <b class="sl-count"></b></span><i>+1</i></div>
+    </div>
+  </div>
+  <figcaption>State is React’s memory. Changing it with the <b>setter</b> is the only way to make the screen update — a normal variable would be forgotten on the next render.</figcaption>
+</figure>
+
+<style>
+  .sl { margin: 24px 0 32px; display: grid; gap: 14px; padding: clamp(16px, 2.4vw, 26px); border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); }
+  .sl-ring { display: grid; gap: 10px; }
+  @media (min-width: 820px) {
+    .sl-ring { grid-template-columns: 1fr 1.1fr 1fr; grid-template-rows: auto auto; gap: 14px 18px; align-items: center; }
+    .sl-step:nth-of-type(1) { grid-column: 1; grid-row: 1; }
+    .sl-step:nth-of-type(2) { grid-column: 3; grid-row: 1; }
+    .sl-step:nth-of-type(3) { grid-column: 3; grid-row: 2; }
+    .sl-step:nth-of-type(4) { grid-column: 1; grid-row: 2; }
+    .sl-core { grid-column: 2; grid-row: 1 / 3; }
+  }
+  .sl-step { display: grid; gap: 2px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line-2); background: var(--bg-2); }
+  .sl-n { justify-self: start; font-size: 10.5px; padding: 1px 7px; border-radius: 999px; background: var(--surface-3); color: var(--text-2); margin-bottom: 4px; }
+  .sl-step b { font-size: 14.5px; color: var(--text); }
+  .sl-step b.mono { font-size: 12.5px; color: var(--accent-text); }
+  .sl-step small { font-size: 12px; color: var(--text-3); }
+  .sl.in .sl-step { animation: sl-active 6s var(--ease-in-out) infinite; animation-delay: calc(var(--i) * 1.5s); }
+  @keyframes sl-active { 0%, 24%, 100% { border-color: var(--line-2); box-shadow: none; } 4%, 20% { border-color: var(--accent-text); box-shadow: 0 0 0 3px var(--accent-soft); } }
+  .sl-core { display: grid; gap: 12px; justify-items: center; padding: 14px; border-radius: 18px; border: 1px dashed var(--line-2); }
+  .sl-core code { font-size: 11.5px; text-align: center; }
+  .sl-phone { display: grid; gap: 8px; justify-items: center; width: 150px; padding: 18px 12px; border-radius: 22px; background: #fff; color: #11181c; box-shadow: 0 0 0 6px #15181d; font-size: 16px; font-weight: 700; }
+  .sl-phone i { font-style: normal; padding: 4px 16px; border-radius: 999px; background: #11181c; color: #fff; font-size: 13px; }
+  .sl-count::after { content: '0'; }
+  .sl.in .sl-count::after { animation: sl-count 6s steps(1) infinite; }
+  @keyframes sl-count { 0% { content: '0'; } 75% { content: '1'; } }
+  .sl figcaption { font-size: 14px; color: var(--text-2); }
+  @media (prefers-reduced-motion: reduce) { .sl.in .sl-step, .sl.in .sl-count::after { animation: none; } }
+</style>

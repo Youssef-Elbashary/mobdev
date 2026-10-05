@@ -1,0 +1,53 @@
+---
+/** Main axis vs cross axis — column (React Native default) vs row. */
+const frames = [
+  { dir: 'column', title: "flexDirection: 'column'", note: 'the default in React Native', main: 'vertical ↓', cross: 'horizontal →' },
+  { dir: 'row', title: "flexDirection: 'row'", note: 'className="flex-row"', main: 'horizontal →', cross: 'vertical ↓' },
+];
+---
+<figure class="fa" data-reveal>
+  {frames.map((f) => (
+    <div class="fa-card">
+      <code>{f.title}</code>
+      <small class="mono">{f.note}</small>
+      <div class:list={['fa-stage', f.dir]}>
+        <span class="fa-axis main"><i>justifyContent · main axis</i></span>
+        <span class="fa-axis cross"><i>alignItems · cross axis</i></span>
+        <b>A</b><b>B</b><b>C</b>
+      </div>
+      <p><span class="k">justifyContent</span> moves along the <b>{f.main}</b> · <span class="k">alignItems</span> along the <b>{f.cross}</b></p>
+    </div>
+  ))}
+  <figcaption>On the web a <code>div</code> lays children out in a row; in React Native <b>every View is a flex column by default</b>.</figcaption>
+</figure>
+
+<style>
+  .fa { margin: 24px 0 32px; display: grid; gap: 14px; padding: clamp(14px, 2vw, 22px); border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); }
+  @media (min-width: 760px) { .fa { grid-template-columns: 1fr 1fr; } .fa figcaption { grid-column: 1 / -1; } }
+  .fa-card { display: grid; gap: 6px; justify-items: center; text-align: center; }
+  .fa-card small { font-size: 11px; color: var(--text-3); }
+  .fa-card p { margin: 0 !important; font-size: 13px; color: var(--text-2); }
+  .fa-card .k { font-family: var(--font-mono); font-size: 12px; color: var(--cm-prop); }
+  .fa-stage { position: relative; display: flex; gap: 8px; width: 210px; height: 190px; padding: 22px; border-radius: 18px; background: var(--bg-2); border: 1px solid var(--line-2); justify-content: center; align-items: center; }
+  .fa-stage.column { flex-direction: column; }
+  .fa-stage b { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; color: #fff; font-size: 15px; }
+  .fa-stage b:nth-of-type(1) { background: #6366f1; } .fa-stage b:nth-of-type(2) { background: #ec4899; } .fa-stage b:nth-of-type(3) { background: #f59e0b; }
+  .fa-axis { position: absolute; display: block; }
+  .fa-axis i { position: absolute; font-style: normal; font-family: var(--font-mono); font-size: 9.5px; white-space: nowrap; }
+  .fa-axis.main { background: var(--accent-text); }
+  .fa-axis.main i { color: var(--accent-text); }
+  .fa-axis.cross { background: #7cb1ff; }
+  .fa-axis.cross i { color: #7cb1ff; }
+  .column .fa-axis.main { left: 8px; top: 12px; bottom: 12px; width: 2px; transform-origin: top; transform: scaleY(0); }
+  .column .fa-axis.main i { left: 6px; top: -2px; }
+  .column .fa-axis.cross { left: 12px; right: 12px; bottom: 8px; height: 2px; transform-origin: left; transform: scaleX(0); }
+  .column .fa-axis.cross i { right: 0; top: 4px; }
+  .row .fa-axis.main { left: 12px; right: 12px; bottom: 8px; height: 2px; transform-origin: left; transform: scaleX(0); }
+  .row .fa-axis.main i { left: 0; top: 4px; }
+  .row .fa-axis.cross { right: 8px; top: 12px; bottom: 12px; width: 2px; transform-origin: top; transform: scaleY(0); }
+  .row .fa-axis.cross i { right: 6px; top: -2px; }
+  .fa.in .fa-axis { transition: transform 900ms var(--ease-out) 300ms; transform: none; }
+  .fa.in .fa-axis.cross { transition-delay: 800ms; }
+  .fa figcaption { font-size: 14px; color: var(--text-2); }
+  @media (prefers-reduced-motion: reduce) { .fa-axis { transform: none !important; } }
+</style>

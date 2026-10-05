@@ -11,6 +11,7 @@ import mdx from '@astrojs/mdx';
 import vercel from '@astrojs/vercel';
 import rehypeCallouts from './src/plugins/rehype-callouts.mjs';
 import runner from './src/integrations/runner.mjs';
+import { labRuntime } from './scripts/lab-runtime.mjs';
 
 export default defineConfig({
   site: 'https://mobdev.vercel.app',
@@ -19,6 +20,8 @@ export default defineConfig({
   integrations: [mdx(), runner()],
   // Static site; only /admin and /api/* run on the server (they set `prerender = false`).
   adapter: vercel({ maxDuration: 60 }),
+  // builds public/lab-runtime/runtime.js (the interactive labs' preview) and rebuilds it in dev
+  vite: { plugins: [labRuntime()] },
   markdown: {
     shikiConfig: {
       themes: { light: 'github-light', dark: 'github-dark-default' },

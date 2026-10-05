@@ -1,0 +1,64 @@
+---
+/** How a React app starts — web and Expo side by side, steps light up in order. */
+const rows = [
+  {
+    k: 'React · web',
+    steps: [
+      { t: 'index.html', s: 'an empty <div id="root">' },
+      { t: 'main.tsx', s: 'createRoot(#root)' },
+      { t: '<App />', s: 'the root component' },
+      { t: 'children', s: '<Header /> <ProductCard />' },
+      { t: 'UI', s: 'drawn in the browser', ui: true },
+    ],
+  },
+  {
+    k: 'Expo · phone',
+    steps: [
+      { t: 'expo-router', s: 'starts the app' },
+      { t: 'app/_layout.tsx', s: 'the root layout' },
+      { t: 'app/index.tsx', s: 'the first screen' },
+      { t: 'children', s: '<Header /> <ProductCard />' },
+      { t: 'UI', s: 'real native views', ui: true },
+    ],
+  },
+];
+---
+<figure class="asf" data-reveal>
+  {rows.map((r, ri) => (
+    <div class="asf-row" style={`--r:${ri}`}>
+      <span class="asf-k mono">{r.k}</span>
+      <ol>
+        {r.steps.map((st, i) => (
+          <li style={`--i:${i}`} class:list={[{ ui: st.ui }]}>
+            <b class="mono">{st.t}</b>
+            <span>{st.s}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  ))}
+  <figcaption>Same idea everywhere: an entry file finds a place to draw → renders the <b>root component</b> → which renders its <b>children</b> → UI.</figcaption>
+</figure>
+
+<style>
+  .asf { margin: 24px 0 32px; display: grid; gap: 14px; padding: clamp(14px, 2vw, 22px); border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); }
+  .asf-row { display: grid; gap: 8px; }
+  .asf-k { font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-text); }
+  .asf ol { list-style: none; padding: 0 !important; margin: 0 !important; display: grid; gap: 10px; }
+  @media (min-width: 760px) { .asf ol { grid-template-columns: repeat(5, 1fr); gap: 22px; } }
+  .asf li { position: relative; display: grid; gap: 2px; margin: 0 !important; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--bg-2); opacity: 0; transform: translateY(8px); }
+  .asf li b { font-size: 12.5px; color: var(--text); }
+  .asf li span { font-size: 12px; color: var(--text-3); }
+  .asf li.ui { border-color: color-mix(in oklab, var(--accent-text) 50%, var(--line)); background: var(--accent-soft); }
+  @media (min-width: 760px) {
+    .asf li:not(:last-child)::after { content: '→'; position: absolute; right: -18px; top: 50%; translate: 0 -50%; color: var(--text-3); font-weight: 700; }
+  }
+  .asf.in li { animation: asf-in 500ms var(--ease-out) forwards, asf-glow 5s var(--ease-in-out) infinite; animation-delay: calc(var(--r) * 300ms + var(--i) * 160ms), calc(1.6s + var(--i) * 0.55s); }
+  @keyframes asf-in { to { opacity: 1; transform: none; } }
+  @keyframes asf-glow {
+    0%, 14%, 100% { box-shadow: none; }
+    6% { box-shadow: 0 0 0 2px var(--accent-text), 0 8px 24px -8px var(--accent-glow); }
+  }
+  .asf figcaption { font-size: 14px; color: var(--text-2); }
+  @media (prefers-reduced-motion: reduce) { .asf li { opacity: 1; transform: none; } .asf.in li { animation: none; } }
+</style>

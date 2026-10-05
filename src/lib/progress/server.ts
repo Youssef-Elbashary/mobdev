@@ -8,6 +8,7 @@
 import { getSecret } from 'astro:env/server';
 import { getCollection } from 'astro:content';
 import { getPlayground } from '@/lib/playgrounds';
+import { EXERCISES as LAB02_EXERCISES } from '@/lab/exercises/lab-02/meta';
 import { noStore } from '@/lib/attendance/server';
 import { exerciseStats, labStructure, scoreStudent, sessionState, type Identity, type LabStructure, type Valid } from './core';
 import { MemoryStore, NeonStore, type ProgressStore } from './store';
@@ -44,7 +45,8 @@ export function getStructures(): Promise<LabStructure[]> {
           const p = getPlayground(id);
           return { title: p.title, checks: p.checks.length };
         } catch {
-          return null;
+          const exercise = lab.id === 'lab-02' ? LAB02_EXERCISES.find((item) => item.id === id) : null;
+          return exercise ? { title: exercise.title, checks: 1, task: String(exercise.block) } : null;
         }
       }),
     );

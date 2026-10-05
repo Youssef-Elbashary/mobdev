@@ -42,6 +42,8 @@ export const labSchema = (image: ImageField = imagePath) =>
     resources: z.array(link).default([]),
     roadmapStage: z.string().optional(),
     draft: z.boolean().default(false),
+    /** interactive lab: in-browser exercises + progress tracking (see src/lab/) */
+    interactive: z.boolean().default(false),
   });
 
 export const courseworkSchema = z.object({

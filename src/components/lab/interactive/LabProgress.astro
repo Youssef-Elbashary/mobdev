@@ -1,0 +1,32 @@
+---
+/**
+ * Sticky progress bar for interactive labs (block · exercise n/17 · % · one square per exercise),
+ * and the script that brings every <Exercise>, <Demo> and <LabStart> on the page to life.
+ */
+import { EXERCISES, BLOCKS } from '@/lab/exercises/lab-02/meta';
+import '@/styles/lab-interactive.css';
+---
+<div class="lp" data-lab-progress role="navigation" aria-label="Lab progress">
+  <div class="lp-in container">
+    <span class="lp-where mono" data-lp-where>Part 1 · Block 1/{BLOCKS.length}</span>
+    <span class="lp-title" data-lp-title>{BLOCKS[0].title}</span>
+    <span class="lp-ex" data-lp-ex>Ex 1/{EXERCISES.length}</span>
+    <ol class="lp-squares">
+      {EXERCISES.map((e) => <li><a href={`#ex-${e.id}`} data-sq={e.id} title={`Ex ${e.n} · ${e.title}`} aria-label={`Exercise ${e.n}: ${e.title}`}></a></li>)}
+    </ol>
+    <span class="lp-pct mono"><b data-lp-pct>0</b>%</span>
+  </div>
+</div>
+
+<script>
+  import { mountLab } from '@/lab/ui/mount';
+  let cleanup: (() => void) | undefined;
+  document.addEventListener('astro:page-load', () => {
+    cleanup?.();
+    cleanup = mountLab();
+  });
+  document.addEventListener('astro:before-swap', () => {
+    cleanup?.();
+    cleanup = undefined;
+  });
+</script>

@@ -1,0 +1,16 @@
+---
+/** Placeholder for an interactive exercise: <Exercise id="ex05" /> — the lab script turns it into the live widget. */
+import { EXERCISES } from '@/lab/exercises/lab-02/meta';
+interface Props { id: string }
+const { id } = Astro.props;
+const meta = EXERCISES.find((e) => e.id === id);
+if (!meta) throw new Error(`<Exercise id="${id}">: no such exercise in meta.ts`);
+---
+<div class="ex-mount" id={`ex-${id}`} data-exercise={id}>
+  <div class="ex-loading">
+    <span class="mono">EX {String(meta.n).padStart(2, '0')}</span>
+    <b>{meta.title}</b>
+    <span>Loading the exercise…</span>
+    <noscript>This exercise needs JavaScript turned on.</noscript>
+  </div>
+</div>

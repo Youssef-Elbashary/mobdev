@@ -1,0 +1,42 @@
+---
+/** FlatList renders only the rows inside the screen (plus a small buffer); the rest don't exist yet. */
+const rows = Array.from({ length: 14 }, (_, i) => `Student ${i + 1}`);
+---
+<figure class="fw" data-reveal>
+  <div class="fw-stage">
+    <div class="fw-list" aria-hidden="true">
+      {rows.map((r, i) => <div class="fw-row" style={`--i:${i}`}><span class="fw-av"></span>{r}</div>)}
+    </div>
+    <div class="fw-window" aria-hidden="true"><span class="mono">screen</span></div>
+  </div>
+  <div class="fw-text">
+    <p><b>ScrollView</b> renders <b>every</b> child at once — fine for one page of content.</p>
+    <p><b>FlatList</b> renders <b>only what’s on screen</b> and creates more rows as you scroll — smooth even with 10,000 items.</p>
+    <code>{'<FlatList data={STUDENTS} renderItem={({ item }) => <Row name={item.name} />} />'}</code>
+    <ul>
+      <li><code>data</code> — the array</li>
+      <li><code>renderItem</code> — one item → one component</li>
+      <li><code>keyExtractor</code> — which field is unique</li>
+    </ul>
+  </div>
+</figure>
+
+<style>
+  .fw { margin: 24px 0 32px; display: grid; gap: 22px; align-items: center; padding: clamp(14px, 2vw, 22px); border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); }
+  @media (min-width: 760px) { .fw { grid-template-columns: auto 1fr; } }
+  .fw-stage { position: relative; width: 230px; height: 300px; overflow: hidden; justify-self: center; mask-image: linear-gradient(transparent, #000 12%, #000 88%, transparent); -webkit-mask-image: linear-gradient(transparent, #000 12%, #000 88%, transparent); }
+  .fw-list { display: grid; gap: 6px; padding: 0 20px; }
+  .fw.in .fw-list { animation: fw-scroll 9s linear infinite alternate; }
+  @keyframes fw-scroll { from { transform: translateY(0); } to { transform: translateY(-260px); } }
+  .fw-row { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; border-radius: 9px; font-size: 12.5px; color: var(--text-3); border: 1px dashed var(--line-2); background: transparent; }
+  .fw-av { width: 18px; height: 18px; border-radius: 50%; background: var(--surface-3); flex: none; }
+  .fw-window { position: absolute; left: 10px; right: 10px; top: 70px; height: 160px; border-radius: 22px; border: 3px solid var(--accent-text); box-shadow: 0 0 0 999px color-mix(in oklab, var(--bg) 55%, transparent); pointer-events: none; }
+  .fw-window span { position: absolute; top: -9px; left: 16px; padding: 0 6px; font-size: 10px; letter-spacing: 0.1em; background: var(--surface); color: var(--accent-text); }
+  .fw-text { display: grid; gap: 10px; font-size: 14.5px; color: var(--text-2); }
+  .fw-text p { margin: 0 !important; }
+  .fw-text b { color: var(--text); }
+  .fw-text code { font-size: 12px; white-space: normal; overflow-wrap: anywhere; }
+  .fw-text ul { margin: 0 !important; padding-left: 18px !important; display: grid; gap: 4px; }
+  .fw-text li { margin: 0 !important; }
+  @media (prefers-reduced-motion: reduce) { .fw.in .fw-list { animation: none; } }
+</style>

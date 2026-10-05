@@ -93,9 +93,9 @@ test('decideLock: create, same device, unlocked, other device', () => {
 test('labStructure reads tasks and exercises (not demos) from the real Lab 02', () => {
   const body = fs.readFileSync(new URL('../src/content/labs/lab-02.mdx', import.meta.url), 'utf8');
   const s = labStructure('lab-02', 'Lab 02', body, (id) => ({ title: id, checks: 3 }));
-  assert.equal(s.tasks.length, 26);
-  assert.equal(s.exercises.length, 11);
-  assert.equal(s.exercises.find((e) => e.id === 'e05-counter')?.task, '3.2');
+  assert.equal(s.tasks.length, 17);
+  assert.equal(s.exercises.length, 17);
+  assert.equal(s.exercises.find((e) => e.id === 'ex05')?.task, '3');
   assert.equal(s.exercises.some((e) => e.id.startsWith('demo-')), false);
   assert.equal(s.exercises.every((e) => e.checks === 3), true);
 });

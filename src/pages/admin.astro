@@ -71,6 +71,40 @@ const time = (iso: string) => {
         <button class="btn btn-primary btn-lg" type="submit">Log in</button>
       </form>
     ) : (
+      <>
+      <div class="adm-tabs" role="tablist" aria-label="Admin sections">
+        <button role="tab" type="button" aria-selected="true" data-tab="att">Attendance</button>
+        <button role="tab" type="button" aria-selected="false" data-tab="lab">Lab 02 progress</button>
+      </div>
+      <div data-panel="lab" hidden>
+        <div class="labp" data-labp data-lab="lab-02">
+          <header class="board-head">
+            <div>
+              <p class="adm-k mono">Lab 02 · React &amp; React Native</p>
+              <h1 class="board-count"><b data-lp-started>–</b> <span>students started</span></h1>
+            </div>
+            <div class="board-actions">
+              <span class="live mono" data-lp-live>loading…</span>
+              <a class="btn btn-ghost btn-sm" href="/labs/lab-02" target="_blank" rel="noopener">Open lab ↗</a>
+            </div>
+          </header>
+          <div class="kpis" data-lp-kpis></div>
+          <section class="lp-sec">
+            <h2 class="lp-h">Hardest right now</h2>
+            <div class="hard" data-lp-hardest><p class="faint small">Nobody has checked an exercise yet.</p></div>
+          </section>
+          <section class="lp-sec">
+            <h2 class="lp-h">Exercises</h2>
+            <div class="table-wrap"><table class="table ex-table"><thead><tr><th>#</th><th>Exercise</th><th>Attempted</th><th>Solved</th><th>Not solved</th><th>Success</th><th>Avg tries</th><th>Hints</th></tr></thead><tbody data-lp-ex></tbody></table></div>
+          </section>
+          <section class="lp-sec">
+            <h2 class="lp-h">Students</h2>
+            <div class="table-wrap"><table class="table st-table"><thead data-lp-st-head></thead><tbody data-lp-st></tbody></table></div>
+            <p class="empty-row" data-lp-empty>No students yet — they appear here when they press <b>Start</b> on the lab page.</p>
+          </section>
+        </div>
+      </div>
+      <div data-panel="att">
       <div class="board" data-board data-last={last}>
         <header class="board-head">
           <div>
@@ -97,6 +131,8 @@ const time = (iso: string) => {
           <p class="empty-row" data-empty hidden={entries.length > 0}>Waiting for the first check-in…</p>
         </div>
       </div>
+      </div>
+      </>
     )}
   </section>
 </Base>
@@ -136,6 +172,40 @@ const time = (iso: string) => {
   @keyframes row-in { 0% { background: var(--accent-soft); transform: translateY(-6px); opacity: 0; } 15% { opacity: 1; transform: none; } 100% { background: transparent; } }
   .empty-row { padding: 28px 16px; text-align: center; color: var(--text-3); font-size: 14px; }
   @media (max-width: 560px) { .board-table :global(th:first-child), .board-table :global(td:first-child) { display: none; } }
+
+  /* tabs */
+  .adm-tabs { display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 28px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); }
+  .adm-tabs button { padding: 8px 16px; border-radius: 10px; font-weight: 600; font-size: 14px; color: var(--text-3); }
+  .adm-tabs button[aria-selected='true'] { background: var(--accent); color: var(--accent-ink); }
+
+  /* lab progress panel (rows are built by the script → :global) */
+  .labp { display: grid; gap: 28px; }
+  .lp-sec { display: grid; gap: 12px; }
+  .lp-h { font-size: 1.15rem; letter-spacing: -0.02em; }
+  .labp :global(.kpis) { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .labp :global(.kpi) { display: grid; gap: 2px; padding: 16px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); }
+  .labp :global(.kpi b) { font-family: var(--font-display); font-size: 2rem; letter-spacing: -0.04em; color: var(--text); line-height: 1.1; }
+  .labp :global(.kpi span) { font-size: 12.5px; color: var(--text-3); }
+  .labp :global(.kpi.accent b) { color: var(--accent-text); }
+  .labp :global(.hard) { display: flex; flex-wrap: wrap; gap: 8px; }
+  .labp :global(.hard-chip) { display: grid; gap: 2px; padding: 10px 14px; border-radius: 12px; border: 1px solid color-mix(in oklab, var(--danger) 40%, var(--line)); background: var(--danger-soft); }
+  .labp :global(.hard-chip b) { font-size: 14px; color: var(--text); }
+  .labp :global(.hard-chip span) { font-size: 12px; color: var(--text-2); }
+  .labp :global(.ex-table td), .labp :global(.st-table td), .labp :global(.ex-table th), .labp :global(.st-table th) { white-space: nowrap; }
+  .labp :global(.ex-table tr.is-hard td) { background: var(--danger-soft); }
+  .labp :global(.rate) { display: inline-flex; align-items: center; gap: 8px; }
+  .labp :global(.rate i) { display: block; width: 90px; height: 8px; border-radius: 8px; background: var(--line); overflow: hidden; position: relative; }
+  .labp :global(.rate i::after) { content: ''; position: absolute; inset: 0; width: var(--w); background: var(--ok); border-radius: 8px; }
+  .labp :global(.rate.low i::after) { background: var(--danger); }
+  .labp :global(.rate.mid i::after) { background: var(--warn); }
+  .labp :global(.prog) { display: inline-flex; align-items: center; gap: 8px; }
+  .labp :global(.prog i) { display: block; width: 80px; height: 8px; border-radius: 8px; background: var(--line); overflow: hidden; position: relative; }
+  .labp :global(.prog i::after) { content: ''; position: absolute; inset: 0; width: var(--w); background: var(--accent); border-radius: 8px; }
+  .labp :global(.cell) { display: inline-block; width: 14px; height: 14px; border-radius: 4px; background: var(--line); vertical-align: middle; }
+  .labp :global(.cell.trying) { background: var(--warn); }
+  .labp :global(.cell.solved) { background: var(--ok); }
+  .labp :global(.st-table th.c), .labp :global(.st-table td.c) { padding-left: 2px; padding-right: 2px; text-align: center; font-size: 10.5px; }
+  .labp :global(.dot-on) { color: var(--ok); }
 </style>
 
 <script>
@@ -235,4 +305,104 @@ const time = (iso: string) => {
   }
   document.addEventListener('astro:page-load', init);
   document.addEventListener('astro:before-swap', cleanup);
+</script>
+
+<script>
+  /* Tabs (Attendance | Lab 02) + the Lab 02 progress dashboard (polls /api/admin/lab every 4 s while open). */
+  type ExStats = { id: string; n: number; title: string; attempted: number; solved: number; notSolved: number; successRate: number | null; avgAttempts: number | null; hints: number };
+  type StStats = { name: string; studentId: string; solved: number; pct: number; completed: boolean; minutes: number; lastSeen: string; active: boolean; states: Record<string, string> };
+  type LabStats = {
+    generatedAt: string;
+    totals: { started: number; completed: number; active: number; avgCompletion: number; avgMinutesToComplete: number | null };
+    exercises: ExStats[];
+    hardest: string[];
+    students: StStats[];
+  };
+
+  let timer: number | undefined;
+
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+  const pct = (r: number | null) => (r === null ? '–' : `${Math.round(r * 100)}%`);
+  const ago = (iso: string) => {
+    const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
+    return s < 60 ? 'now' : s < 3600 ? `${Math.round(s / 60)} min ago` : new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  function render(root: HTMLElement, s: LabStats) {
+    const t = s.totals;
+    root.querySelector('[data-lp-started]')!.textContent = String(t.started);
+    root.querySelector('[data-lp-kpis]')!.innerHTML = [
+      ['accent', t.completed, 'completed the lab'],
+      ['', t.active, 'active in the last 2 min'],
+      ['', `${Math.round(t.avgCompletion * 100)}%`, 'average progress'],
+      ['', t.avgMinutesToComplete === null ? '–' : `${t.avgMinutesToComplete} min`, 'average time to finish'],
+    ]
+      .map(([cls, v, label]) => `<div class="kpi ${cls}"><b>${v}</b><span>${label}</span></div>`)
+      .join('');
+
+    const hard = s.hardest.map((id) => s.exercises.find((e) => e.id === id)!).filter(Boolean);
+    root.querySelector('[data-lp-hardest]')!.innerHTML = hard.length
+      ? hard.map((e) => `<div class="hard-chip"><b>Ex ${e.n} · ${esc(e.title)}</b><span>${pct(e.successRate)} success · ${e.notSolved} stuck · ${e.avgAttempts ?? '–'} tries on average</span></div>`).join('')
+      : '<p class="faint small">Nothing stands out yet.</p>';
+
+    root.querySelector('[data-lp-ex]')!.innerHTML = s.exercises
+      .map((e) => {
+        const r = e.successRate;
+        const tone = r === null ? '' : r < 0.5 ? 'low' : r < 0.8 ? 'mid' : '';
+        return `<tr class="${s.hardest.includes(e.id) ? 'is-hard' : ''}"><td class="mono faint">${e.n}</td><td>${esc(e.title)}</td><td class="mono">${e.attempted}</td><td class="mono">${e.solved}</td><td class="mono">${e.notSolved}</td><td><span class="rate ${tone}"><i style="--w:${r === null ? 0 : Math.round(r * 100)}%"></i><span class="mono">${pct(r)}</span></span></td><td class="mono">${e.avgAttempts ?? '–'}</td><td class="mono">${e.hints}</td></tr>`;
+      })
+      .join('');
+
+    root.querySelector('[data-lp-st-head]')!.innerHTML = `<tr><th>Student</th><th>ID</th><th>Progress</th><th>Done</th><th>Time</th><th>Seen</th>${s.exercises.map((e) => `<th class="c mono" title="${esc(e.title)}">${e.n}</th>`).join('')}</tr>`;
+    root.querySelector('[data-lp-st]')!.innerHTML = s.students
+      .map(
+        (st) =>
+          `<tr><td>${st.active ? '<span class="dot-on" title="active now">●</span> ' : ''}${esc(st.name)}</td><td class="mono faint">${esc(st.studentId)}</td><td><span class="prog"><i style="--w:${Math.round(st.pct * 100)}%"></i><span class="mono">${st.solved}/${s.exercises.length}</span></span></td><td>${st.completed ? '✓' : ''}</td><td class="mono faint">${st.minutes} min</td><td class="mono faint">${ago(st.lastSeen)}</td>${s.exercises
+            .map((e) => `<td class="c"><span class="cell ${st.states[e.id] ?? 'new'}" title="Ex ${e.n} · ${esc(e.title)}: ${st.states[e.id] ?? 'new'}"></span></td>`)
+            .join('')}</tr>`,
+      )
+      .join('');
+    (root.querySelector('[data-lp-empty]') as HTMLElement).hidden = s.students.length > 0;
+  }
+
+  async function load(root: HTMLElement) {
+    const live = root.querySelector<HTMLElement>('[data-lp-live]')!;
+    try {
+      const res = await fetch(`/api/admin/lab?lab=${encodeURIComponent(root.dataset.lab!)}`, { cache: 'no-store' });
+      if (res.status === 401) return location.reload();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? res.status);
+      render(root, data as LabStats);
+      live.classList.add('on');
+      live.textContent = `live · ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+    } catch (error) {
+      live.classList.remove('on');
+      live.textContent = error instanceof Error && error.message.includes('set up') ? 'run supabase/lab-progress.sql' : 'reconnecting…';
+    }
+  }
+
+  function initTabs() {
+    const root = document.querySelector<HTMLElement>('[data-labp]');
+    const tabs = document.querySelectorAll<HTMLButtonElement>('[data-tab]');
+    if (!tabs.length) return;
+    const show = (name: string) => {
+      tabs.forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === name)));
+      document.querySelectorAll<HTMLElement>('[data-panel]').forEach((p) => (p.hidden = p.dataset.panel !== name));
+      clearInterval(timer);
+      timer = undefined;
+      if (name === 'lab' && root) {
+        void load(root);
+        timer = window.setInterval(() => !document.hidden && load(root), 4000);
+      }
+      history.replaceState(null, '', name === 'lab' ? '#lab' : location.pathname + location.search);
+    };
+    tabs.forEach((t) => t.addEventListener('click', () => show(t.dataset.tab!)));
+    show(location.hash === '#lab' ? 'lab' : 'att');
+  }
+
+  document.addEventListener('astro:page-load', initTabs);
+  document.addEventListener('astro:before-swap', () => {
+    clearInterval(timer);
+    timer = undefined;
+  });
 </script>
