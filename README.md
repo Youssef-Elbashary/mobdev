@@ -177,6 +177,21 @@ YAML tip: wrap a value in single quotes if it contains `: `, starts with `"`, or
 - **Reading:** a task counts as **read** when at least 40% of it stays on screen for 4 s. **Active time** counts only while the tab is visible and the student did something in the last minute. The **Seen** column shows `21/26 · 1h 42m`. In the drawer, read-but-not-ticked tasks are outlined and ticked ones are green. Reading never changes the progress %.
 - **Code:** rules in `src/lib/progress/core.ts` (unit-tested: `npm test`), storage in `src/lib/progress/store.ts`, Astro glue in `src/lib/progress/server.ts`, endpoints in `src/pages/api/progress/` and `src/pages/api/admin/progress/`, and the student-side script in `src/scripts/progress.ts`.
 
+## Content manager (`/admin/cms`)
+
+The password-protected CMS lets the teaching team edit course information and the six shared YAML lists without changing source files by hand. Open `/admin/cms` (or **CMS →** on `/admin`), choose your teaching-team name, edit an item, then use **Review & save** to inspect the exact line diff before saving.
+
+- On a laptop, saves go straight to `src/content/` and Astro refreshes the site automatically.
+- On Vercel, saves are commits on `cms-drafts`. Use **Preview** to inspect the deployment, **Publish** to merge all drafts into `main`, or **Discard** to throw all unpublished changes away.
+- Every save records the editor's name. If the same file changed after you opened it, the CMS refuses the stale save and tells you to reload.
+- The current milestone edits **Course & team**, **Commands**, **Troubleshooting**, **Resources**, **Extra learning**, **Roadmap**, and **Setup checklist**. Page, lab, and exercise editors are planned next.
+
+For the hosted CMS, add these Vercel environment variables and redeploy:
+
+- `GITHUB_REPO=Youssef-Elbashary/mobdev`
+- `GITHUB_TOKEN` — a fine-grained token limited to this repository, with **Contents** and **Pull requests** read/write and **Deployments** read permission
+- Optional: `CMS_BASE` (defaults to `main`) and `CMS_DRAFTS` (defaults to `cms-drafts`)
+
 ## Project structure
 
 ```text

@@ -1,0 +1,267 @@
+---
+import Base from '@/layouts/Base.astro';
+import { isAdmin } from '@/lib/attendance/server';
+import { cmsSetup, currentEditor, editors } from '@/lib/cms/server';
+
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'no-store, max-age=0');
+if (!isAdmin(Astro.cookies)) return Astro.redirect('/admin', 303);
+
+const setup = cmsSetup();
+const available = setup.github || setup.local;
+const editor = currentEditor(Astro.cookies);
+const people = editors();
+---
+<Base title="Content manager" noindex>
+  <section class="cms-shell container">
+    {!available ? (
+      <div class="cms-gate cms-card">
+        <p class="cms-k mono">CMS · setup</p>
+        <h1>Connect GitHub</h1>
+        <p class="muted">The content manager needs two Vercel environment variables before it can save drafts.</p>
+        <ol>
+          <li>Create a fine-grained GitHub token limited to this repository, with <b>Contents</b> and <b>Pull requests</b> read/write plus <b>Deployments</b> read access.</li>
+          <li>Add <code>GITHUB_TOKEN</code> and <code>GITHUB_REPO</code> (for example <code>Youssef-Elbashary/mobdev</code>) in Vercel.</li>
+          <li>Redeploy the project, then return here.</li>
+        </ol>
+        <a class="btn btn-ghost" href="/admin">← Attendance admin</a>
+      </div>
+    ) : !editor ? (
+      <div class="cms-gate cms-card" data-cms-picker>
+        <p class="cms-k mono">Content manager</p>
+        <h1>Who’s editing?</h1>
+        <p class="muted">Your name is included in every saved change.</p>
+        <div class="cms-people">
+          {people.map((person) => (
+            <button type="button" class="cms-person" data-editor={person.name}>
+              <span class="cms-avatar" aria-hidden="true">{person.name.split(/\s+/).map((part) => part[0]).slice(0, 2).join('')}</span>
+              <span><b>{person.name}</b><small>{person.role}</small></span>
+              <span aria-hidden="true">→</span>
+            </button>
+          ))}
+        </div>
+        <p class="cms-pick-error" role="alert" data-picker-error></p>
+        <a class="cms-back" href="/admin">← Attendance admin</a>
+      </div>
+    ) : (
+      <div class="cms-app" data-cms-app>
+        <header class="cms-top">
+          <div>
+            <p class="cms-k mono">Admin workspace</p>
+            <h1>Content manager</h1>
+          </div>
+          <div class="cms-top-links">
+            <a class="btn btn-ghost btn-sm" href="/admin">Attendance</a>
+            <a class="btn btn-ghost btn-sm" href="/admin/progress">Lab progress</a>
+          </div>
+        </header>
+
+        <div class="cms-status cms-card">
+          <div class="cms-status-who">
+            <span class="cms-avatar small" aria-hidden="true">{editor.split(/\s+/).map((part) => part[0]).slice(0, 2).join('')}</span>
+            <span><small>Editing as</small><b data-cms-editor>{editor}</b></span>
+            <button type="button" class="cms-switch" data-cms-switch>Switch</button>
+          </div>
+          <div class="cms-status-copy">
+            <span class="cms-badge" data-cms-mode>Loading…</span>
+            <details>
+              <summary data-cms-summary>Checking drafts…</summary>
+              <ul class="cms-files mono" data-cms-files hidden></ul>
+            </details>
+          </div>
+          <div class="cms-status-actions">
+            <a class="btn btn-ghost btn-sm" href="#" target="_blank" rel="noreferrer" data-cms-preview hidden>Preview ↗</a>
+            <button type="button" class="btn btn-ghost btn-sm cms-danger" data-cms-discard hidden>Discard</button>
+            <button type="button" class="btn btn-primary btn-sm" data-cms-publish hidden>Publish</button>
+          </div>
+        </div>
+
+        <div class="cms-workspace">
+          <aside class="cms-sidebar cms-card" aria-label="CMS sections">
+            <button type="button" data-cms-view="course" aria-current="true"><span>Course & team</span></button>
+            <p class="cms-side-label mono">Lists</p>
+            <button type="button" data-cms-view="commands"><span>Commands</span></button>
+            <button type="button" data-cms-view="troubleshooting"><span>Troubleshooting</span></button>
+            <button type="button" data-cms-view="resources"><span>Resources</span></button>
+            <button type="button" data-cms-view="extra"><span>Extra learning</span></button>
+            <button type="button" data-cms-view="roadmap"><span>Roadmap</span></button>
+            <button type="button" data-cms-view="checklist"><span>Setup checklist</span></button>
+            <p class="cms-side-label mono">Coming next</p>
+            <button type="button" disabled><span>Pages</span><small>Soon</small></button>
+            <button type="button" disabled><span>Labs & exercises</span><small>Soon</small></button>
+            <div class="cms-side-rule"></div>
+            <button type="button" data-cms-view="history"><span>History</span></button>
+          </aside>
+          <main class="cms-main" data-cms-main aria-live="polite"></main>
+        </div>
+      </div>
+    )}
+  </section>
+</Base>
+
+<style is:global>
+  .cms-shell { min-height: 85dvh; padding-top: calc(var(--nav-h) + 44px); padding-bottom: 100px; }
+  .cms-card { border: 1px solid var(--line-2); background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); }
+  .cms-k { color: var(--accent-text); text-transform: uppercase; letter-spacing: .12em; font-size: 11px; }
+  .cms-gate { width: min(100%, 650px); margin: 30px auto; padding: clamp(24px, 5vw, 42px); display: grid; gap: 16px; }
+  .cms-gate h1, .cms-top h1, .cms-view-head h1 { letter-spacing: -.04em; }
+  .cms-gate h1 { font-size: var(--fs-2xl); }
+  .cms-gate ol { display: grid; gap: 12px; padding-left: 22px; color: var(--text-2); line-height: 1.65; }
+  .cms-gate > .btn { justify-self: start; }
+  .cms-people { display: grid; gap: 10px; margin-top: 6px; }
+  .cms-person { width: 100%; border: 1px solid var(--line); border-radius: 14px; padding: 13px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 13px; text-align: left; color: var(--text); background: var(--bg); cursor: pointer; transition: border-color var(--t-fast), transform var(--t-fast); }
+  .cms-person:hover { border-color: var(--accent-text); transform: translateY(-1px); }
+  .cms-person span:nth-child(2) { display: grid; gap: 3px; }
+  .cms-person small, .cms-status-who small { color: var(--text-3); }
+  .cms-avatar { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; background: var(--accent-soft); color: var(--accent-text); font: 700 12px var(--font-mono); }
+  .cms-avatar.small { width: 34px; height: 34px; border-radius: 10px; font-size: 10px; }
+  .cms-pick-error { min-height: 20px; color: var(--danger); font-size: 13px; }
+  .cms-back { color: var(--text-3); font-size: 13px; }
+
+  .cms-app { display: grid; gap: 18px; }
+  .cms-top { display: flex; justify-content: space-between; align-items: end; gap: 20px; }
+  .cms-top h1 { font-size: var(--fs-xl); margin-top: 3px; }
+  .cms-top-links, .cms-status-actions, .cms-entry-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cms-status { min-height: 66px; padding: 10px 12px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 20px; position: sticky; top: calc(var(--nav-h) + 8px); z-index: 20; background: var(--glass); backdrop-filter: blur(18px); }
+  .cms-status-who { display: flex; align-items: center; gap: 10px; }
+  .cms-status-who > span:nth-child(2) { display: grid; }
+  .cms-status-who b { font-size: 13px; }
+  .cms-switch { border: 0; color: var(--accent-text); background: none; cursor: pointer; font: 600 11px var(--font-mono); }
+  .cms-status-copy { justify-self: center; display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-2); }
+  .cms-status-copy summary { cursor: pointer; }
+  .cms-badge { padding: 5px 8px; border-radius: 999px; color: var(--info); background: var(--info-soft); font: 600 10px var(--font-mono); text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
+  .cms-files { position: absolute; top: calc(100% - 4px); padding: 12px 16px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-md); list-style: none; line-height: 1.8; }
+  .cms-workspace { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 18px; align-items: start; }
+  .cms-sidebar { padding: 9px; display: grid; gap: 3px; position: sticky; top: calc(var(--nav-h) + 92px); }
+  .cms-sidebar button { min-height: 38px; border: 0; border-radius: 9px; padding: 0 10px; display: flex; align-items: center; justify-content: space-between; color: var(--text-2); background: none; font: 550 13px var(--font-body); text-align: left; cursor: pointer; }
+  .cms-sidebar button:hover:not(:disabled) { color: var(--text); background: var(--surface-2); }
+  .cms-sidebar button[aria-current="true"] { color: var(--accent-text); background: var(--accent-soft); }
+  .cms-sidebar button:disabled { opacity: .42; cursor: not-allowed; }
+  .cms-sidebar button small { font: 9px var(--font-mono); text-transform: uppercase; }
+  .cms-side-label { margin: 13px 10px 3px; font-size: 9px; color: var(--text-3); text-transform: uppercase; letter-spacing: .12em; }
+  .cms-side-rule { height: 1px; background: var(--line); margin: 8px; }
+  .cms-main { min-width: 0; display: grid; gap: 16px; }
+  .cms-view-head { display: flex; justify-content: space-between; align-items: end; gap: 18px; padding: 8px 2px; }
+  .cms-view-head h1 { font-size: clamp(1.65rem, 2vw, 2.25rem); margin: 3px 0 6px; }
+  .cms-view-head .muted { max-width: 650px; font-size: 14px; }
+  .cms-loading, .cms-empty { padding: 32px; color: var(--text-3); text-align: center; }
+
+  .cms-course-layout { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 16px; align-items: start; }
+  .cms-editor { padding: clamp(18px, 3vw, 28px); display: grid; gap: 20px; }
+  .cms-preview-card { padding: 22px; display: grid; gap: 12px; position: sticky; top: calc(var(--nav-h) + 92px); }
+  .cms-preview-card h2 { font-size: 18px; }
+  .cms-split-preview { height: 14px; border-radius: 99px; overflow: hidden; display: flex; background: var(--surface-3); }
+  .cms-split-preview span:nth-child(odd) { background: var(--accent); }
+  .cms-split-preview span:nth-child(even) { background: var(--info); }
+  .cms-assessment-row { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--text-2); }
+  .cms-total { padding-top: 10px; border-top: 1px solid var(--line); font: 600 12px var(--font-mono); }
+  .cms-total.ok { color: var(--ok); } .cms-total.bad { color: var(--danger); }
+
+  .cms-form { display: grid; gap: 18px; }
+  .cms-field { display: grid; gap: 7px; min-width: 0; }
+  .cms-field-label { font-size: 12px; font-weight: 650; }
+  .cms-help { color: var(--text-3); font-size: 11.5px; line-height: 1.5; }
+  .cms-error { color: var(--danger); font-size: 12px; }
+  .cms-form textarea.input { height: auto; min-height: 96px; padding: 12px 14px; resize: vertical; line-height: 1.5; }
+  .cms-form select.input { appearance: auto; }
+  .cms-form .input:disabled { opacity: .65; cursor: not-allowed; }
+  .cms-group { min-width: 0; border: 1px solid var(--line); border-radius: 13px; padding: 18px; display: grid; gap: 16px; }
+  .cms-group > legend { padding: 0 8px; margin-left: -8px; color: var(--accent-text); font-size: 13px; font-weight: 700; }
+  .cms-row-list { display: grid; gap: 12px; }
+  .cms-row { border: 1px solid var(--line); background: var(--bg); border-radius: 11px; padding: 14px; display: grid; gap: 14px; }
+  .cms-row-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .cms-row-head > div { display: flex; gap: 5px; }
+  .cms-row-head b { font-size: 12px; text-transform: capitalize; }
+  .cms-mini { min-height: 30px; border: 1px solid var(--line-2); border-radius: 8px; padding: 0 10px; color: var(--text-2); background: transparent; cursor: pointer; font: 600 11px var(--font-body); }
+  .cms-mini:hover { color: var(--text); background: var(--surface-2); }
+  .cms-mini.danger:hover { color: var(--danger); }
+  .cms-mini:disabled { opacity: .3; cursor: default; }
+  .cms-add { justify-self: start; margin-top: 5px; }
+  .cms-chip-list { display: grid; gap: 7px; }
+  .cms-chip-row { display: grid; grid-template-columns: 1fr auto; gap: 7px; }
+  .cms-form-actions { display: flex; justify-content: flex-end; gap: 9px; padding-top: 20px; border-top: 1px solid var(--line); }
+
+  .cms-list-layout { display: grid; grid-template-columns: minmax(230px, 35%) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .cms-list-browser { padding: 12px; position: sticky; top: calc(var(--nav-h) + 92px); max-height: calc(100dvh - var(--nav-h) - 112px); display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; }
+  .cms-list-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .cms-entry-list { min-height: 120px; overflow-y: auto; display: grid; align-content: start; gap: 4px; }
+  .cms-entry { width: 100%; border: 0; border-radius: 9px; padding: 10px; color: var(--text); background: none; text-align: left; cursor: pointer; }
+  .cms-entry:hover { background: var(--surface-2); }
+  .cms-entry.active { background: var(--accent-soft); box-shadow: inset 3px 0 var(--accent-text); }
+  .cms-entry > span { display: grid; gap: 3px; }
+  .cms-entry b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+  .cms-entry small { color: var(--text-3); font-size: 9px; }
+  .cms-entry-head { display: flex; align-items: end; justify-content: space-between; gap: 14px; padding-bottom: 17px; border-bottom: 1px solid var(--line); }
+  .cms-entry-head h2 { font-size: 20px; margin-top: 4px; }
+  .cms-danger { color: var(--danger) !important; }
+
+  .cms-banner { border: 1px solid color-mix(in oklab, var(--warn) 45%, transparent); background: var(--warn-soft); color: var(--warn); border-radius: 11px; padding: 12px 14px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .cms-banner.error { border-color: color-mix(in oklab, var(--danger) 45%, transparent); background: var(--danger-soft); color: var(--danger); }
+  .cms-history { overflow: hidden; }
+  .cms-history-row { padding: 14px 17px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 14px; color: var(--text); }
+  .cms-history-row:last-child { border: 0; }
+  .cms-history-row > span { display: grid; gap: 5px; }
+  .cms-history-row b { font-size: 13px; } .cms-history-row small, .cms-history-row code { color: var(--text-3); font-size: 10px; }
+
+  .cms-dialog { width: min(920px, calc(100% - 24px)); max-height: calc(100dvh - 24px); padding: 0; border: 1px solid var(--line-2); border-radius: var(--r-lg); color: var(--text); background: var(--surface); box-shadow: var(--shadow-lg); }
+  .cms-dialog::backdrop { background: rgb(0 0 0 / .68); backdrop-filter: blur(4px); }
+  .cms-dialog-panel { max-height: calc(100dvh - 26px); padding: clamp(18px, 4vw, 30px); display: grid; grid-template-rows: auto auto minmax(180px, 1fr) auto; gap: 16px; }
+  .cms-dialog-panel > header { display: flex; justify-content: space-between; gap: 15px; }
+  .cms-dialog-panel h2 { margin-top: 4px; }
+  .cms-dialog-x { border: 0; color: var(--text-2); background: none; font-size: 28px; cursor: pointer; }
+  .cms-review-meta { display: grid; gap: 7px; color: var(--text-2); font-size: 12px; }
+  .cms-review-meta code { color: var(--accent-text); overflow-wrap: anywhere; }
+  .cms-diff { overflow: auto; margin: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--code-bg); font: 11px/1.55 var(--font-mono); }
+  .cms-diff span { display: block; min-width: max-content; padding: 0 12px; white-space: pre; }
+  .cms-diff .add { color: var(--ok); background: var(--ok-soft); } .cms-diff .del { color: var(--danger); background: var(--danger-soft); } .cms-diff .same { color: var(--text-3); }
+  .cms-dialog-panel > footer { display: flex; justify-content: flex-end; gap: 9px; }
+  .cms-toast { position: fixed; right: 20px; bottom: 20px; z-index: 100; max-width: min(390px, calc(100% - 40px)); padding: 13px 16px; border: 1px solid color-mix(in oklab, var(--ok) 45%, transparent); border-radius: 11px; color: var(--ok); background: var(--surface); box-shadow: var(--shadow-md); opacity: 0; transform: translateY(12px); transition: .25s var(--ease-out); font-size: 13px; }
+  .cms-toast.show { opacity: 1; transform: none; } .cms-toast.error { color: var(--danger); }
+
+  @media (max-width: 900px) {
+    .cms-status { grid-template-columns: 1fr auto; }
+    .cms-status-copy { grid-row: 2; grid-column: 1 / -1; justify-self: start; padding: 0 5px 4px; }
+    .cms-workspace { grid-template-columns: 1fr; }
+    .cms-sidebar { position: static; display: flex; overflow-x: auto; border-radius: 12px; }
+    .cms-sidebar button { flex: 0 0 auto; white-space: nowrap; }
+    .cms-side-label, .cms-side-rule, .cms-sidebar button:disabled { display: none; }
+    .cms-course-layout { grid-template-columns: 1fr; }
+    .cms-preview-card { position: static; order: -1; }
+  }
+  @media (max-width: 650px) {
+    .cms-shell { padding-top: calc(var(--nav-h) + 25px); }
+    .cms-top { align-items: start; flex-direction: column; }
+    .cms-status { position: static; grid-template-columns: 1fr; gap: 10px; }
+    .cms-status-copy { grid-row: auto; grid-column: auto; }
+    .cms-status-actions { justify-content: stretch; }
+    .cms-status-actions .btn { flex: 1; }
+    .cms-list-layout { grid-template-columns: 1fr; }
+    .cms-list-browser { position: static; max-height: 330px; }
+    .cms-entry-head { align-items: start; flex-direction: column; }
+    .cms-editor { padding: 15px; }
+    .cms-group { padding: 13px; }
+    .cms-form-actions { position: sticky; bottom: 8px; z-index: 5; padding: 10px; margin: 0 -4px -4px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--glass); backdrop-filter: blur(14px); }
+    .cms-form-actions .btn { flex: 1; }
+  }
+</style>
+
+{available && !editor && (
+  <script>
+    const picker = document.querySelector('[data-cms-picker]');
+    if (picker && picker.getAttribute('data-ready') !== 'true') {
+      picker.setAttribute('data-ready', 'true');
+      picker.querySelectorAll<HTMLButtonElement>('[data-editor]').forEach((button) => button.addEventListener('click', async () => {
+        picker.querySelectorAll('button').forEach((node) => ((node as HTMLButtonElement).disabled = true));
+        const response = await fetch('/api/cms/editor', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: button.dataset.editor }) });
+        if (response.ok) location.reload();
+        else {
+          const data = await response.json().catch(() => ({}));
+          const message = picker.querySelector<HTMLElement>('[data-picker-error]');
+          if (message) message.textContent = data.message ?? 'Could not choose that editor.';
+          picker.querySelectorAll('button').forEach((node) => ((node as HTMLButtonElement).disabled = false));
+        }
+      }));
+    }
+  </script>
+)}
+{available && editor && <script src="../../scripts/cms/app.ts"></script>}
