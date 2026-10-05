@@ -13,30 +13,44 @@ export default function App() {
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.line}>state: {stateCount}</Text>
-      <Text style={styles.line}>ref: {refCount.current}</Text>
+      <View style={styles.row}>
+        <View style={[styles.tile, styles.stateTile]}>
+          <Text style={styles.tag}>useState</Text>
+          <Text style={styles.value}>{stateCount}</Text>
+        </View>
+        <View style={[styles.tile, styles.refTile]}>
+          <Text style={styles.tag}>useRef</Text>
+          <Text style={styles.value}>{refCount.current}</Text>
+        </View>
+      </View>
 
-      <Pressable style={styles.btn} onPress={() => setStateCount(stateCount + 1)}>
-        <Text style={styles.btnText}>state + 1 (redraws)</Text>
+      <Pressable style={[styles.btn, styles.stateBtn]} onPress={() => setStateCount(stateCount + 1)}>
+        <Text style={styles.btnText}>state + 1 · redraws</Text>
       </Pressable>
       <Pressable
-        style={[styles.btn, styles.alt]}
+        style={[styles.btn, styles.refBtn]}
         onPress={() => {
           refCount.current += 1;
-          console.log('ref is now', refCount.current, '(but the screen did not redraw)');
+          console.log('ref is now', refCount.current, '(the screen did not redraw)');
         }}>
-        <Text style={styles.btnText}>ref + 1 (silent)</Text>
+        <Text style={styles.btnText}>ref + 1 · silent</Text>
       </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, justifyContent: 'center', padding: 24, gap: 12 },
-  line: { fontSize: 22, fontWeight: '700' },
-  btn: { backgroundColor: '#111', padding: 14, borderRadius: 10, alignItems: 'center' },
-  alt: { backgroundColor: '#7c3aed' },
-  btnText: { color: '#fff', fontWeight: '600' },
+  screen: { flex: 1, justifyContent: 'center', gap: 12, padding: 20, backgroundColor: '#F8FAFC' },
+  row: { flexDirection: 'row', gap: 12, marginBottom: 8 },
+  tile: { flex: 1, alignItems: 'center', paddingVertical: 22, borderRadius: 22 },
+  stateTile: { backgroundColor: '#DBEAFE' },
+  refTile: { backgroundColor: '#EDE9FE' },
+  tag: { fontSize: 12, fontWeight: '800', color: '#475569', letterSpacing: 0.5 },
+  value: { fontSize: 46, fontWeight: '800', color: '#0F172A' },
+  btn: { alignItems: 'center', paddingVertical: 15, borderRadius: 16 },
+  stateBtn: { backgroundColor: '#2563EB' },
+  refBtn: { backgroundColor: '#7C3AED' },
+  btnText: { color: '#FFFFFF', fontWeight: '800' },
 });
 `,
   },

@@ -14,13 +14,14 @@ export default function App() {
 
   // Step 7: the logic of the Add button
   function addTodo() {
-    // TODO 1: ignore empty text (spaces only too): if (!text.trim()) return;
+    // TODO 1: ignore empty text (spaces only too)
     // TODO 2: add a new todo to the END of the list (do not change the old array!)
     // TODO 3: clear the input and put the cursor back in it
   }
 
   return (
     <View style={styles.screen}>
+      <Text style={styles.eyebrow}>TODAY</Text>
       <Text style={styles.title}>To-Do</Text>
       <View style={styles.row}>
         <TextInput ref={inputRef} style={styles.input} placeholder="New task" value={text} onChangeText={setText} />
@@ -33,25 +34,38 @@ export default function App() {
       <FlatList
         data={todos}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <Text style={styles.item}>{item.text}</Text>}
+        contentContainerStyle={styles.list}
+        renderItem={({ item }) => (
+          <View style={styles.item}>
+            <View style={styles.dot} />
+            <Text style={styles.text}>{item.text}</Text>
+          </View>
+        )}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, padding: 20, gap: 12 },
-  title: { fontSize: 28, fontWeight: '800' },
-  row: { flexDirection: 'row', gap: 8 },
-  input: { flex: 1, borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 10, paddingHorizontal: 12, fontSize: 16 },
-  add: { backgroundColor: '#2563eb', paddingHorizontal: 16, justifyContent: 'center', borderRadius: 10 },
-  addText: { color: '#fff', fontWeight: '700' },
-  item: { padding: 14, borderRadius: 10, backgroundColor: '#f1f5f9', marginBottom: 8, fontSize: 16 },
+  screen: { flex: 1, padding: 18, paddingTop: 26, backgroundColor: '#F5F7FF' },
+  eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.5, color: '#6366F1' },
+  title: { fontSize: 30, fontWeight: '800', color: '#1E1B4B', marginBottom: 14 },
+  row: {
+    flexDirection: 'row', gap: 8, padding: 6, borderRadius: 16,
+    backgroundColor: '#FFFFFF', boxShadow: '0 6px 18px rgba(49, 46, 129, 0.1)',
+  },
+  input: { flex: 1, paddingHorizontal: 10, fontSize: 16 },
+  add: { paddingHorizontal: 18, paddingVertical: 11, borderRadius: 12, backgroundColor: '#4F46E5' },
+  addText: { color: '#FFFFFF', fontWeight: '800' },
+  list: { gap: 8, paddingTop: 16 },
+  item: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, borderRadius: 14, backgroundColor: '#FFFFFF' },
+  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#A5B4FC' },
+  text: { fontSize: 16, color: '#1E1B4B' },
 });
 `;
 
 const solution = start.replace(
-  `    // TODO 1: ignore empty text (spaces only too): if (!text.trim()) return;
+  `    // TODO 1: ignore empty text (spaces only too)
     // TODO 2: add a new todo to the END of the list (do not change the old array!)
     // TODO 3: clear the input and put the cursor back in it`,
   `    if (!text.trim()) return;
@@ -63,7 +77,7 @@ const solution = start.replace(
 export default {
   title: 'To-Do, part 1: add a task',
   goal: 'Finish `addTodo`: ignore empty text, **add** the new task to the list, then **clear** the input.',
-  hint: 'Never push into state. Make a new array: `setTodos([...todos, { id: Date.now().toString(), text, done: false }])`. Then `setText(\'\')`.',
+  hint: 'Ignore empty text: `if (!text.trim()) return;`. Never push into state; make a new array: `setTodos([...todos, { id: Date.now().toString(), text, done: false }])`. Then `setText(\'\')`.',
   files: { 'App.tsx': start },
   solution: { 'App.tsx': solution },
   checks: [

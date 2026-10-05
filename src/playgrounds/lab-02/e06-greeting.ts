@@ -1,5 +1,16 @@
 import type { Playground } from '@/lib/playgrounds';
 
+const styles = `const styles = StyleSheet.create({
+  screen: { flex: 1, justifyContent: 'center', padding: 22, backgroundColor: '#F0FDFA' },
+  card: { gap: 14, padding: 22, borderRadius: 26, backgroundColor: '#FFFFFF', boxShadow: '0 14px 36px rgba(13, 148, 136, 0.14)' },
+  wave: { fontSize: 40 },
+  label: { fontSize: 12, fontWeight: '800', letterSpacing: 1.5, color: '#14B8A6' },
+  input: { borderWidth: 1.5, borderColor: '#99F6E4', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, fontSize: 16, backgroundColor: '#F8FFFE' },
+  hello: { fontSize: 28, fontWeight: '800', color: '#134E4A' },
+  count: { alignSelf: 'flex-start', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999, overflow: 'hidden', backgroundColor: '#CCFBF1', color: '#0F766E', fontWeight: '700', fontSize: 12 },
+});
+`;
+
 const start = `import { useState } from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
 
@@ -8,25 +19,23 @@ export default function App() {
 
   return (
     <View style={styles.screen}>
-      {/* TODO 2: connect the input: value={name} onChangeText={setName} */}
-      <TextInput style={styles.input} placeholder="Your name" />
+      <View style={styles.card}>
+        <Text style={styles.wave}>👋</Text>
+        <Text style={styles.label}>WHAT'S YOUR NAME?</Text>
+        {/* TODO 2: connect the input: value={name} onChangeText={setName} */}
+        <TextInput style={styles.input} placeholder="Your name" />
 
-      {/* TODO 3: "Hello, <name>" (or "Hello, stranger" while it is empty) */}
-      <Text style={styles.hello}>Hello, stranger</Text>
+        {/* TODO 3: "Hello, <name>" (or "Hello, stranger" while it is empty) */}
+        <Text style={styles.hello}>Hello, stranger</Text>
 
-      {/* TODO 4: "<number> characters" using name.length */}
-      <Text style={styles.count}>0 characters</Text>
+        {/* TODO 4: "<number> characters" using name.length */}
+        <Text style={styles.count}>0 characters</Text>
+      </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, justifyContent: 'center', padding: 24, gap: 14 },
-  input: { borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 10, padding: 12, fontSize: 16 },
-  hello: { fontSize: 26, fontWeight: '700' },
-  count: { color: '#64748b' },
-});
-`;
+${styles}`;
 
 const solution = `import { useState } from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
@@ -36,20 +45,18 @@ export default function App() {
 
   return (
     <View style={styles.screen}>
-      <TextInput style={styles.input} placeholder="Your name" value={name} onChangeText={setName} />
-      <Text style={styles.hello}>Hello, {name || 'stranger'}</Text>
-      <Text style={styles.count}>{name.length} characters</Text>
+      <View style={styles.card}>
+        <Text style={styles.wave}>👋</Text>
+        <Text style={styles.label}>WHAT'S YOUR NAME?</Text>
+        <TextInput style={styles.input} placeholder="Your name" value={name} onChangeText={setName} />
+        <Text style={styles.hello}>Hello, {name || 'stranger'}</Text>
+        <Text style={styles.count}>{name.length} characters</Text>
+      </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, justifyContent: 'center', padding: 24, gap: 14 },
-  input: { borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 10, padding: 12, fontSize: 16 },
-  hello: { fontSize: 26, fontWeight: '700' },
-  count: { color: '#64748b' },
-});
-`;
+${styles}`;
 
 export default {
   title: 'Live greeting',

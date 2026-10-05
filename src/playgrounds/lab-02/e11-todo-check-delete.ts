@@ -12,6 +12,7 @@ export default function App() {
   ]);
   const [text, setText] = useState('');
   const inputRef = useRef<TextInput>(null);
+  const doneCount = todos.filter((t) => t.done).length;
 
   function addTodo() {
     if (!text.trim()) return;
@@ -30,7 +31,12 @@ export default function App() {
 
   return (
     <View style={styles.screen}>
+      <Text style={styles.eyebrow}>TODAY</Text>
       <Text style={styles.title}>To-Do</Text>
+      <View style={styles.progress}>
+        <View style={[styles.bar, { width: todos.length ? \`\${(doneCount / todos.length) * 100}%\` : 0 }]} />
+      </View>
+      <Text style={styles.count}>{doneCount} of {todos.length} done</Text>
       <View style={styles.row}>
         <TextInput ref={inputRef} style={styles.input} placeholder="New task" value={text} onChangeText={setText} />
         <Pressable style={styles.add} onPress={addTodo}>
@@ -40,36 +46,50 @@ export default function App() {
       <FlatList
         data={todos}
         keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
         renderItem={({ item }) => (
           <View style={styles.item}>
             <Pressable style={styles.grow} onPress={() => toggle(item.id)}>
+              <View style={[styles.circle, item.done && styles.circleOn]}>
+                {item.done && <Text style={styles.tick}>✓</Text>}
+              </View>
               {/* TODO 3: when item.done, also apply styles.done (line-through) */}
               <Text style={styles.text}>{item.text}</Text>
             </Pressable>
-            <Pressable testID={'delete-' + item.id} onPress={() => remove(item.id)}>
+            <Pressable testID={'delete-' + item.id} style={styles.trashBtn} onPress={() => remove(item.id)}>
               <Text style={styles.trash}>🗑</Text>
             </Pressable>
           </View>
         )}
       />
-      <Text style={styles.count}>{todos.filter((t) => t.done).length} of {todos.length} done</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, padding: 20, gap: 12 },
-  title: { fontSize: 28, fontWeight: '800' },
-  row: { flexDirection: 'row', gap: 8 },
-  input: { flex: 1, borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 10, paddingHorizontal: 12, fontSize: 16 },
-  add: { backgroundColor: '#2563eb', paddingHorizontal: 16, justifyContent: 'center', borderRadius: 10 },
-  addText: { color: '#fff', fontWeight: '700' },
-  item: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 10, backgroundColor: '#f1f5f9', marginBottom: 8 },
-  grow: { flex: 1 },
-  text: { fontSize: 16 },
-  done: { textDecorationLine: 'line-through', color: '#94a3b8' },
-  trash: { fontSize: 18 },
-  count: { color: '#64748b' },
+  screen: { flex: 1, padding: 18, paddingTop: 26, backgroundColor: '#F5F7FF' },
+  eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.5, color: '#6366F1' },
+  title: { fontSize: 30, fontWeight: '800', color: '#1E1B4B' },
+  progress: { height: 6, borderRadius: 3, backgroundColor: '#E0E7FF', marginTop: 12, overflow: 'hidden' },
+  bar: { height: 6, borderRadius: 3, backgroundColor: '#4F46E5' },
+  count: { color: '#6366F1', fontWeight: '700', fontSize: 12, marginTop: 6, marginBottom: 12 },
+  row: {
+    flexDirection: 'row', gap: 8, padding: 6, borderRadius: 16,
+    backgroundColor: '#FFFFFF', boxShadow: '0 6px 18px rgba(49, 46, 129, 0.1)',
+  },
+  input: { flex: 1, paddingHorizontal: 10, fontSize: 16 },
+  add: { paddingHorizontal: 18, paddingVertical: 11, borderRadius: 12, backgroundColor: '#4F46E5' },
+  addText: { color: '#FFFFFF', fontWeight: '800' },
+  list: { gap: 8, paddingTop: 16 },
+  item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingLeft: 14, paddingRight: 6, borderRadius: 14, backgroundColor: '#FFFFFF' },
+  grow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  circle: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#C7D2FE', alignItems: 'center', justifyContent: 'center' },
+  circleOn: { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
+  tick: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
+  text: { fontSize: 16, color: '#1E1B4B' },
+  done: { textDecorationLine: 'line-through', color: '#A5B4FC' },
+  trashBtn: { padding: 8 },
+  trash: { fontSize: 17 },
 });
 `;
 

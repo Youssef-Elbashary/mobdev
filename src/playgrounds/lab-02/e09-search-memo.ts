@@ -4,6 +4,7 @@ const start = `import { useMemo, useState } from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
 
 const fruits = ['Apple', 'Banana', 'Cherry', 'Grape', 'Orange', 'Pear'];
+const emoji: Record<string, string> = { Apple: '🍎', Banana: '🍌', Cherry: '🍒', Grape: '🍇', Orange: '🍊', Pear: '🍐' };
 
 export default function App() {
   const [query, setQuery] = useState('');
@@ -14,20 +15,38 @@ export default function App() {
 
   return (
     <View style={styles.screen}>
-      <TextInput style={styles.input} placeholder="Search" value={query} onChangeText={setQuery} />
-      {visible.map((fruit) => (
-        <Text key={fruit} style={styles.row}>{fruit}</Text>
-      ))}
+      <Text style={styles.title}>Fruit market</Text>
+      <View style={styles.search}>
+        <Text style={styles.icon}>🔍</Text>
+        <TextInput style={styles.input} placeholder="Search" value={query} onChangeText={setQuery} />
+      </View>
       <Text style={styles.count}>{visible.length} of {fruits.length}</Text>
+      <View style={styles.grid}>
+        {visible.map((fruit) => (
+          <View key={fruit} style={styles.tile}>
+            <Text style={styles.emoji}>{emoji[fruit]}</Text>
+            <Text style={styles.name}>{fruit}</Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, padding: 20, gap: 8 },
-  input: { borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 10, padding: 12, fontSize: 16, marginBottom: 6 },
-  row: { padding: 12, borderRadius: 10, backgroundColor: '#f1f5f9', fontSize: 16 },
-  count: { color: '#64748b', marginTop: 6 },
+  screen: { flex: 1, padding: 18, paddingTop: 26, backgroundColor: '#F7FEE7' },
+  title: { fontSize: 28, fontWeight: '800', color: '#1A2E05', marginBottom: 14 },
+  search: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, borderRadius: 999,
+    backgroundColor: '#FFFFFF', boxShadow: '0 4px 14px rgba(54, 83, 20, 0.1)',
+  },
+  icon: { fontSize: 14 },
+  input: { flex: 1, paddingVertical: 12, fontSize: 16 },
+  count: { color: '#4D7C0F', fontWeight: '700', fontSize: 12, marginTop: 14, marginBottom: 8 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  tile: { width: '47%', alignItems: 'center', gap: 4, paddingVertical: 14, borderRadius: 18, backgroundColor: '#FFFFFF' },
+  emoji: { fontSize: 30 },
+  name: { fontWeight: '700', color: '#365314' },
 });
 `;
 

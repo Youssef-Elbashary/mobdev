@@ -7,6 +7,23 @@ import type { Editor } from './editor';
 
 type Def = { id: string; files: Files; checks: Check[] };
 const RUNNER = '/runner/index.html';
+/** Apps are laid out at a real phone width, then scaled down to fit the phone frame. */
+const PHONE_WIDTH = 300;
+
+function fitToScreen(screen: HTMLElement, frame: HTMLIFrameElement) {
+  const fit = () => {
+    const s = screen.clientWidth / PHONE_WIDTH;
+    if (!s) return;
+    Object.assign(frame.style, {
+      width: `${PHONE_WIDTH}px`,
+      height: `${screen.clientHeight / s}px`,
+      transform: `scale(${s})`,
+      transformOrigin: '0 0',
+    });
+  };
+  fit();
+  if ('ResizeObserver' in window) new ResizeObserver(fit).observe(screen);
+}
 
 /* one listener for every runner iframe on the page, routed by the iframe's window */
 const handlers = new Map<Window, (m: FromRunner) => void>();
@@ -49,6 +66,7 @@ function createFrame(screen: HTMLElement, onMessage: (m: FromRunner) => void) {
     frame.setAttribute('sandbox', 'allow-scripts');
     ready = new Promise<void>((resolve) => {
       screen.replaceChildren(frame!);
+      fitToScreen(screen, frame!);
       handlers.set(frame!.contentWindow!, (m) => {
         if (m.type === 'ready') resolve();
         onMessage(m);

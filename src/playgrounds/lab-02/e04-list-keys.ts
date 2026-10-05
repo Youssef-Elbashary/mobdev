@@ -12,6 +12,7 @@ const courses = [
 export default function App() {
   return (
     <View style={styles.screen}>
+      <Text style={styles.eyebrow}>SEMESTER ONE</Text>
       <Text style={styles.title}>My courses</Text>
       {/* TODO: show ALL courses with courses.map(...), each with a key */}
       <Text style={styles.row}>{courses[0].name}</Text>
@@ -20,9 +21,14 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, padding: 20, gap: 8 },
-  title: { fontSize: 24, fontWeight: '700', marginBottom: 8 },
-  row: { padding: 14, borderRadius: 12, backgroundColor: '#f1f5f9', fontSize: 16 },
+  screen: { flex: 1, padding: 20, paddingTop: 28, gap: 10, backgroundColor: '#EFF6FF' },
+  eyebrow: { fontSize: 12, fontWeight: '700', letterSpacing: 1.2, color: '#60A5FA' },
+  title: { fontSize: 28, fontWeight: '800', color: '#172554', marginBottom: 6 },
+  row: {
+    paddingVertical: 16, paddingHorizontal: 18, borderRadius: 16, overflow: 'hidden',
+    backgroundColor: '#FFFFFF', color: '#1E3A8A', fontSize: 16, fontWeight: '600',
+    borderLeftWidth: 4, borderLeftColor: '#3B82F6', boxShadow: '0 4px 14px rgba(30, 58, 138, 0.08)',
+  },
 });
 `;
 

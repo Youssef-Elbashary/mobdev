@@ -16,9 +16,13 @@ export default function App() {
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.time}>{seconds}</Text>
+      <Text style={styles.title}>Stopwatch</Text>
+      <View style={[styles.ring, running && styles.ringOn]}>
+        <Text style={styles.time}>{seconds}</Text>
+        <Text style={styles.unit}>seconds</Text>
+      </View>
       <View style={styles.row}>
-        <Pressable style={styles.btn} onPress={() => setRunning(true)}>
+        <Pressable style={[styles.btn, styles.start]} onPress={() => setRunning(true)}>
           <Text style={styles.btnText}>Start</Text>
         </Pressable>
         <Pressable style={[styles.btn, styles.stop]} onPress={() => setRunning(false)}>
@@ -30,12 +34,20 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 24 },
-  time: { fontSize: 72, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  screen: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 28, backgroundColor: '#0B1120' },
+  title: { color: '#94A3B8', fontSize: 14, fontWeight: '700', letterSpacing: 2, textTransform: 'uppercase' },
+  ring: {
+    width: 190, height: 190, borderRadius: 95, borderWidth: 8, borderColor: '#1E293B',
+    alignItems: 'center', justifyContent: 'center', backgroundColor: '#0F172A',
+  },
+  ringOn: { borderColor: '#22D3EE', boxShadow: '0 0 40px rgba(34, 211, 238, 0.35)' },
+  time: { fontSize: 64, fontWeight: '800', color: '#F8FAFC', fontVariant: ['tabular-nums'] },
+  unit: { color: '#64748B', fontSize: 13, marginTop: -4 },
   row: { flexDirection: 'row', gap: 12 },
-  btn: { paddingVertical: 12, paddingHorizontal: 22, borderRadius: 12, backgroundColor: '#16a34a' },
-  stop: { backgroundColor: '#dc2626' },
-  btnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  btn: { minWidth: 104, alignItems: 'center', paddingVertical: 13, borderRadius: 999 },
+  start: { backgroundColor: '#10B981' },
+  stop: { backgroundColor: '#F43F5E' },
+  btnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 16 },
 });
 `;
 
