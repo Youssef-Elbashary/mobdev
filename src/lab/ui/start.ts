@@ -1,6 +1,5 @@
 /** The "Start Lab" card: every student types name + student ID once; it's sent with their progress. */
-import { clearStudent, getStudent, ID_RE, NAME_RE, setStudent } from './store.ts';
-import { track } from './tracker.ts';
+import { clearStudent, deviceId, getStudent, ID_RE, NAME_RE, setStudent } from './store.ts';
 import { clearProgressIdentity, getIdentity, setProgressIdentity } from '@/scripts/progress';
 
 export function mountStart(lab: string) {
@@ -13,6 +12,7 @@ export function mountStart(lab: string) {
   const err = root.querySelector<HTMLElement>('[data-ls-error]')!;
   const nameIn = form.querySelector<HTMLInputElement>('[name="name"]')!;
   const idIn = form.querySelector<HTMLInputElement>('[name="studentId"]')!;
+  const submit = form.querySelector<HTMLButtonElement>('[type="submit"]')!;
 
   const show = () => {
     const progress = getIdentity();
@@ -28,7 +28,7 @@ export function mountStart(lab: string) {
     }
   };
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = nameIn.value.replace(/\s+/g, ' ').trim();
     const id = idIn.value.trim();
@@ -42,11 +42,28 @@ export function mountStart(lab: string) {
       idIn.focus();
       return;
     }
-    err.textContent = '';
-    setStudent({ name, id });
-    setProgressIdentity(name, id);
-    track({ lab, event: 'start' });
-    show();
+    err.textContent = 'Verifying this student and device…';
+    submit.disabled = true;
+    try {
+      const response = await fetch('/api/lab/progress', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ lab, name, studentId: id, deviceId: deviceId(), event: 'start' }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        err.textContent = data.message ?? data.error ?? 'Could not verify your identity. Ask your TA.';
+        return;
+      }
+      err.textContent = '';
+      setStudent({ name, id });
+      setProgressIdentity(name, id);
+      show();
+    } catch {
+      err.textContent = 'The server could not verify your identity. Check the connection and try again.';
+    } finally {
+      submit.disabled = false;
+    }
   });
 
   signed.querySelector('[data-ls-change]')?.addEventListener('click', () => {

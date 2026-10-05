@@ -56,7 +56,16 @@ export function validateLabEvent(body: unknown): { ok: true; event: LabEvent } |
 
 /* ------------------------------------------------------------ storage rows */
 
-export type StudentRow = { student_key: string; student_id: string; name: string; started_at: string; last_seen: string; completed_at: string | null };
+export type StudentRow = {
+  student_key: string;
+  student_id: string;
+  name: string;
+  started_at: string;
+  last_seen: string;
+  completed_at: string | null;
+  /** End-of-lab attendance card; absent in legacy/dedicated backends. */
+  checked_in_at?: string | null;
+};
 export type AttemptRow = { student_key: string; exercise: string; attempts: number; hints: number; best_score: number; solved_at: string | null };
 
 export interface LabBackend {
@@ -137,11 +146,13 @@ export type ExerciseStats = {
 export type StudentStats = {
   name: string;
   studentId: string;
+  startedAt: string;
   solved: number;
   pct: number;
   completed: boolean;
   minutes: number;
   lastSeen: string;
+  checkedInAt: string | null;
   active: boolean;
   /** per exercise id: solved | trying | new */
   states: Record<string, 'solved' | 'trying' | 'new'>;
@@ -204,11 +215,13 @@ export function aggregate(lab: string, students: StudentRow[], attempts: Attempt
       return {
         name: s.name,
         studentId: s.student_id,
+        startedAt: s.started_at,
         solved,
         pct: exercises.length ? round(solved / exercises.length) : 0,
         completed: !!s.completed_at,
         minutes: Math.max(0, Math.round((end - start) / 60000)),
         lastSeen: s.last_seen,
+        checkedInAt: s.checked_in_at ?? null,
         active: now - Date.parse(s.last_seen) < ACTIVE_MS,
         states,
       };

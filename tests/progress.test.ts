@@ -153,15 +153,17 @@ import { MemoryStore } from '../src/lib/progress/store.ts';
 
 const ident = (key: string, device = DEVICE, name = 'Mariam Ahmed') => ({ name, studentId: key.toUpperCase(), studentKey: key, deviceKey: device });
 
-test('store: a student ID is locked to the first device until unlocked', async () => {
+test('store: student IDs and devices are one-to-one until the admin unlocks them', async () => {
   const s = new MemoryStore();
   assert.equal(await s.touchStudent(ident('236541')), 'ok');
-  assert.equal(await s.touchStudent(ident('236541', DEVICE, 'Mariam A. Ahmed')), 'ok');
-  assert.equal((await s.studentData('lab-02', '236541')).student?.name, 'Mariam A. Ahmed'); // name refreshed
+  assert.equal(await s.touchStudent(ident('236541', DEVICE, 'Mariam A. Ahmed')), 'conflict', 'name cannot be changed after identity is locked');
+  assert.equal((await s.studentData('lab-02', '236541')).student?.name, 'Mariam Ahmed');
+  assert.equal(await s.touchStudent(ident('999999')), 'conflict', 'one browser cannot claim a second student ID');
   assert.equal(await s.touchStudent(ident('236541', 'dev-bbbbbbbbbbbbbbbbbbbb')), 'conflict');
   await s.unlock('236541');
   assert.equal(await s.touchStudent(ident('236541', 'dev-bbbbbbbbbbbbbbbbbbbb')), 'ok');
   assert.equal(await s.touchStudent(ident('236541')), 'conflict');
+  assert.equal(await s.touchStudent(ident('999999')), 'ok', 'the released original device may be assigned again');
 });
 
 test('store: attempts roll up into best score, attempts and solve time', async () => {
@@ -212,7 +214,7 @@ test('store: hit() counts per key inside a time window', async () => {
 
 /* ---------------- per-lab attendance + reading ---------------- */
 
-import { validateCheckin, validateViews, sessionState } from '../src/lib/progress/core.ts';
+import { attendanceEligibility, validateCheckin, validateViews, sessionState } from '../src/lib/progress/core.ts';
 
 test('check-in and views validation', () => {
   assert.equal(validateCheckin({ ...me, lab: 'lab-02' }, [LAB]).ok, true);
@@ -234,6 +236,17 @@ test('sessionState: none, open with and without a limit, expired', () => {
   assert.deepEqual(sessionState({ opens_at: '2026-10-05T11:50:00Z', closes_at: null }, now), { open: true, closesAt: null });
   assert.deepEqual(sessionState({ opens_at: '2026-10-05T11:50:00Z', closes_at: '2026-10-05T12:20:00.000Z' }, now), { open: true, closesAt: '2026-10-05T12:20:00.000Z' });
   assert.equal(sessionState({ opens_at: '2026-10-05T11:00:00Z', closes_at: '2026-10-05T11:30:00Z' }, now).open, false);
+});
+
+test('attendance eligibility requires the original identity, device and meaningful participation', () => {
+  const student = { name: 'Mariam Ahmed', device_key: DEVICE };
+  const check = (change: object = {}) => attendanceEligibility({ student, name: 'Mariam Ahmed', deviceKey: DEVICE, activeSec: 300, seen: 3, ...change });
+  assert.deepEqual(check(), { ok: true });
+  assert.deepEqual(check({ student: null }), { ok: false, reason: 'identity' });
+  assert.deepEqual(check({ deviceKey: 'dev-bbbbbbbbbbbbbbbbbbbb' }), { ok: false, reason: 'identity' });
+  assert.deepEqual(check({ name: 'Another Student' }), { ok: false, reason: 'identity' });
+  assert.deepEqual(check({ activeSec: 299 }), { ok: false, reason: 'participation' });
+  assert.deepEqual(check({ seen: 2 }), { ok: false, reason: 'participation' });
 });
 
 test('store: sessions, idempotent check-in, views merge, and they show in labData', async () => {

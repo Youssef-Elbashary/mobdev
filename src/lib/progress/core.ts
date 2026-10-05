@@ -91,6 +91,23 @@ export function validateSubmission(input: unknown, labs: LabStructure[]): Valid<
 export type CheckinIn = Identity & { lab: string };
 export type ViewsIn = Identity & { lab: string; seen: string[]; activeSec: number };
 
+export const ATTENDANCE_MIN_ACTIVE_SEC = 5 * 60;
+export const ATTENDANCE_MIN_SEEN = 3;
+
+/** Evidence required before the end-of-lab attendance write is allowed. */
+export function attendanceEligibility(input: {
+  student: { name: string; device_key: string | null } | null;
+  name: string;
+  deviceKey: string;
+  activeSec: number;
+  seen: number;
+}): { ok: true } | { ok: false; reason: 'identity' | 'participation' } {
+  const sameName = input.student?.name.trim().toLocaleLowerCase() === input.name.trim().toLocaleLowerCase();
+  if (!input.student || input.student.device_key !== input.deviceKey || !sameName) return { ok: false, reason: 'identity' };
+  if (input.activeSec < ATTENDANCE_MIN_ACTIVE_SEC || input.seen < ATTENDANCE_MIN_SEEN) return { ok: false, reason: 'participation' };
+  return { ok: true };
+}
+
 /** "I was here": end-of-lab check-in. */
 export function validateCheckin(input: unknown, labs: LabStructure[]): Valid<CheckinIn> {
   return withLab(input, labs, () => ({}));

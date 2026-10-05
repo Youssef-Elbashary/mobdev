@@ -469,8 +469,13 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
           h('div', { class: 'prog', style: 'display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center' }, bar(s.percent), h('b', { class: 'mono' }, `${s.percent}%`)),
           h('div', { class: 'd-row' },
             s.locked
-              ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: () => action({ action: 'unlock' }) }, 'Unlock device')
-              : h('span', { class: 'dim' }, 'Device unlocked: the next browser to save becomes theirs'))),
+              ? h('button', {
+                  type: 'button',
+                  class: 'btn btn-ghost btn-sm',
+                  title: 'Use only when this student changed device or was linked incorrectly.',
+                  onclick: () => confirm('Allow a new device for this student? Their progress and attendance stay unchanged, but the current browser binding is removed.') && action({ action: 'unlock' }),
+                }, 'Allow new device')
+              : h('span', { class: 'dim' }, 'New device allowed: the next verified browser becomes theirs'))),
 
         d.structure.hasSubmission
           ? h('section', { class: 'd-sec' },

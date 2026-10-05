@@ -5,8 +5,7 @@
  * (2) the login form, or (3) the live table.
  */
 import Base from '@/layouts/Base.astro';
-import { getStore, isAdmin, setupStatus } from '@/lib/attendance/server';
-import type { Entry } from '@/lib/attendance/core';
+import { isAdmin, setupStatus } from '@/lib/attendance/server';
 
 export const prerender = false;
 Astro.response.headers.set('cache-control', 'no-store, max-age=0');
@@ -16,22 +15,6 @@ const ready = status.database && status.password;
 const admin = ready && isAdmin(Astro.cookies);
 const error = Astro.url.searchParams.get('e');
 
-let entries: Entry[] = [];
-let loadFailed = false;
-if (admin) {
-  try {
-    entries = (await getStore()?.list(0)) ?? [];
-  } catch (err) {
-    console.error('[attendance] could not load list', err);
-    loadFailed = true;
-  }
-}
-const last = entries.length ? entries[entries.length - 1].n : 0;
-const newestFirst = [...entries].reverse();
-const time = (iso: string) => {
-  const d = new Date(iso);
-  return isNaN(+d) ? '' : d.toISOString();
-};
 ---
 <Base title="Attendance admin" noindex>
   <section class="adm container">
@@ -105,30 +88,26 @@ const time = (iso: string) => {
         </div>
       </div>
       <div data-panel="att">
-      <div class="board" data-board data-last={last}>
+      <div class="board" data-lab-attendance>
         <header class="board-head">
           <div>
-            <p class="adm-k mono">Attendance</p>
-            <h1 class="board-count"><b data-count-now>{entries.length}</b> <span>checked in</span></h1>
+            <p class="adm-k mono">Lab 02 · attendance</p>
+            <h1 class="board-count"><b data-att-count>–</b> <span data-att-summary>students identified</span></h1>
           </div>
           <div class="board-actions">
-            <span class="live mono" data-live>connecting…</span>
+            <span class="live mono" data-att-live>loading…</span>
             <a class="btn btn-ghost btn-sm" href="/admin/progress">Lab progress →</a>
             <a class="btn btn-ghost btn-sm" href="/admin/cms">CMS →</a>
             <form method="post" action="/api/admin/logout"><button class="btn btn-ghost btn-sm" type="submit">Log out</button></form>
           </div>
         </header>
-        {loadFailed && <p class="form-e" role="alert">Couldn't load the list. Refresh the page.</p>}
+        <p class="muted small">Students appear here after entering their name and ID at the start of Lab 02. The final column confirms the separate end-of-lab attendance check-in. The legacy <a href="/attendance">/attendance</a> list is not used here.</p>
         <div class="table-wrap board-table">
           <table class="table">
-            <thead><tr><th scope="col">#</th><th scope="col">Name</th><th scope="col">Student ID</th><th scope="col">Time</th></tr></thead>
-            <tbody data-rows>
-              {newestFirst.map((e, i) => (
-                <tr data-n={e.n}><td class="mono faint">{entries.length - i}</td><td>{e.name}</td><td class="mono">{e.id}</td><td class="mono faint" data-time={time(e.at)}></td></tr>
-              ))}
-            </tbody>
+            <thead><tr><th scope="col">Name</th><th scope="col">Student ID</th><th scope="col">Started</th><th scope="col">Last seen</th><th scope="col">Presence</th><th scope="col">End check-in</th></tr></thead>
+            <tbody data-att-rows></tbody>
           </table>
-          <p class="empty-row" data-empty hidden={entries.length > 0}>Waiting for the first check-in…</p>
+          <p class="empty-row" data-att-empty>Waiting for the first student to start Lab 02…</p>
         </div>
       </div>
       </div>
@@ -167,11 +146,14 @@ const time = (iso: string) => {
   .board-table .table { min-width: 0; }
   /* :global — rows added live by the script don't carry this page's scoped attribute */
   .board-table :global(td), .board-table :global(th) { white-space: nowrap; }
-  .board-table :global(td:nth-child(2)) { white-space: normal; font-weight: 550; }
+  .board-table :global(td:first-child) { white-space: normal; font-weight: 550; }
+  .board-table :global(.att-state) { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 650; color: var(--text-3); }
+  .board-table :global(.att-state.active) { color: var(--ok); }
+  .board-table :global(.att-state.checked) { color: var(--accent-text); }
   :global(tr.fresh) { animation: row-in 2.2s var(--ease-out); }
   @keyframes row-in { 0% { background: var(--accent-soft); transform: translateY(-6px); opacity: 0; } 15% { opacity: 1; transform: none; } 100% { background: transparent; } }
   .empty-row { padding: 28px 16px; text-align: center; color: var(--text-3); font-size: 14px; }
-  @media (max-width: 560px) { .board-table :global(th:first-child), .board-table :global(td:first-child) { display: none; } }
+  @media (max-width: 700px) { .board-table :global(th:nth-child(3)), .board-table :global(td:nth-child(3)) { display: none; } }
 
   /* tabs */
   .adm-tabs { display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 28px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); }
@@ -209,108 +191,9 @@ const time = (iso: string) => {
 </style>
 
 <script>
-  type Entry = { n: number; name: string; id: string; at: string };
-  let es: EventSource | null = null;
-  let poll: number | undefined;
-
-  function fmt(iso: string) {
-    const d = new Date(iso);
-    if (isNaN(+d)) return '';
-    const today = new Date().toDateString() === d.toDateString();
-    return today
-      ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-      : d.toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  }
-
-  function init() {
-    const board = document.querySelector<HTMLElement>('[data-board]');
-    if (!board) return;
-    const rows = board.querySelector<HTMLTableSectionElement>('[data-rows]')!;
-    const countEl = board.querySelector<HTMLElement>('[data-count-now]')!;
-    const live = board.querySelector<HTMLElement>('[data-live]')!;
-    const empty = board.querySelector<HTMLElement>('[data-empty]')!;
-    let last = Number(board.dataset.last) || 0;
-
-    rows.querySelectorAll<HTMLElement>('[data-time]').forEach((td) => (td.textContent = fmt(td.dataset.time!)));
-
-    const add = (e: Entry) => {
-      if (e.n <= last) return;
-      last = e.n;
-      const tr = document.createElement('tr');
-      tr.dataset.n = String(e.n);
-      tr.className = 'fresh';
-      const position = rows.children.length + 1;
-      for (const [text, cls] of [[String(position), 'mono faint'], [e.name, ''], [e.id, 'mono'], [fmt(e.at), 'mono faint']] as const) {
-        const td = document.createElement('td');
-        td.textContent = text;
-        if (cls) td.className = cls;
-        tr.appendChild(td);
-      }
-      rows.prepend(tr);
-      countEl.textContent = String(rows.children.length);
-      empty.hidden = true;
-    };
-    const setLive = (on: boolean, text: string) => {
-      live.classList.toggle('on', on);
-      live.textContent = text;
-    };
-
-    // Fallback: ask for new entries every 1.5 s (used only if streaming is unavailable).
-    const startPolling = () => {
-      es?.close();
-      es = null;
-      if (poll) return;
-      const tick = async () => {
-        try {
-          const res = await fetch(`/api/admin/entries?from=${last}`, { cache: 'no-store' });
-          if (res.status === 401) return location.reload();
-          if (!res.ok) throw new Error(String(res.status));
-          ((await res.json()).entries as Entry[]).forEach(add);
-          setLive(true, 'live');
-        } catch {
-          setLive(false, 'reconnecting…');
-        }
-      };
-      tick();
-      poll = window.setInterval(tick, 1500);
-    };
-
-    // Live stream (Server-Sent Events); reconnects by itself every ~50 s.
-    let opened = false;
-    let failures = 0;
-    es = new EventSource(`/api/admin/stream?from=${last}`);
-    es.addEventListener('open', () => {
-      opened = true;
-      failures = 0;
-      setLive(true, 'live');
-    });
-    es.addEventListener('entry', (ev) => add(JSON.parse((ev as MessageEvent).data)));
-    es.addEventListener('error', async () => {
-      setLive(false, 'reconnecting…');
-      if (++failures >= 3) {
-        const res = await fetch(`/api/admin/entries?from=${last}`, { cache: 'no-store' }).catch(() => null);
-        if (res?.status === 401) return location.reload();
-        startPolling();
-      }
-    });
-    // If the stream never opens (e.g. a proxy buffers it), switch to polling.
-    setTimeout(() => { if (!opened) startPolling(); }, 6000);
-  }
-
-  function cleanup() {
-    es?.close();
-    es = null;
-    if (poll) clearInterval(poll);
-    poll = undefined;
-  }
-  document.addEventListener('astro:page-load', init);
-  document.addEventListener('astro:before-swap', cleanup);
-</script>
-
-<script>
   /* Tabs (Attendance | Lab 02) + the Lab 02 progress dashboard (polls /api/admin/lab every 4 s while open). */
   type ExStats = { id: string; n: number; title: string; attempted: number; solved: number; notSolved: number; successRate: number | null; avgAttempts: number | null; hints: number };
-  type StStats = { name: string; studentId: string; solved: number; pct: number; completed: boolean; minutes: number; lastSeen: string; active: boolean; states: Record<string, string> };
+  type StStats = { name: string; studentId: string; startedAt: string; solved: number; pct: number; completed: boolean; minutes: number; lastSeen: string; checkedInAt: string | null; active: boolean; states: Record<string, string> };
   type LabStats = {
     generatedAt: string;
     totals: { started: number; completed: number; active: number; avgCompletion: number; avgMinutesToComplete: number | null };
@@ -327,8 +210,30 @@ const time = (iso: string) => {
     const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
     return s < 60 ? 'now' : s < 3600 ? `${Math.round(s / 60)} min ago` : new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
+  const clock = (iso: string) => new Date(iso).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+  function renderAttendance(s: LabStats) {
+    const board = document.querySelector<HTMLElement>('[data-lab-attendance]');
+    if (!board) return;
+    const checked = s.students.filter((student) => student.checkedInAt).length;
+    board.querySelector<HTMLElement>('[data-att-count]')!.textContent = String(s.students.length);
+    board.querySelector<HTMLElement>('[data-att-summary]')!.textContent = `${checked} checked in · ${s.totals.active} active now`;
+    board.querySelector<HTMLTableSectionElement>('[data-att-rows]')!.innerHTML = [...s.students]
+      .sort((a, b) => Number(b.active) - Number(a.active) || Date.parse(b.lastSeen) - Date.parse(a.lastSeen))
+      .map((student) => `<tr>
+        <td>${esc(student.name)}</td>
+        <td class="mono">${esc(student.studentId)}</td>
+        <td class="mono faint">${clock(student.startedAt)}</td>
+        <td class="mono faint">${ago(student.lastSeen)}</td>
+        <td>${student.active ? '<span class="att-state active">● Viewing now</span>' : '<span class="att-state">Away</span>'}</td>
+        <td>${student.checkedInAt ? `<span class="att-state checked">✓ ${clock(student.checkedInAt)}</span>` : '<span class="faint">Not yet</span>'}</td>
+      </tr>`)
+      .join('');
+    board.querySelector<HTMLElement>('[data-att-empty]')!.hidden = s.students.length > 0;
+  }
 
   function render(root: HTMLElement, s: LabStats) {
+    renderAttendance(s);
     const t = s.totals;
     root.querySelector('[data-lp-started]')!.textContent = String(t.started);
     root.querySelector('[data-lp-kpis]')!.innerHTML = [
@@ -367,6 +272,7 @@ const time = (iso: string) => {
 
   async function load(root: HTMLElement) {
     const live = root.querySelector<HTMLElement>('[data-lp-live]')!;
+    const attendanceLive = document.querySelector<HTMLElement>('[data-att-live]');
     try {
       const res = await fetch(`/api/admin/lab?lab=${encodeURIComponent(root.dataset.lab!)}`, { cache: 'no-store' });
       if (res.status === 401) return location.reload();
@@ -375,10 +281,14 @@ const time = (iso: string) => {
       render(root, data as LabStats);
       live.classList.add('on');
       live.textContent = `live · ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+      attendanceLive?.classList.add('on');
+      if (attendanceLive) attendanceLive.textContent = live.textContent;
     } catch (error) {
       live.classList.remove('on');
       const message = error instanceof Error ? error.message : 'Could not load progress.';
       live.textContent = message.includes('set up') ? 'connect Neon in Vercel Storage' : message;
+      attendanceLive?.classList.remove('on');
+      if (attendanceLive) attendanceLive.textContent = live.textContent;
     }
   }
 
@@ -389,16 +299,15 @@ const time = (iso: string) => {
     const show = (name: string) => {
       tabs.forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === name)));
       document.querySelectorAll<HTMLElement>('[data-panel]').forEach((p) => (p.hidden = p.dataset.panel !== name));
-      clearInterval(timer);
-      timer = undefined;
-      if (name === 'lab' && root) {
-        void load(root);
-        timer = window.setInterval(() => !document.hidden && load(root), 4000);
-      }
       history.replaceState(null, '', name === 'lab' ? '#lab' : location.pathname + location.search);
     };
     tabs.forEach((t) => t.addEventListener('click', () => show(t.dataset.tab!)));
     show(location.hash === '#lab' ? 'lab' : 'att');
+    if (root) {
+      void load(root);
+      clearInterval(timer);
+      timer = window.setInterval(() => !document.hidden && load(root), 4000);
+    }
   }
 
   document.addEventListener('astro:page-load', initTabs);

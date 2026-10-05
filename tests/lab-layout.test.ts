@@ -5,6 +5,8 @@ import fs from 'node:fs';
 const page = fs.readFileSync(new URL('../src/pages/labs/[id].astro', import.meta.url), 'utf8');
 const lab02 = fs.readFileSync(new URL('../src/content/labs/lab-02.mdx', import.meta.url), 'utf8');
 const interactiveCss = fs.readFileSync(new URL('../src/styles/lab-interactive.css', import.meta.url), 'utf8');
+const admin = fs.readFileSync(new URL('../src/pages/admin.astro', import.meta.url), 'utf8');
+const labStart = fs.readFileSync(new URL('../src/lab/ui/start.ts', import.meta.url), 'utf8');
 
 test('every mission lab asks for identity before rendering its lesson content', () => {
   const start = page.indexOf('<LabStart');
@@ -27,4 +29,14 @@ test('merged Lab 02 keeps the interactive course and full practical Expo project
   assert.match(lab02, /Your project: a four-screen Movies app/);
   assert.match(lab02, /<AppWalkthrough ex="recipes"/);
   assert.match(lab02, /<RepoSubmit lab="lab-02"/);
+});
+
+test('admin attendance comes from verified lab identities, not the legacy attendance route', () => {
+  assert.match(admin, /data-lab-attendance/);
+  assert.match(admin, /student\.startedAt/);
+  assert.match(admin, /student\.checkedInAt/);
+  assert.doesNotMatch(admin, /getStore\(\)\?\.list/);
+  assert.doesNotMatch(admin, /\/api\/admin\/entries/);
+  assert.match(labStart, /Verifying this student and device/);
+  assert.ok(labStart.indexOf("fetch('/api/lab/progress'") < labStart.indexOf('setStudent({ name, id })'));
 });

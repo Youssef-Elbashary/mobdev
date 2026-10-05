@@ -320,9 +320,9 @@ function wireCheckin() {
           write(`progress:checkin:${lab}`, { id: me.studentId, at: data.at });
           render('done', `✓ Checked in at ${clock(data.at)}. See you next lab!`);
           flushViews(true);
-        } else if (res.status === 409) render('conflict', data.message ?? 'This student ID is used on another device. Ask your TA.');
-        else if (res.status === 403) render('closed', data.message ?? 'Check-in is closed.');
-        else render('error', 'Could not check in. Try again in a moment.');
+        } else if (res.status === 409) render('conflict', data.message ?? 'This identity is linked to another device. Ask your TA.');
+        else if (res.status === 403 && data.error === 'closed') render('closed', data.message ?? 'Check-in is closed.');
+        else render('error', data.message ?? 'Could not check in. Try again in a moment.');
       } catch {
         render('error', 'No connection. Try again in a moment.');
       }

@@ -14,12 +14,13 @@ export class ProgressLabBackend implements LabBackend {
   }
 
   async record(event: LabEvent) {
-    await this.store.touchStudent({
+    const identity = await this.store.touchStudent({
       studentKey: event.studentKey,
       studentId: event.studentId,
       name: event.name,
       deviceKey: event.deviceId,
     });
+    if (identity === 'conflict') throw new Error('identity-conflict');
 
     if (event.event !== 'check' || !event.exercise) return;
     const total = 100;
@@ -48,6 +49,7 @@ export class ProgressLabBackend implements LabBackend {
         started_at: student.created_at,
         last_seen: student.last_seen,
         completed_at: completedAt,
+        checked_in_at: data.checkins.find((checkin) => checkin.student_key === student.student_key)?.at ?? null,
       };
     });
     const attempts = data.best.map((attempt) => ({
