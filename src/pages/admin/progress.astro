@@ -1,0 +1,487 @@
+---
+/**
+ * /admin/progress — live student progress per lab (same password as /admin).
+ * The page is a shell; the script below draws everything from /api/admin/progress and refreshes every 5 s.
+ */
+import Base from '@/layouts/Base.astro';
+import { isAdmin } from '@/lib/attendance/server';
+import { progressSetup } from '@/lib/progress/server';
+
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'no-store, max-age=0');
+if (!isAdmin(Astro.cookies)) return Astro.redirect('/admin', 303);
+const setup = progressSetup();
+const lab = Astro.url.searchParams.get('lab') ?? '';
+---
+<Base title="Progress admin" noindex>
+  <section class="pa container" data-pa data-lab={lab}>
+    {!setup.database ? (
+      <div class="pa-card pa-setup">
+        <p class="pa-k mono">Progress · setup</p>
+        <h1 class="pa-h">Connect a database</h1>
+        <ol>
+          <li>Vercel → project <b>mobdev</b> → <b>Storage</b> → <b>Create Database</b> → <b>Neon</b>.</li>
+          <li><b>Connect to project</b>, with all environments ticked. Vercel adds <code>DATABASE_URL</code>.</li>
+          <li>Redeploy. Tables are created automatically on the first save.</li>
+        </ol>
+      </div>
+    ) : (
+      <>
+        <header class="pa-head" data-reveal>
+          <div>
+            <p class="pa-k mono">Progress · <a href="/admin">Attendance</a></p>
+            <h1 class="pa-h">Lab progress</h1>
+          </div>
+          <div class="pa-tools">
+            <label class="pa-select">
+              <span class="sr-only">Lab</span>
+              <select class="input" data-pa-lab></select>
+            </label>
+            <span class="pa-live mono" data-pa-live>connecting…</span>
+            <a class="btn btn-ghost btn-sm" data-pa-csv href="#" download>Export CSV</a>
+            <form method="post" action="/api/admin/logout"><button class="btn btn-ghost btn-sm" type="submit">Log out</button></form>
+          </div>
+        </header>
+
+        <div class="pa-stats" data-reveal>
+          <div class="pa-stat stg" style="--i:0"><span class="mono">Active students</span><b data-pa-stat="active">0</b></div>
+          <div class="pa-stat stg" style="--i:1"><span class="mono">Average progress</span><b><i data-pa-stat="avgPercent">0</i><small>%</small></b></div>
+          <div class="pa-stat stg" style="--i:2"><span class="mono">Exercises solved</span><b data-pa-stat="solved">0</b></div>
+          <div class="pa-stat stg" style="--i:3"><span class="mono">Repos submitted</span><b><i data-pa-stat="submitted">0</i><small data-pa-of></small></b></div>
+        </div>
+
+        <div class="pa-grid">
+          <section class="pa-card pa-ex" data-reveal>
+            <h2 class="pa-t">Exercises</h2>
+            <ol class="pa-exlist" data-pa-ex></ol>
+          </section>
+
+          <section class="pa-card pa-students" data-reveal>
+            <div class="pa-thead">
+              <h2 class="pa-t">Students</h2>
+              <div class="pa-filters">
+                <input class="input pa-search" type="search" placeholder="Search name or ID" data-pa-search aria-label="Search students" />
+                <div class="pa-sort" role="group" aria-label="Sort by">
+                  <button type="button" class="chip" data-pa-sort="percent" aria-pressed="true">Progress</button>
+                  <button type="button" class="chip" data-pa-sort="name" aria-pressed="false">Name</button>
+                  <button type="button" class="chip" data-pa-sort="lastSeen" aria-pressed="false">Recent</button>
+                </div>
+              </div>
+            </div>
+            <div class="pa-table-wrap">
+              <table class="pa-table">
+                <thead data-pa-head></thead>
+                <tbody data-pa-rows></tbody>
+              </table>
+              <p class="pa-empty" data-pa-empty hidden>No students yet: they appear here after their first Check or Done tick.</p>
+            </div>
+          </section>
+        </div>
+
+        <div class="pa-scrim" data-pa-scrim hidden></div>
+        <aside class="pa-drawer" data-pa-drawer aria-hidden="true" aria-label="Student details" tabindex="-1">
+          <button type="button" class="pa-close" data-pa-close aria-label="Close">✕</button>
+          <div data-pa-detail></div>
+        </aside>
+      </>
+    )}
+  </section>
+</Base>
+
+<style>
+  .pa { padding-top: calc(var(--nav-h) + 40px); padding-bottom: 96px; min-height: 80dvh; }
+  .pa-card { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); padding: 20px; min-width: 0; }
+  .pa-setup { max-width: 560px; margin-inline: auto; display: grid; gap: 14px; }
+  .pa-setup ol { padding-left: 20px; display: grid; gap: 8px; color: var(--text-2); }
+  .pa-k { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-text); }
+  .pa-k a { color: var(--text-3); text-decoration: underline; text-underline-offset: 3px; }
+  .pa-k a:hover { color: var(--text); }
+  .pa-h { font-size: var(--fs-2xl); letter-spacing: -0.04em; }
+  .pa-t { font-size: var(--fs-lg); letter-spacing: -0.02em; }
+
+  .pa-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .pa-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .pa-select select { height: 38px; padding: 0 12px; border-radius: 10px; max-width: min(380px, 80vw); }
+  .pa-live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-3); }
+  .pa-live::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+  .pa-live.on::before { background: var(--ok); animation: pa-pulse 2s var(--ease-out) infinite; box-shadow: 0 0 0 0 var(--ok-soft); }
+  .pa-live.err::before { background: var(--danger); }
+  @keyframes pa-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--ok) 60%, transparent); } 100% { box-shadow: 0 0 0 9px transparent; } }
+
+  .pa-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-block: 28px; }
+  @media (min-width: 900px) { .pa-stats { grid-template-columns: repeat(4, 1fr); } }
+  .pa-stat { display: grid; gap: 6px; padding: 18px; border-radius: var(--r-lg); border: 1px solid var(--line); background: linear-gradient(160deg, var(--accent-soft), var(--surface) 65%); }
+  .pa-stat span { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+  .pa-stat b { font-family: var(--font-display); font-size: 2.4rem; letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .pa-stat b i { font-style: normal; }
+  .pa-stat small { font-size: 1rem; color: var(--text-3); margin-left: 4px; font-weight: 500; }
+
+  .pa-grid { display: grid; gap: 16px; }
+  @media (min-width: 1100px) { .pa-grid { grid-template-columns: 340px minmax(0, 1fr); align-items: start; } .pa-ex { position: sticky; top: calc(var(--nav-h) + 16px); } }
+
+  /* exercise overview */
+  .pa-exlist { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 12px; }
+  .pa-exlist :global(li) { display: grid; gap: 5px; }
+  .pa-exlist :global(.ex-top) { display: flex; align-items: baseline; gap: 8px; font-size: 14px; }
+  .pa-exlist :global(.ex-n) { font: 600 11px var(--font-mono); color: var(--text-3); min-width: 26px; }
+  .pa-exlist :global(.ex-name) { flex: 1; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pa-exlist :global(.ex-pct) { font: 600 13px var(--font-mono); }
+  .pa-exlist :global(.ex-meta) { font-size: 11.5px; color: var(--text-3); padding-left: 34px; }
+  .pa-exlist :global(.ex-hard) { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; padding: 1px 6px; border-radius: 999px; background: var(--warn-soft); color: var(--warn); }
+
+  /* bars */
+  :global(.pa-bar) { position: relative; height: 8px; border-radius: 99px; background: var(--surface-3); overflow: hidden; }
+  :global(.pa-bar > i) { position: absolute; inset: 0; border-radius: inherit; background: var(--accent); transform-origin: left; transform: scaleX(var(--p, 0)); transition: transform 900ms var(--ease-out); }
+  :global(:root[data-theme='light'] .pa-bar > i) { background: var(--accent-text); }
+  :global(.pa-bar.ok > i) { background: var(--ok); }
+  :global(.pa-bar.mid > i) { background: var(--warn); }
+  :global(.pa-bar.low > i) { background: var(--danger); }
+  .pa-exlist :global(.pa-bar) { margin-left: 34px; }
+
+  /* students table */
+  .pa-thead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .pa-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .pa-search { height: 36px; padding: 0 12px; border-radius: 10px; width: 210px; max-width: 100%; }
+  .pa-sort { display: flex; gap: 6px; }
+  .pa-table-wrap { overflow-x: auto; margin-inline: -20px; padding-inline: 20px; }
+  .pa-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .pa-table :global(th) { text-align: left; font: 600 10.5px var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); padding: 8px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .pa-table :global(th.cell-h) { text-align: center; padding-inline: 2px; }
+  .pa-table :global(td) { padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: nowrap; }
+  .pa-table :global(tr.st-row) { cursor: pointer; transition: background var(--t-fast); }
+  .pa-table :global(tr.st-row:hover) { background: var(--surface-2); }
+  .pa-table :global(tr.flash) { animation: pa-flash 1.6s var(--ease-out); }
+  @keyframes pa-flash { 0% { box-shadow: inset 3px 0 0 var(--accent-text); background: var(--accent-soft); } 100% { box-shadow: inset 3px 0 0 transparent; } }
+  .pa-table :global(.who b) { display: block; font-weight: 600; color: var(--text); }
+  .pa-table :global(.who small) { font: 12px var(--font-mono); color: var(--text-3); }
+  .pa-table :global(.prog) { display: grid; grid-template-columns: 120px 40px; align-items: center; gap: 10px; }
+  .pa-table :global(.prog span) { font: 600 13px var(--font-mono); text-align: right; }
+  .pa-table :global(.cell) { width: 26px; text-align: center; padding-inline: 2px; }
+  .pa-table :global(.sq) { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font: 700 9.5px var(--font-mono); background: var(--surface-3); color: var(--text-3); }
+  .pa-table :global(.sq.ok) { background: var(--ok); color: #fff; }
+  .pa-table :global(.sq.part) { background: var(--warn-soft); color: var(--warn); border: 1px solid color-mix(in oklab, var(--warn) 45%, transparent); }
+  .pa-table :global(.repo) { font-size: 13px; }
+  .pa-table :global(.repo a) { color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; }
+  .pa-table :global(.dim) { color: var(--text-3); font-size: 13px; }
+  .pa-empty { padding: 28px 8px; text-align: center; color: var(--text-3); }
+
+  /* drawer */
+  .pa-scrim { position: fixed; inset: 0; z-index: 190; background: rgb(5 7 10 / 0.5); backdrop-filter: blur(3px); animation: pa-fade 300ms var(--ease-out); }
+  @keyframes pa-fade { from { opacity: 0; } }
+  .pa-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 200; width: min(600px, 100vw); overflow-y: auto; padding: 28px 24px 48px; background: var(--bg); border-left: 1px solid var(--line-2); box-shadow: var(--shadow-lg); transform: translateX(105%); transition: transform 420ms var(--ease-out); visibility: hidden; }
+  .pa-drawer.open { transform: none; visibility: visible; }
+  .pa-close { position: absolute; top: 18px; right: 18px; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line-2); color: var(--text-2); }
+  .pa-close:hover { color: var(--text); border-color: var(--text-3); }
+  .pa-drawer :global(.d-head) { display: grid; gap: 8px; padding-right: 44px; }
+  .pa-drawer :global(.d-name) { font-family: var(--font-display); font-size: var(--fs-xl); letter-spacing: -0.03em; }
+  .pa-drawer :global(.d-id) { font: 13px var(--font-mono); color: var(--text-3); }
+  .pa-drawer :global(.d-sec) { margin-top: 26px; display: grid; gap: 10px; }
+  .pa-drawer :global(.d-k) { font: 600 11px var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); }
+  .pa-drawer :global(.d-row) { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .pa-drawer :global(.d-ex) { border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); overflow: hidden; }
+  .pa-drawer :global(.d-ex > header) { display: flex; align-items: center; gap: 8px; padding: 10px 12px; font-size: 14px; }
+  .pa-drawer :global(.d-ex > header b) { flex: 1; font-weight: 600; }
+  .pa-drawer :global(.d-tries) { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 12px; }
+  .pa-drawer :global(.d-try) { font: 600 11.5px var(--font-mono); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line-2); color: var(--text-2); }
+  .pa-drawer :global(.d-try.ok) { border-color: color-mix(in oklab, var(--ok) 50%, var(--line)); color: var(--ok); }
+  .pa-drawer :global(.d-try[aria-pressed='true']) { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .pa-drawer :global(.d-code) { margin: 0 12px 12px; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--code-bg); overflow: hidden; }
+  .pa-drawer :global(.d-code-tabs) { display: flex; gap: 2px; padding: 6px 8px 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
+  .pa-drawer :global(.d-code-tabs button) { font: 12px var(--font-mono); padding: 5px 10px; color: var(--text-3); border-radius: 6px 6px 0 0; }
+  .pa-drawer :global(.d-code-tabs button[aria-selected='true']) { color: var(--text); background: var(--surface-2); }
+  .pa-drawer :global(.d-code pre) { margin: 0; padding: 12px 14px; max-height: 360px; overflow: auto; font: 12.5px/1.65 var(--font-mono); color: var(--text); white-space: pre; }
+  .pa-drawer :global(textarea) { width: 100%; min-height: 70px; padding: 10px 12px; border-radius: 10px; resize: vertical; }
+  .pa-drawer :global(.d-ticks) { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pa-drawer :global(.d-tick) { font: 11.5px var(--font-mono); padding: 3px 8px; border-radius: 999px; background: var(--surface-3); color: var(--text-3); }
+  .pa-drawer :global(.d-tick.on) { background: var(--ok-soft); color: var(--ok); }
+  @media (prefers-reduced-motion: reduce) {
+    .pa-drawer, :global(.pa-bar > i) { transition: none; }
+    .pa-live.on::before, .pa-table :global(tr.flash), .pa-scrim { animation: none; }
+  }
+</style>
+
+<script>
+  type Cell = { passed: number; total: number; attempts: number };
+  type Student = { key: string; id: string; name: string; lastSeen: string; locked: boolean; percent: number; solved: number; tasksDone: number; submission: { url: string; reviewed: boolean; note: string } | null; cells: Record<string, Cell> };
+  type Data = {
+    labs: { id: string; title: string }[];
+    structure: { lab: string; title: string; tasks: { n: string; title: string }[]; exercises: { id: string; task: string; title: string; checks: number }[]; hasSubmission: boolean };
+    students: Student[];
+    exercises: { id: string; solvedPct: number; avgAttempts: number; medianSolveMs: number | null }[];
+    totals: { active: number; avgPercent: number; solved: number; submitted: number };
+  };
+  type Attempt = { id: number; exercise: string; passed: number; total: number; code: string; created_at: string };
+
+  /** tiny DOM builder: text is always set with textContent, never as HTML */
+  function h<K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, any> = {}, ...kids: (Node | string | null | false | undefined)[]) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(props)) {
+      if (v == null || v === false) continue;
+      if (k === 'class') el.className = v;
+      else if (k === 'style') el.setAttribute('style', v);
+      else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+      else el.setAttribute(k, String(v));
+    }
+    for (const kid of kids) if (kid != null && kid !== false) el.append(kid);
+    return el;
+  }
+  const short = (id: string) => (id.match(/^e0*(\d+)/i) ? `E${id.match(/^e0*(\d+)/i)![1]}` : id);
+  const tone = (p: number) => (p >= 80 ? 'ok' : p >= 40 ? 'mid' : p > 0 ? 'low' : '');
+  const bar = (p: number) => h('div', { class: `pa-bar ${tone(p)}`, role: 'progressbar', 'aria-valuenow': p, 'aria-valuemin': 0, 'aria-valuemax': 100 }, h('i', { style: `--p:${p / 100}` }));
+  const ago = (iso: string) => {
+    const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+    if (s < 45) return 'just now';
+    if (s < 3600) return `${Math.round(s / 60)} min ago`;
+    if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+    return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  };
+  const mins = (ms: number | null) => (ms == null ? '–' : ms < 60_000 ? `${Math.round(ms / 1000)}s` : `${Math.round(ms / 60_000)}m`);
+
+  function countTo(el: Element, to: number) {
+    const from = Number(el.textContent) || 0;
+    if (from === to) return;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return void (el.textContent = String(to));
+    const t0 = performance.now();
+    const step = (t: number) => {
+      const p = Math.min(1, (t - t0) / 700);
+      el.textContent = String(Math.round(from + (to - from) * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  function init() {
+    const root = document.querySelector<HTMLElement>('[data-pa]');
+    if (!root || !root.querySelector('[data-pa-rows]')) return;
+    const $ = <T extends Element = HTMLElement>(s: string) => root.querySelector<T>(s)!;
+    let lab = root.dataset.lab || '';
+    let data: Data | null = null;
+    let sort: 'percent' | 'name' | 'lastSeen' = 'percent';
+    let query = '';
+    let openKey: string | null = null;
+    const seen = new Map<string, string>(); // key → signature, to flash changed rows
+    let timer = 0;
+
+    const live = $('[data-pa-live]');
+    async function load() {
+      try {
+        const res = await fetch(`/api/admin/progress?lab=${encodeURIComponent(lab)}`, { cache: 'no-store' });
+        if (res.status === 401) return void location.assign('/admin');
+        if (!res.ok) throw new Error(String(res.status));
+        data = (await res.json()) as Data;
+        lab = data.structure.lab;
+        live.className = 'pa-live mono on';
+        live.textContent = `live · ${new Date().toLocaleTimeString('en-GB')}`;
+        render();
+      } catch {
+        live.className = 'pa-live mono err';
+        live.textContent = 'offline · retrying';
+      }
+    }
+    function schedule() {
+      clearTimeout(timer);
+      timer = window.setTimeout(async () => {
+        if (!root!.isConnected) return; // navigated away: stop polling
+        if (document.visibilityState === 'visible') await load();
+        schedule();
+      }, 5000);
+    }
+
+    function render() {
+      if (!data) return;
+      const d = data;
+      // lab picker + csv
+      const sel = $<HTMLSelectElement>('[data-pa-lab]');
+      if (sel.options.length !== d.labs.length) sel.replaceChildren(...d.labs.map((l) => h('option', { value: l.id }, l.title)));
+      sel.value = d.structure.lab;
+      $<HTMLAnchorElement>('[data-pa-csv]').href = `/api/admin/progress/export?lab=${encodeURIComponent(d.structure.lab)}`;
+      // stats
+      for (const k of ['active', 'avgPercent', 'solved', 'submitted'] as const) countTo($(`[data-pa-stat="${k}"]`), d.totals[k]);
+      $('[data-pa-of]').textContent = d.structure.hasSubmission ? ` / ${d.totals.active}` : ' · none asked';
+
+      // exercise overview
+      const hardest = d.exercises.length && d.totals.active ? d.exercises.reduce((a, b) => (b.solvedPct < a.solvedPct ? b : a)).id : '';
+      $('[data-pa-ex]').replaceChildren(
+        ...d.structure.exercises.map((e, i) => {
+          const st = d.exercises.find((x) => x.id === e.id)!;
+          return h('li', { class: 'stg in', style: `--i:${i}` },
+            h('div', { class: 'ex-top' },
+              h('span', { class: 'ex-n' }, short(e.id)),
+              h('span', { class: 'ex-name', title: e.title }, e.title),
+              e.id === hardest && st.solvedPct < 100 ? h('span', { class: 'ex-hard' }, 'hardest') : null,
+              h('span', { class: 'ex-pct' }, `${st.solvedPct}%`)),
+            bar(st.solvedPct),
+            h('span', { class: 'ex-meta' }, `${st.avgAttempts || 0} tries avg · median solve ${mins(st.medianSolveMs)}`));
+        }),
+      );
+      if (!d.structure.exercises.length) $('[data-pa-ex]').replaceChildren(h('li', { class: 'dim' }, 'This lab has no auto-checked exercises.'));
+
+      // table head
+      $('[data-pa-head]').replaceChildren(
+        h('tr', {},
+          h('th', { scope: 'col' }, 'Student'),
+          h('th', { scope: 'col' }, 'Progress'),
+          ...d.structure.exercises.map((e) => h('th', { scope: 'col', class: 'cell-h', title: e.title }, short(e.id))),
+          h('th', { scope: 'col' }, 'Tasks'),
+          d.structure.hasSubmission ? h('th', { scope: 'col' }, 'Repo') : null,
+          h('th', { scope: 'col' }, 'Last seen')),
+      );
+
+      // rows
+      const q = query.toLowerCase();
+      const rows = d.students
+        .filter((s) => !q || s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q))
+        .sort((a, b) => (sort === 'name' ? a.name.localeCompare(b.name) : sort === 'lastSeen' ? b.lastSeen.localeCompare(a.lastSeen) : b.percent - a.percent || a.name.localeCompare(b.name)));
+      const body = $('[data-pa-rows]');
+      const first = seen.size === 0;
+      body.replaceChildren(
+        ...rows.map((s) => {
+          const sig = JSON.stringify([s.percent, s.cells, s.tasksDone, s.submission]);
+          const changed = !first && seen.get(s.key) !== sig;
+          seen.set(s.key, sig);
+          const tr = h('tr', { class: `st-row${changed ? ' flash' : ''}`, tabindex: 0, 'data-key': s.key, onclick: () => openStudent(s.key), onkeydown: (e: KeyboardEvent) => e.key === 'Enter' && openStudent(s.key) },
+            h('td', { class: 'who' }, h('b', {}, s.name), h('small', {}, s.id)),
+            h('td', {}, h('div', { class: 'prog' }, bar(s.percent), h('span', {}, `${s.percent}%`))),
+            ...d.structure.exercises.map((e) => {
+              const c = s.cells[e.id];
+              const solved = c && c.passed >= c.total;
+              return h('td', { class: 'cell' },
+                h('span', { class: `sq${solved ? ' ok' : c ? ' part' : ''}`, title: `${e.title}: ${c ? `${c.passed}/${c.total} · ${c.attempts} ${c.attempts === 1 ? 'try' : 'tries'}` : 'not tried'}` }, solved ? '✓' : c ? `${c.passed}/${c.total}` : ''));
+            }),
+            h('td', { class: 'dim' }, `${s.tasksDone}/${d.structure.tasks.length}`),
+            d.structure.hasSubmission
+              ? h('td', { class: 'repo' }, s.submission ? h('a', { href: s.submission.url, target: '_blank', rel: 'noopener', onclick: (e: Event) => e.stopPropagation() }, s.submission.reviewed ? '✓ reviewed' : 'open') : h('span', { class: 'dim' }, '–'))
+              : null,
+            h('td', { class: 'dim', title: new Date(s.lastSeen).toLocaleString('en-GB') }, ago(s.lastSeen)));
+          return tr;
+        }),
+      );
+      $('[data-pa-empty]').hidden = d.students.length > 0;
+    }
+
+    /* ------- drawer ------- */
+    const drawer = $('[data-pa-drawer]');
+    const scrim = $('[data-pa-scrim]');
+    function closeDrawer() {
+      openKey = null;
+      drawer.classList.remove('open');
+      drawer.setAttribute('aria-hidden', 'true');
+      scrim.hidden = true;
+    }
+    async function openStudent(key: string) {
+      if (!data) return;
+      const s = data.students.find((x) => x.key === key);
+      if (!s) return;
+      openKey = key;
+      scrim.hidden = false;
+      drawer.classList.add('open');
+      drawer.setAttribute('aria-hidden', 'false');
+      drawer.focus();
+      const box = $('[data-pa-detail]');
+      box.replaceChildren(h('p', { class: 'dim' }, 'Loading…'));
+      const res = await fetch(`/api/admin/progress/student?lab=${encodeURIComponent(data.structure.lab)}&id=${encodeURIComponent(key)}`, { cache: 'no-store' });
+      if (!res.ok || openKey !== key) return;
+      const detail = (await res.json()) as { attempts: Attempt[]; tasks: { task: string; done: boolean }[]; submission: { url: string; reviewed: boolean; note: string } | null };
+      drawDetail(s, detail);
+    }
+    function drawDetail(s: Student, detail: { attempts: Attempt[]; tasks: { task: string; done: boolean }[]; submission: { url: string; reviewed: boolean; note: string } | null }) {
+      const d = data!;
+      const box = $('[data-pa-detail]');
+      const done = new Set(detail.tasks.filter((t) => t.done).map((t) => t.task));
+      const action = async (payload: Record<string, unknown>) => {
+        await fetch('/api/admin/progress/student', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: s.key, lab: d.structure.lab, ...payload }) });
+        await load();
+        const fresh = data?.students.find((x) => x.key === s.key);
+        if (fresh && openKey === s.key) openStudent(s.key);
+      };
+      const note = h('textarea', { class: 'input', placeholder: 'Note for yourself (optional)' }) as HTMLTextAreaElement;
+      note.value = detail.submission?.note ?? '';
+
+      box.replaceChildren(
+        h('div', { class: 'd-head' },
+          h('span', { class: 'd-name' }, s.name),
+          h('span', { class: 'd-id' }, `${s.id} · last seen ${ago(s.lastSeen)}`),
+          h('div', { class: 'prog', style: 'display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center' }, bar(s.percent), h('b', { class: 'mono' }, `${s.percent}%`)),
+          h('div', { class: 'd-row' },
+            s.locked
+              ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: () => action({ action: 'unlock' }) }, 'Unlock device')
+              : h('span', { class: 'dim' }, 'Device unlocked: the next browser to save becomes theirs'))),
+
+        d.structure.hasSubmission
+          ? h('section', { class: 'd-sec' },
+              h('span', { class: 'd-k' }, 'Repository'),
+              detail.submission
+                ? h('div', { class: 'd-row' },
+                    h('a', { href: detail.submission.url, target: '_blank', rel: 'noopener', class: 'accent' }, detail.submission.url),
+                    h('button', { type: 'button', class: 'btn btn-sm ' + (detail.submission.reviewed ? 'btn-ghost' : 'btn-primary'), onclick: () => action({ action: 'review', reviewed: !detail.submission!.reviewed, note: note.value }) }, detail.submission.reviewed ? '✓ Reviewed · undo' : 'Mark reviewed'))
+                : h('p', { class: 'dim' }, 'Not submitted yet.'),
+              detail.submission ? note : null,
+              detail.submission ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', style: 'justify-self:start', onclick: () => action({ action: 'review', reviewed: detail.submission!.reviewed, note: note.value }) }, 'Save note') : null)
+          : null,
+
+        h('section', { class: 'd-sec' },
+          h('span', { class: 'd-k' }, `Exercises · ${s.solved}/${d.structure.exercises.length} solved`),
+          ...d.structure.exercises.map((e) => {
+            const tries = detail.attempts.filter((a) => a.exercise === e.id);
+            const best = s.cells[e.id];
+            const card = h('div', { class: 'd-ex' });
+            const codeBox = h('div', { class: 'd-code', hidden: true });
+            const showCode = (a: Attempt, btn: HTMLElement) => {
+              card.querySelectorAll('.d-try').forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+              let files: Record<string, string> = {};
+              try { files = JSON.parse(a.code); } catch { files = { 'code.txt': a.code }; }
+              const names = Object.keys(files);
+              const pre = h('pre', {});
+              const tabs = h('div', { class: 'd-code-tabs', role: 'tablist' }, ...names.map((n, i) => h('button', { type: 'button', role: 'tab', 'aria-selected': String(i === 0), onclick: (ev: Event) => { tabs.querySelectorAll('button').forEach((b) => b.setAttribute('aria-selected', String(b === ev.currentTarget))); pre.textContent = files[n]; } }, n)));
+              pre.textContent = files[names[0]] ?? '';
+              codeBox.replaceChildren(tabs, pre);
+              codeBox.hidden = false;
+            };
+            card.replaceChildren(
+              h('header', {}, h('span', { class: `sq${best && best.passed >= best.total ? ' ok' : best ? ' part' : ''}`, style: 'display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;font:700 9.5px var(--font-mono)' }, short(e.id)),
+                h('b', {}, e.title), h('span', { class: 'dim' }, tries.length ? `${tries.length} ${tries.length === 1 ? 'try' : 'tries'}` : 'not tried')),
+              tries.length
+                ? h('div', { class: 'd-tries' }, ...[...tries].reverse().map((a, i) => {
+                    const btn = h('button', { type: 'button', class: `d-try${a.passed >= a.total ? ' ok' : ''}`, 'aria-pressed': 'false', title: new Date(a.created_at).toLocaleString('en-GB') }, `#${i + 1} · ${a.passed}/${a.total}`);
+                    btn.addEventListener('click', () => showCode(a, btn));
+                    return btn;
+                  }))
+                : '',
+              codeBox,
+            );
+            return card;
+          })),
+
+        h('section', { class: 'd-sec' },
+          h('span', { class: 'd-k' }, `Tasks ticked · ${done.size}/${d.structure.tasks.length}`),
+          h('div', { class: 'd-ticks' }, ...d.structure.tasks.map((t) => h('span', { class: `d-tick${done.has(t.n) ? ' on' : ''}`, title: t.title }, t.n)))),
+      );
+    }
+
+    /* ------- controls ------- */
+    $<HTMLSelectElement>('[data-pa-lab]').addEventListener('change', (e) => {
+      lab = (e.target as HTMLSelectElement).value;
+      seen.clear();
+      history.replaceState(null, '', `?lab=${encodeURIComponent(lab)}`);
+      load();
+    });
+    $<HTMLInputElement>('[data-pa-search]').addEventListener('input', (e) => {
+      query = (e.target as HTMLInputElement).value.trim();
+      render();
+    });
+    root.querySelectorAll<HTMLButtonElement>('[data-pa-sort]').forEach((b) =>
+      b.addEventListener('click', () => {
+        sort = b.dataset.paSort as typeof sort;
+        root.querySelectorAll('[data-pa-sort]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+        render();
+      }),
+    );
+    $('[data-pa-close]').addEventListener('click', closeDrawer);
+    scrim.addEventListener('click', closeDrawer);
+    document.addEventListener('keydown', (e) => root.isConnected && e.key === 'Escape' && openKey && closeDrawer());
+    document.addEventListener('visibilitychange', () => root.isConnected && document.visibilityState === 'visible' && load());
+
+    load().then(schedule);
+  }
+  document.addEventListener('astro:page-load', init);
+</script>

@@ -167,6 +167,14 @@ YAML tip: wrap a value in single quotes if it contains `: `, starts with `"`, or
 - **Code:** rules in `src/lib/attendance/core.ts` (unit-tested: `npm test`), Vercel/Astro glue in `src/lib/attendance/server.ts`, and endpoints in `src/pages/api/`. Only `/admin` and `/api/*` run on the server; everything else stays static.
 - `GET /api/attendance/status` reports whether attendance is ready. It is read-only and never shows names.
 
+## Progress tracking (`/admin/progress`)
+
+- **Students:** the first time they press **✓ Check** (or tick **Done**) on a lab, a sheet asks for their full name and student ID. The browser remembers them, and a chip in the lab header shows who is signed in and whether everything is saved. After that, every Check is saved with its score and the student's code, along with every Done tick and the repository link from `<RepoSubmit lab="lab-02" />`. Saves wait in a queue while offline. A student ID is locked to the first browser that uses it. If a student changes laptop, the admin unlocks the ID from the student drawer.
+- **Admin:** open `/admin/progress` (or **Lab progress →** on `/admin`), with the same password as attendance. It has a lab picker, totals, a progress bar for each exercise, and a live students table that refreshes every 5 s. The table has a progress bar per student, ✓ / partial cells for each exercise, tasks, repo and last seen. Clicking a student opens a drawer with every attempt and the **exact code** submitted, repo review with a note, and **Unlock device**. **Export CSV** downloads the table for grading.
+- **Progress %:** exercises 70% (best score ÷ checks, averaged over the lab's exercises), Done ticks 20%, and repository 10%. Without a repository it's 75 / 25. New labs need no setup: exercises are the `<Playground ex="…" />` tags (not `demo`) inside each `<Task>`.
+- **Database:** Neon Postgres. In Vercel go to project → **Storage** → **Create Database** → **Neon** → **Connect to project** (all environments), which adds `DATABASE_URL`, then redeploy. The tables are created automatically. Production uses `progress_*` tables, while previews and local dev use `progress_dev_*`. Without `DATABASE_URL` on a laptop, an in-memory store is used.
+- **Code:** rules in `src/lib/progress/core.ts` (unit-tested: `npm test`), storage in `src/lib/progress/store.ts`, Astro glue in `src/lib/progress/server.ts`, endpoints in `src/pages/api/progress/` and `src/pages/api/admin/progress/`, and the student-side script in `src/scripts/progress.ts`.
+
 ## Project structure
 
 ```text

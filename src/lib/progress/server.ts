@@ -9,7 +9,7 @@ import { getSecret } from 'astro:env/server';
 import { getCollection } from 'astro:content';
 import { getPlayground } from '@/lib/playgrounds';
 import { noStore } from '@/lib/attendance/server';
-import { labStructure, type LabStructure, type Valid } from './core';
+import { exerciseStats, labStructure, scoreStudent, type LabStructure, type Valid } from './core';
 import { MemoryStore, NeonStore, type ProgressStore } from './store';
 
 const env = (key: string) => getSecret(key) || undefined;
@@ -88,4 +88,61 @@ export async function studentWrite<T extends { studentKey: string; name: string;
     console.error('[progress] write failed', err);
     return json({ error: 'server' }, 500);
   }
+}
+
+/* --------------------------------------------------------------- dashboard */
+
+export type DashboardStudent = {
+  key: string;
+  id: string;
+  name: string;
+  lastSeen: string;
+  locked: boolean;
+  percent: number;
+  solved: number;
+  tasksDone: number;
+  submission: { url: string; reviewed: boolean; note: string } | null;
+  cells: Record<string, { passed: number; total: number; attempts: number }>;
+};
+
+/** Everything /admin/progress shows for one lab. */
+export async function buildDashboard(labParam: string | null) {
+  const labs = await getStructures();
+  const structure = labs.find((l) => l.lab === labParam) ?? labs.find((l) => l.exercises.length) ?? labs[0];
+  const s = getProgressStore();
+  if (!structure || !s) return null;
+  const data = await s.labData(structure.lab);
+  const students: DashboardStudent[] = data.students.map((st) => {
+    const best = data.best.filter((b) => b.student_key === st.student_key);
+    const tasksDone = data.tasks.find((t) => t.student_key === st.student_key)?.done ?? 0;
+    const sub = data.submissions.find((x) => x.student_key === st.student_key) ?? null;
+    const score = scoreStudent(structure, best, tasksDone, Boolean(sub));
+    return {
+      key: st.student_key,
+      id: st.student_id,
+      name: st.name,
+      lastSeen: st.last_seen,
+      locked: st.device_key !== null,
+      percent: score.percent,
+      solved: score.solved,
+      tasksDone,
+      submission: sub && { url: sub.url, reviewed: sub.reviewed, note: sub.note },
+      cells: Object.fromEntries(best.map((b) => [b.exercise, { passed: b.passed, total: b.total, attempts: b.attempts }])),
+    };
+  });
+  students.sort((a, b) => b.percent - a.percent || a.name.localeCompare(b.name));
+  const exercises = exerciseStats(structure, data.students.map((st) => data.best.filter((b) => b.student_key === st.student_key)));
+  return {
+    labs: labs.map((l) => ({ id: l.lab, title: l.title })),
+    structure,
+    students,
+    exercises,
+    totals: {
+      active: students.length,
+      avgPercent: students.length ? Math.round(students.reduce((a, b) => a + b.percent, 0) / students.length) : 0,
+      solved: students.reduce((a, b) => a + b.solved, 0),
+      submitted: students.filter((x) => x.submission).length,
+    },
+    updatedAt: new Date().toISOString(),
+  };
 }
