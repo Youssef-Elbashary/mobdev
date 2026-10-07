@@ -1,0 +1,314 @@
+---
+import Base from '@/layouts/Base.astro';
+import { isAdmin } from '@/lib/attendance/server';
+import { KIND_LABEL } from '@/lib/project-files/core';
+import { getFilesStore } from '@/lib/project-files/server';
+
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'no-store, max-age=0');
+if (!isAdmin(Astro.cookies)) return Astro.redirect('/admin', 303);
+
+const store = getFilesStore();
+const file = store ? await store.get(Astro.params.id ?? '').catch(() => null) : null;
+if (!file) return Astro.redirect('/admin/project', 303);
+---
+<Base title={`Submissions · ${file.title}`} noindex>
+  <section class="si-shell container" data-si data-id={file.id} data-title={file.title} data-due-at={file.due_at ?? ''}>
+    <header class="si-top">
+      <div>
+        <p class="si-k mono"><a href="/admin/project">← Project submissions</a> · {KIND_LABEL[file.kind]}</p>
+        <h1>{file.title}</h1>
+        <p class="muted" data-si-sub>{file.due_at ? 'Due ' : 'No due date'}<span data-due={file.due_at ?? ''}></span></p>
+      </div>
+      <div class="si-links">
+        <span class="live mono" data-si-live>loading…</span>
+        <a class="btn btn-ghost btn-sm" href={`/submit/${file.id}`} target="_blank" rel="noopener">Student page ↗</a>
+        <a class="btn btn-ghost btn-sm" href={`/api/admin/project/entries?file=${encodeURIComponent(file.id)}&format=csv`}>Export CSV</a>
+        <button class="btn btn-primary btn-sm" type="button" data-si-zip-all>Download all (ZIP)</button>
+      </div>
+    </header>
+
+    <div class="si-kpis" data-si-kpis></div>
+
+    <div class="si-grid">
+      <section class="si-card">
+        <div class="si-head">
+          <h2>Hand-ins</h2>
+          <input class="input si-search" type="search" placeholder="Search name, ID, group or note" data-si-search aria-label="Search submissions" />
+        </div>
+        <div class="si-tools">
+          <div class="si-chips" role="group" aria-label="Filter by status">
+            <button type="button" class="si-chip" aria-pressed="true" data-filter="all">All <span data-n="all"></span></button>
+            <button type="button" class="si-chip" aria-pressed="false" data-filter="ontime">On time <span data-n="ontime"></span></button>
+            <button type="button" class="si-chip" aria-pressed="false" data-filter="late">Late <span data-n="late"></span></button>
+          </div>
+          <div class="si-batch">
+            <span class="mono faint" data-si-selected></span>
+            <button class="btn btn-ghost btn-sm" type="button" data-si-zip-selected disabled>Download selected</button>
+          </div>
+        </div>
+        <div class="si-zip" data-si-zip hidden><progress max="1" value="0"></progress><span class="mono" data-si-zip-text></span></div>
+        <div class="table-wrap">
+          <table class="table si-table">
+            <thead><tr><th class="si-cb"><input type="checkbox" data-si-all aria-label="Select all shown" /></th><th>Name</th><th>Student ID</th><th>Group</th><th>Submitted</th><th>Status</th><th>Size</th><th></th></tr></thead>
+            <tbody data-si-rows><tr><td colspan="8" class="muted">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+      <aside class="si-card">
+        <h2>By group</h2>
+        <ul class="si-groups" data-si-groups></ul>
+        <h2 class="mt-6">Timeline</h2>
+        <div class="si-spark" data-si-spark></div>
+      </aside>
+    </div>
+    <p class="si-msg" role="status" data-si-msg></p>
+  </section>
+</Base>
+
+<style is:global>
+  .si-shell { min-height: 85dvh; padding-top: calc(var(--nav-h) + 44px); padding-bottom: 100px; display: grid; gap: 20px; align-content: start; }
+  .si-k { color: var(--accent-text); text-transform: uppercase; letter-spacing: .12em; font-size: 11px; }
+  .si-k a:hover { text-decoration: underline; }
+  .si-top { display: flex; justify-content: space-between; align-items: end; gap: 20px; flex-wrap: wrap; }
+  .si-top h1 { font-size: var(--fs-xl); letter-spacing: -.04em; margin-top: 3px; }
+  .si-links { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .si-kpis { display: grid; gap: 12px; grid-template-columns: repeat(2, 1fr); }
+  @media (min-width: 900px) { .si-kpis { grid-template-columns: repeat(4, 1fr); } }
+  .si-kpi { padding: 18px; border: 1px solid var(--line-2); border-radius: var(--r-lg); background: var(--surface); }
+  .si-kpi span { font: 500 10.5px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+  .si-kpi b { display: block; margin-top: 6px; font: 600 40px/1 var(--font-display); letter-spacing: -.04em; }
+  .si-kpi small { display: block; margin-top: 6px; color: var(--text-3); font-size: 12px; }
+  .si-kpi.late b { color: var(--warn); }
+  .si-meter { margin-top: 10px; height: 6px; border-radius: 99px; background: var(--line); overflow: hidden; }
+  .si-meter i { display: block; height: 100%; width: var(--w); background: var(--accent); border-radius: inherit; }
+  .si-grid { display: grid; gap: 18px; }
+  @media (min-width: 1100px) { .si-grid { grid-template-columns: 1fr 300px; align-items: start; } }
+  .si-card { border: 1px solid var(--line-2); background: var(--surface); border-radius: var(--r-lg); padding: clamp(16px, 3vw, 24px); min-width: 0; }
+  .si-card h2 { font-size: var(--fs-lg); letter-spacing: -.02em; }
+  .si-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .si-search { max-width: 280px; height: 40px; padding: 0 14px; }
+  .si-tools { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .si-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .si-chip { padding: 6px 12px; border: 1px solid var(--line-2); border-radius: 999px; background: none; color: var(--text-2); font: 500 12.5px var(--font-body); cursor: pointer; }
+  .si-chip span { color: var(--text-3); font-family: var(--font-mono); font-size: 11px; }
+  .si-chip[aria-pressed="true"] { border-color: var(--accent-text); background: var(--accent-soft); color: var(--accent-text); }
+  .si-batch { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+  .si-zip { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-size: 12px; color: var(--text-2); }
+  .si-zip progress { flex: 1; max-width: 320px; accent-color: var(--accent); }
+  .si-cb { width: 32px; }
+  .si-cb input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+  .si-table tr.sel td { background: var(--accent-soft); }
+  .si-table mark { background: color-mix(in oklab, var(--accent) 45%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
+  .si-table td { vertical-align: top; }
+  .si-table .note { display: block; margin-top: 4px; max-width: 38ch; font-size: 12.5px; color: var(--text-3); }
+  .si-tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font: 600 10.5px/1.5 var(--font-mono); text-transform: uppercase; letter-spacing: .05em; }
+  .si-tag.ok { background: var(--accent-soft); color: var(--accent-text); }
+  .si-tag.late { background: color-mix(in oklab, var(--warn) 18%, transparent); color: var(--warn); }
+  .si-row-act { display: flex; gap: 6px; justify-content: flex-end; white-space: nowrap; }
+  .si-del { color: var(--danger); }
+  .si-groups { list-style: none; padding: 0; margin-top: 12px; display: grid; gap: 8px; }
+  .si-groups li { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; font-size: 13.5px; }
+  .si-groups .bar { grid-column: 1 / -1; height: 5px; border-radius: 99px; background: var(--line); overflow: hidden; }
+  .si-groups .bar i { display: block; height: 100%; width: var(--w); background: var(--accent); }
+  .si-spark { margin-top: 12px; display: flex; align-items: flex-end; gap: 3px; height: 72px; }
+  .si-spark i { flex: 1; min-width: 4px; max-width: 28px; background: var(--accent); border-radius: 3px 3px 0 0; height: var(--h); opacity: .85; }
+  .si-spark i.late { background: var(--warn); }
+  .si-msg { min-height: 20px; font-size: 13px; color: var(--accent-text); }
+  .si-msg.err { color: var(--danger); }
+</style>
+
+<script>
+  import { downloadSubmissions } from '@/scripts/submissions-zip';
+
+  type Entry = { id: string; student_id: string; name: string; group_name: string; note: string; url: string; size: number; created_at: string; updated_at: string; late: boolean };
+  type File_ = { id: string; title: string; due_at: string | null; accepting: boolean };
+
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  const kb = (n: number) => (n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`);
+  const when = (s: string) => new Date(s).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+  document.addEventListener('astro:page-load', () => {
+    const root = document.querySelector<HTMLElement>('[data-si]');
+    if (!root || root.dataset.wired) return;
+    root.dataset.wired = '1';
+    const id = root.dataset.id!;
+    const rows = root.querySelector<HTMLElement>('[data-si-rows]')!;
+    const kpis = root.querySelector<HTMLElement>('[data-si-kpis]')!;
+    const groups = root.querySelector<HTMLElement>('[data-si-groups]')!;
+    const spark = root.querySelector<HTMLElement>('[data-si-spark]')!;
+    const live = root.querySelector<HTMLElement>('[data-si-live]')!;
+    const search = root.querySelector<HTMLInputElement>('[data-si-search]')!;
+    const msg = root.querySelector<HTMLElement>('[data-si-msg]')!;
+    const due = root.querySelector<HTMLElement>('[data-due]')!;
+    if (due.dataset.due) due.textContent = new Date(due.dataset.due).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' });
+    let entries: Entry[] = [];
+    let filter: 'all' | 'ontime' | 'late' = 'all';
+    const selected = new Set<string>();
+    const fileInfo = { due_at: root.dataset.dueAt || null };
+    const zipBox = root.querySelector<HTMLElement>('[data-si-zip]')!;
+    const zipBar = zipBox.querySelector('progress')!;
+    const zipText = root.querySelector<HTMLElement>('[data-si-zip-text]')!;
+    const zipAll = root.querySelector<HTMLButtonElement>('[data-si-zip-all]')!;
+    const zipSel = root.querySelector<HTMLButtonElement>('[data-si-zip-selected]')!;
+    const selInfo = root.querySelector<HTMLElement>('[data-si-selected]')!;
+    const allBox = root.querySelector<HTMLInputElement>('[data-si-all]')!;
+    // Deep link from the cross-item search on /admin/project: /admin/project/<id>?q=23CS0042
+    search.value = new URLSearchParams(location.search).get('q') ?? '';
+
+    const visible = () => {
+      const q = search.value.trim().toLowerCase();
+      return entries.filter((e) =>
+        (filter === 'all' || (filter === 'late') === e.late) &&
+        (!q || `${e.name} ${e.student_id} ${e.group_name} ${e.note}`.toLowerCase().includes(q)));
+    };
+    const mark = (text: string) => {
+      const q = search.value.trim();
+      if (q.length < 2) return esc(text);
+      const i = text.toLowerCase().indexOf(q.toLowerCase());
+      return i < 0 ? esc(text) : `${esc(text.slice(0, i))}<mark>${esc(text.slice(i, i + q.length))}</mark>${esc(text.slice(i + q.length))}`;
+    };
+    const syncSelection = () => {
+      for (const id of [...selected]) if (!entries.some((e) => e.id === id)) selected.delete(id);
+      const shown = visible();
+      selInfo.textContent = selected.size ? `${selected.size} selected` : '';
+      zipSel.disabled = zipping || selected.size === 0;
+      zipSel.textContent = selected.size ? `Download selected (${selected.size})` : 'Download selected';
+      allBox.checked = shown.length > 0 && shown.every((e) => selected.has(e.id));
+      allBox.indeterminate = !allBox.checked && shown.some((e) => selected.has(e.id));
+      zipAll.disabled = zipping || entries.length === 0;
+    };
+    let zipping = false;
+
+    const renderRows = () => {
+      const late = entries.filter((e) => e.late).length;
+      root.querySelector('[data-n="all"]')!.textContent = String(entries.length);
+      root.querySelector('[data-n="ontime"]')!.textContent = String(entries.length - late);
+      root.querySelector('[data-n="late"]')!.textContent = String(late);
+      const shown = visible();
+      rows.innerHTML = shown.length ? shown.map((e) => `
+        <tr class="${selected.has(e.id) ? 'sel' : ''}">
+          <td class="si-cb"><input type="checkbox" data-pick="${esc(e.id)}" ${selected.has(e.id) ? 'checked' : ''} aria-label="Select ${esc(e.name)}" /></td>
+          <td><b>${mark(e.name)}</b>${e.note ? `<span class="note">“${mark(e.note)}”</span>` : ''}</td>
+          <td class="mono">${mark(e.student_id)}</td>
+          <td class="mono">${mark(e.group_name)}</td>
+          <td class="mono">${when(e.updated_at)}${e.updated_at !== e.created_at ? '<br><small class="faint">resubmitted</small>' : ''}</td>
+          <td><span class="si-tag ${e.late ? 'late' : 'ok'}">${e.late ? 'late' : 'on time'}</span></td>
+          <td class="mono">${kb(e.size)}</td>
+          <td><div class="si-row-act"><a class="btn btn-ghost btn-sm" href="${esc(e.url)}" target="_blank" rel="noopener">Open PDF</a><button class="btn btn-ghost btn-sm si-del" type="button" data-del="${esc(e.id)}" data-name="${esc(e.name)}">Delete</button></div></td>
+        </tr>`).join('') : `<tr><td colspan="8" class="muted">${entries.length ? 'No matches.' : 'No submissions yet. Share the student page link with your class.'}</td></tr>`;
+      syncSelection();
+    };
+
+    const render = (file: File_) => {
+      const late = entries.filter((e) => e.late).length;
+      const bytes = entries.reduce((a, e) => a + e.size, 0);
+      const pct = Math.min(100, (bytes / 1024 ** 3) * 100);
+      kpis.innerHTML = `
+        <div class="si-kpi"><span>Submissions</span><b>${entries.length}</b><small>${file.accepting ? 'open · accepting hand-ins' : 'closed'}</small></div>
+        <div class="si-kpi"><span>On time</span><b>${entries.length - late}</b><small>${entries.length ? Math.round(((entries.length - late) / entries.length) * 100) : 0}% of hand-ins</small></div>
+        <div class="si-kpi late"><span>Late</span><b>${late}</b><small>${file.due_at ? 'after the due time' : 'no due date set'}</small></div>
+        <div class="si-kpi"><span>Storage</span><b>${kb(bytes)}</b><small>${pct.toFixed(1)}% of the free 1 GB</small><div class="si-meter"><i style="--w:${pct}%"></i></div></div>`;
+
+      const byGroup = new Map<string, number>();
+      for (const e of entries) byGroup.set(e.group_name, (byGroup.get(e.group_name) ?? 0) + 1);
+      const top = Math.max(1, ...byGroup.values());
+      groups.innerHTML = byGroup.size
+        ? [...byGroup].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([g, n]) => `<li><span>${esc(g)}</span><b class="mono">${n}</b><span class="bar"><i style="--w:${(n / top) * 100}%"></i></span></li>`).join('')
+        : '<li class="muted">No groups yet.</li>';
+
+      // Hand-ins per day (last 14 days with activity), late days in amber.
+      const days = new Map<string, { n: number; late: boolean }>();
+      for (const e of [...entries].reverse()) {
+        const d = e.updated_at.slice(0, 10);
+        const cur = days.get(d) ?? { n: 0, late: false };
+        days.set(d, { n: cur.n + 1, late: cur.late || e.late });
+      }
+      const series = [...days].slice(-14);
+      const peak = Math.max(1, ...series.map(([, v]) => v.n));
+      spark.innerHTML = series.length
+        ? series.map(([d, v]) => `<i class="${v.late ? 'late' : ''}" style="--h:${Math.max(6, (v.n / peak) * 100)}%" title="${d}: ${v.n}"></i>`).join('')
+        : '<p class="muted small">Appears after the first hand-in.</p>';
+      renderRows();
+    };
+
+    async function load() {
+      try {
+        const res = await fetch(`/api/admin/project/entries?file=${encodeURIComponent(id)}`, { cache: 'no-store' });
+        if (res.status === 401) return location.reload();
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? 'Could not load.');
+        entries = data.entries;
+        render(data.file);
+        live.classList.add('on');
+        live.textContent = `live · ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+      } catch (error) {
+        live.classList.remove('on');
+        live.textContent = error instanceof Error ? error.message : 'Could not load.';
+      }
+    }
+
+    search.addEventListener('input', () => {
+      const url = new URL(location.href);
+      if (search.value.trim()) url.searchParams.set('q', search.value.trim()); else url.searchParams.delete('q');
+      history.replaceState(history.state, '', url);
+      renderRows();
+    });
+    root.querySelectorAll<HTMLButtonElement>('[data-filter]').forEach((chip) => chip.addEventListener('click', () => {
+      filter = chip.dataset.filter as typeof filter;
+      root.querySelectorAll('[data-filter]').forEach((c) => c.setAttribute('aria-pressed', String(c === chip)));
+      renderRows();
+    }));
+    rows.addEventListener('change', (e) => {
+      const box = (e.target as HTMLElement).closest<HTMLInputElement>('[data-pick]');
+      if (!box) return;
+      if (box.checked) selected.add(box.dataset.pick!); else selected.delete(box.dataset.pick!);
+      box.closest('tr')?.classList.toggle('sel', box.checked);
+      syncSelection();
+    });
+    allBox.addEventListener('change', () => {
+      for (const e of visible()) if (allBox.checked) selected.add(e.id); else selected.delete(e.id);
+      renderRows();
+    });
+
+    const zip = async (list: Entry[], label: string) => {
+      if (zipping || !list.length) return;
+      zipping = true;
+      syncSelection();
+      zipBox.hidden = false; zipBar.max = list.length; zipBar.value = 0;
+      zipText.textContent = `Preparing ${label}…`;
+      try {
+        const r = await downloadSubmissions(root.dataset.title ?? 'submissions', fileInfo, list, (done, total) => {
+          zipBar.value = done;
+          zipText.textContent = `Adding ${done} of ${total} PDFs…`;
+        });
+        msg.className = `si-msg ${r.failed ? 'err' : ''}`;
+        msg.textContent = !r.saved ? '' : r.failed
+          ? `ZIP saved with ${r.included} PDFs. ${r.failed} could not be downloaded (see the MISSING files inside).`
+          : `ZIP saved: ${r.included} PDF${r.included === 1 ? '' : 's'} plus index.csv.`;
+      } catch (error) {
+        msg.className = 'si-msg err';
+        msg.textContent = `Could not build the ZIP: ${error instanceof Error ? error.message : 'unknown error'}.`;
+      } finally {
+        zipping = false;
+        zipBox.hidden = true;
+        syncSelection();
+      }
+    };
+    zipAll.addEventListener('click', () => zip(entries, `all ${entries.length} hand-ins`));
+    zipSel.addEventListener('click', () => zip(entries.filter((e) => selected.has(e.id)), `${selected.size} selected hand-ins`));
+    rows.addEventListener('click', async (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-del]');
+      if (!btn) return;
+      if (btn.dataset.armed !== '1') { btn.dataset.armed = '1'; btn.textContent = 'Confirm'; setTimeout(() => { btn.dataset.armed = ''; btn.textContent = 'Delete'; }, 4000); return; }
+      btn.disabled = true;
+      const res = await fetch(`/api/admin/project/entries?id=${encodeURIComponent(btn.dataset.del!)}`, { method: 'DELETE' });
+      msg.className = `si-msg ${res.ok ? '' : 'err'}`;
+      msg.textContent = res.ok ? `Removed ${btn.dataset.name}'s hand-in. They can submit again.` : 'Could not delete.';
+      load();
+    });
+
+    load();
+    const timer = setInterval(() => (root.isConnected ? document.visibilityState === 'visible' && load() : clearInterval(timer)), 30_000);
+  });
+</script>

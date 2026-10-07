@@ -3,6 +3,7 @@ import { ClientRouter } from 'astro:transitions';
 import Nav from '@/components/Nav.astro';
 import Footer from '@/components/Footer.astro';
 import SearchPalette from '@/components/SearchPalette.astro';
+import Announce from '@/components/Announce.astro';
 import { course } from '@/site.config';
 import '@/styles/global.css';
 
@@ -53,6 +54,7 @@ const fullTitle = title ? `${title} · ${course.name}` : `${course.name} — Cou
     </main>
     <Footer />
     <SearchPalette />
+    <Announce />
     <script>
       import '@/scripts/app';
     </script>

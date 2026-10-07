@@ -1,0 +1,112 @@
+---
+/**
+ * Site-wide announcement for newly published submissions (see isNew in lib/project-files/core):
+ * a promo bar pinned to the bottom of every page, and a NEW badge on the "Project" nav link.
+ * Data comes from /api/project/files at runtime, so publishing needs no rebuild.
+ */
+---
+<div class="ann" data-ann hidden role="region" aria-label="New submission">
+  <div class="ann-shine" aria-hidden="true"></div>
+  <div class="ann-inner">
+    <span class="ann-new mono">NEW</span>
+    <p class="ann-text"><b data-ann-title></b> <span data-ann-sub></span></p>
+    <a class="ann-cta" data-ann-cta href="/project#files">Submit now <span aria-hidden="true">→</span></a>
+    <button class="ann-x" type="button" data-ann-close aria-label="Dismiss announcement">✕</button>
+  </div>
+</div>
+
+<style is:global>
+  .ann { position: fixed; z-index: 90; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); width: min(calc(100% - 32px), 860px); translate: -50% 0;
+    border-radius: 18px; overflow: hidden; color: #0b0d10; background: linear-gradient(100deg, #c8ff4d 0%, #e6ff9a 45%, #9cf05a 100%);
+    box-shadow: 0 18px 50px -12px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(0 0 0 / 0.08) inset; animation: ann-in .5s cubic-bezier(.2,.9,.3,1.2) both; }
+  .ann-shine { position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.55) 50%, transparent 70%); translate: -100% 0; animation: ann-shine 3.6s ease-in-out 0.8s infinite; pointer-events: none; }
+  .ann-inner { position: relative; display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 14px; padding: 12px 12px 12px 14px; }
+  .ann-new { padding: 6px 9px; border-radius: 8px; background: #0b0d10; color: #c8ff4d; font-size: 11px; font-weight: 700; letter-spacing: .12em; animation: ann-pop 1.6s ease-in-out infinite; }
+  .ann-text { font-size: 14.5px; line-height: 1.35; min-width: 0; }
+  .ann-text b { font-weight: 700; }
+  .ann-text span { color: #2b3320; }
+  .ann-cta { white-space: nowrap; padding: 10px 16px; border-radius: 12px; background: #0b0d10; color: #fff; font-weight: 600; font-size: 14px; transition: transform var(--t-fast); }
+  .ann-cta:hover { transform: translateY(-1px); }
+  .ann-x { width: 32px; height: 32px; border: 0; border-radius: 10px; background: rgb(0 0 0 / 0.08); color: #0b0d10; cursor: pointer; font-size: 13px; }
+  .ann-x:hover { background: rgb(0 0 0 / 0.16); }
+  @media (max-width: 640px) {
+    .ann-inner { grid-template-columns: auto 1fr auto; row-gap: 10px; }
+    .ann-cta { grid-column: 1 / -1; text-align: center; grid-row: 2; }
+  }
+  @keyframes ann-in { from { opacity: 0; translate: -50% 30px; } }
+  @keyframes ann-shine { 0%, 60% { translate: -100% 0; } 100% { translate: 100% 0; } }
+  @keyframes ann-pop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+  .ann.out { animation: ann-out .25s ease-in both; }
+  @keyframes ann-out { to { opacity: 0; translate: -50% 30px; } }
+
+  /* NEW badge on the Project nav link */
+  .nav-links a:has(.nav-new) { position: relative; }
+  .nav-links .nav-new { position: absolute; top: -7px; right: -10px; margin: 0; box-shadow: 0 0 0 2px var(--bg); }
+  .nav-new { display: inline-block; margin-left: 6px; padding: 2px 6px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font: 700 9.5px/1.4 var(--font-mono); letter-spacing: .08em; vertical-align: 2px; animation: ann-pop 1.6s ease-in-out infinite; }
+
+  @media (prefers-reduced-motion: reduce) { .ann, .ann-shine, .ann-new, .nav-new { animation: none; } }
+</style>
+
+<script>
+  type Item = { id: string; title: string; kind: string; due_at: string | null; accepting: boolean; created_at: string };
+  const NEW_FOR_MS = 14 * 24 * 60 * 60 * 1000; // keep in sync with lib/project-files/core.ts
+  const CACHE_MS = 60_000;
+
+  const ls = {
+    get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } },
+    set: (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } },
+  };
+
+  async function items(): Promise<Item[]> {
+    try {
+      const hit = JSON.parse(sessionStorage.getItem('ann:cache') ?? 'null');
+      if (hit && Date.now() - hit.at < CACHE_MS) return hit.files;
+    } catch { /* ignore */ }
+    const data = await fetch('/api/project/files').then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const files: Item[] = data?.files ?? [];
+    try { sessionStorage.setItem('ann:cache', JSON.stringify({ at: Date.now(), files })); } catch { /* ignore */ }
+    return files;
+  }
+
+  const isNew = (f: Item, now: number) => f.accepting && now - Date.parse(f.created_at) < NEW_FOR_MS && !(f.due_at && Date.parse(f.due_at) < now);
+  const left = (iso: string) => {
+    const ms = Date.parse(iso) - Date.now();
+    const d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24;
+    return d ? `${d} day${d > 1 ? 's' : ''} left` : h ? `${h}h left` : 'closing soon';
+  };
+
+  async function announce() {
+    const bar = document.querySelector<HTMLElement>('[data-ann]');
+    if (!bar) return;
+    const path = location.pathname;
+    const fresh = (await items()).filter((f) => isNew(f, Date.now()));
+
+    // NEW badge until the student has opened that submission's page.
+    const unseen = fresh.some((f) => !ls.get(`submit:seen:${f.id}`));
+    document.querySelectorAll<HTMLAnchorElement>('a[href="/project"]').forEach((a) => {
+      const badge = a.querySelector('.nav-new');
+      if (unseen && !badge && a.closest('.nav, .mm-body, [data-nav]')) a.insertAdjacentHTML('beforeend', '<span class="nav-new" aria-label="new">NEW</span>');
+      if (!unseen) badge?.remove();
+    });
+
+    // Banner: newest unseen-and-undismissed item, never on admin or submit pages.
+    const item = fresh.find((f) => !ls.get(`ann:dismissed:${f.id}`) && !ls.get(`submit:seen:${f.id}`));
+    if (!item || path.startsWith('/admin') || path.startsWith('/submit/')) { bar.hidden = true; return; }
+    bar.querySelector('[data-ann-title]')!.textContent = item.title;
+    bar.querySelector('[data-ann-sub]')!.textContent = item.due_at ? `is open · ${left(item.due_at)}` : 'is open for submissions';
+    bar.querySelector<HTMLAnchorElement>('[data-ann-cta]')!.href = `/submit/${encodeURIComponent(item.id)}`;
+    bar.dataset.id = item.id;
+    bar.classList.remove('out');
+    bar.hidden = false;
+  }
+
+  document.addEventListener('click', (e) => {
+    const close = (e.target as HTMLElement).closest('[data-ann-close]');
+    if (!close) return;
+    const bar = close.closest<HTMLElement>('[data-ann]')!;
+    ls.set(`ann:dismissed:${bar.dataset.id}`, '1');
+    bar.classList.add('out');
+    setTimeout(() => (bar.hidden = true), 250);
+  });
+  document.addEventListener('astro:page-load', () => void announce());
+</script>

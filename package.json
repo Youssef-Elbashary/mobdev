@@ -29,6 +29,7 @@
     "@upstash/redis": "^1.39.0",
     "@vercel/blob": "^2.8.1",
     "astro": "^7.3.5",
+    "client-zip": "^2.5.1",
     "codemirror": "^6.0.2",
     "pg": "^8.23.1",
     "react": "^19.3.0",

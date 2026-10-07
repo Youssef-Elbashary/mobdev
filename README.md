@@ -194,15 +194,21 @@ For the hosted CMS, add these Vercel environment variables and redeploy:
 - `GITHUB_TOKEN` — a fine-grained token limited to this repository, with **Contents** and **Pull requests** read/write and **Deployments** read permission
 - Optional: `CMS_BASE` (defaults to `main`) and `CMS_DRAFTS` (defaults to `cms-drafts`)
 
-## Project files (`/admin/project`)
+## Project submissions (`/admin/project`)
 
-The teaching team can publish PDFs, such as the **project proposal submission** form, on the Course Project page. Open `/admin/project` (or **Project files →** on `/admin`), enter a title, type, optional description and due date, choose the PDF (20 MB max) and press **Publish**. It appears straight away under **Files** on `/project`, with no redeploy. **Delete** removes the listing and the stored PDF.
+The teaching team publishes submissions, such as the **project proposal**, and students hand in a PDF on the site.
 
-- **Storage:** [Vercel Blob](https://vercel.com/docs/vercel-blob), which is free on the Hobby plan (1 GB). In Vercel → Project → **Storage** → **Create** → **Blob** (public access), connect it to all environments. This adds `BLOB_READ_WRITE_TOKEN`. Then redeploy. The admin's browser uploads straight to Blob, so PDFs are not limited by Vercel's 4.5 MB request limit. Production uses the `project-files/` folder and previews use `project-files-dev/`.
-- **Metadata:** the same PostgreSQL database as progress tracking (`project_files` in production, `project_dev_files` elsewhere), created on first use.
-- **Local dev:** without a Blob token, PDFs are saved to the git-ignored `.uploads/` folder and served by `/api/project/files/[name]`.
-- **Safety:** only the admin can upload or delete. Uploads must be `application/pdf` and start with the `%PDF-` signature, and the server only accepts URLs from this project's own Blob store.
-- **Code:** rules in `src/lib/project-files/core.ts` (unit-tested: `npm test`), storage in `src/lib/project-files/server.ts`, endpoints in `src/pages/api/project/` and `src/pages/api/admin/project/`.
+- **Publish:** open `/admin/project` (or **Submissions →** on `/admin`). Enter a title, type, optional instructions and due date, and **optionally** attach a PDF (20 MB max, e.g. a brief or form). Leave **Accept student submissions** ticked to collect hand-ins. **Close** / **Open** toggles hand-ins at any time, and **Delete** removes the item together with every hand-in and stored PDF.
+- **Announcement:** an open item published in the last 14 days and not yet past due shows a dismissible promo bar at the bottom of every page, plus a **NEW** badge on the Project nav link. Both clear for a student once they open its submit page. It also appears under **Submissions** on `/project`.
+- **Students:** `/submit/<id>` shows the instructions, any attached PDF and a due-date countdown, plus a form for name, student ID, group and one PDF (4 MB max) with an optional note. There's one hand-in per student ID, and it can be replaced only from the browser that first handed it in, so nobody can overwrite another student's work. Hand-ins after the due time are accepted and marked **late** until the item is closed.
+- **Insights:** `/admin/project/<id>` shows totals, on-time vs late, storage used against the free 1 GB, per-group counts, a timeline, and every hand-in, auto-refreshing. Search by name, ID, group or note (the URL keeps `?q=`), and filter All / On time / Late. Open or delete single PDFs, or **Export CSV**.
+- **Batch download:** **Download all (ZIP)**, or tick rows (select-all respects the current filter) and **Download selected**. The ZIP is built in your browser from the Blob URLs, so it uses no server time, and Chrome/Edge stream it straight to disk. It contains `G1/23CS0042 - Sara Ali.pdf`-style paths plus `index.csv`. PDFs that can't be fetched become `… - MISSING.txt` notes.
+- **Find one student:** the **Find a submission** box on `/admin/project` searches every item at once. **In list →** opens that item's insights filtered to the student.
+- **Storage:** [Vercel Blob](https://vercel.com/docs/vercel-blob), free on Hobby: 1 GB storage, 2,000 uploads and 10 GB transfer per month. If you exceed a limit, Blob is blocked for 30 days rather than billed. The public store `mobdev-project-files` (fra1) is connected to all environments via `BLOB_READ_WRITE_TOKEN`. Browsers upload straight to Blob through short-lived tokens, so files skip Vercel's 4.5 MB request limit. Production uses `project-files/` and previews use `project-files-dev/`. 200 hand-ins × 4 MB fit within the free 1 GB.
+- **Metadata:** the progress PostgreSQL database (`project_files` + `project_entries` in production, `project_dev_*` elsewhere), created and migrated on first use.
+- **Local dev:** with no Blob token, PDFs are saved to the git-ignored `.uploads/` folder and served by `/api/project/files/[name]`.
+- **Safety:** admin routes need the admin login. Student uploads are rate-limited per IP and confined to that item's folder. Every PDF must be `application/pdf`, start with `%PDF-` and come from this project's own store, and rejected uploads are deleted. Hand-in PDF links are unguessable but public, and are only shown to admins.
+- **Code:** rules in `src/lib/project-files/core.ts` (unit-tested: `npm test`), storage in `src/lib/project-files/server.ts`, endpoints in `src/pages/api/project/`, `src/pages/api/submissions/` and `src/pages/api/admin/project/`, the banner in `src/components/Announce.astro`, and the ZIP builder in `src/scripts/submissions-zip.ts`.
 
 ## Project structure
 

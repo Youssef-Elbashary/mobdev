@@ -1,0 +1,298 @@
+---
+import Base from '@/layouts/Base.astro';
+import EmptyState from '@/components/EmptyState.astro';
+import { KIND_LABEL, MAX_ENTRY_BYTES, canSubmit } from '@/lib/project-files/core';
+import { entryFolder, getFilesStore, storageMode } from '@/lib/project-files/server';
+
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'no-store, max-age=0');
+
+const store = getFilesStore();
+const file = store ? await store.get(Astro.params.id ?? '').catch(() => null) : null;
+if (!file) Astro.response.status = 404;
+const open = file ? canSubmit(file) : false;
+const mode = storageMode();
+const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 'full', timeStyle: 'short', timeZone: 'Africa/Cairo' });
+---
+<Base title={file ? file.title : 'Submission not found'} description={file?.description || undefined} noindex>
+  {!file ? (
+    <div class="container" style="padding-block: 160px 120px">
+      <EmptyState title="This submission doesn't exist." body="It may have been removed. Check the Course Project page for what's open." path="project/" />
+    </div>
+  ) : (
+    <>
+      <header class="sbh">
+        <div class="sbh-bg" aria-hidden="true"></div>
+        <div class="container sbh-inner">
+          <nav class="crumbs" aria-label="Breadcrumb"><a href="/">~</a><span aria-hidden="true">/</span><a href="/project#files">project</a><span aria-hidden="true">/</span><span aria-current="page">submit</span></nav>
+          <p class="sbh-k mono">
+            <span class:list={['sbh-state', { open }]}><span class="dot"></span>{open ? 'Open for submissions' : file.accepting ? 'Open' : 'Closed'}</span>
+            <span>{KIND_LABEL[file.kind]}</span>
+          </p>
+          <h1 class="sbh-title">{file.title}</h1>
+          {file.due_at && (
+            <div class="sbh-due" data-due={file.due_at}>
+              <span class="mono">Due</span>
+              <b>{fmt(file.due_at)}</b>
+              <span class="sbh-left mono" data-left></span>
+            </div>
+          )}
+        </div>
+      </header>
+
+      <div class="container sb-body">
+        <section class="sb-info">
+          {file.description && <div class="sb-desc">{file.description.split(/\n{2,}/).map((p) => <p>{p}</p>)}</div>}
+          {file.url && (
+            <a class="sb-attach" href={file.url} target="_blank" rel="noopener">
+              <span class="sb-pdf mono" aria-hidden="true">PDF</span>
+              <span><b>Download the brief</b><small>{file.size ? `${Math.max(1, Math.round(file.size / 1024))} KB` : 'PDF'} · opens in a new tab</small></span>
+              <span aria-hidden="true">↓</span>
+            </a>
+          )}
+          <ul class="sb-rules">
+            <li>One PDF, up to <b>{MAX_ENTRY_BYTES / 1024 / 1024} MB</b>.</li>
+            <li>Use your real name and student ID. Your TA sees exactly what you type.</li>
+            <li>You can hand in again from <b>this browser</b> before it closes. The new PDF replaces the old one.</li>
+            {file.due_at && <li>Anything handed in after the due time is marked <b>late</b>.</li>}
+          </ul>
+        </section>
+
+        <section class="sb-card" data-submit data-id={file.id} data-mode={mode ?? ''} data-folder={entryFolder(file.id)} data-max={MAX_ENTRY_BYTES} data-open={open ? '1' : ''}>
+          {!open ? (
+            <div class="sb-closed">
+              <h2>Submissions are closed</h2>
+              <p class="muted">Your TA isn't accepting hand-ins for this right now. If you think that's a mistake, contact them.</p>
+            </div>
+          ) : !mode ? (
+            <div class="sb-closed"><h2>Not available yet</h2><p class="muted">File storage isn't set up on this site yet. Please tell your TA.</p></div>
+          ) : (
+            <form class="sb-form" data-sb-form novalidate>
+              <h2>Hand in your PDF</h2>
+              <label><span>Full name</span><input class="input" name="name" autocomplete="name" required maxlength="60" /></label>
+              <div class="sb-row">
+                <label><span>Student ID</span><input class="input" name="studentId" required maxlength="20" autocapitalize="characters" spellcheck="false" /></label>
+                <label><span>Group / team</span><input class="input" name="group" required maxlength="30" placeholder="e.g. G1" /></label>
+              </div>
+              <label><span>Note for your TA <small>(optional)</small></span><textarea class="input" name="note" rows="2" maxlength="500"></textarea></label>
+              <label class="sb-drop" data-sb-drop>
+                <input type="file" name="file" accept="application/pdf,.pdf" required />
+                <span class="sb-drop-icon mono" aria-hidden="true">PDF</span>
+                <span data-sb-filename><b>Choose your PDF</b> or drop it here</span>
+              </label>
+              <p class="sb-status" data-sb-status role="status"></p>
+              <progress max="100" value="0" hidden data-sb-progress></progress>
+              <button class="btn btn-primary" type="submit" data-sb-submit>Submit</button>
+            </form>
+          )}
+          <div class="sb-done" data-sb-done hidden>
+            <span class="sb-check" aria-hidden="true">✓</span>
+            <h2>Submitted</h2>
+            <p data-sb-done-text></p>
+            <button class="btn btn-ghost btn-sm" type="button" data-sb-again>Replace my PDF</button>
+          </div>
+        </section>
+      </div>
+    </>
+  )}
+</Base>
+
+<style>
+  .sbh { position: relative; overflow: hidden; isolation: isolate; background: #08090b; color: #eceef1; padding-top: calc(var(--nav-h) + 56px); padding-bottom: 56px; }
+  .sbh .crumbs { color: #6f7887; }
+  .sbh .crumbs a:hover { color: #eceef1; }
+  .sbh-bg { position: absolute; inset: 0; z-index: -1; background: radial-gradient(circle at 85% -10%, rgb(200 255 77 / 0.28), transparent 45%), linear-gradient(rgb(255 255 255 / 0.035) 1px, transparent 1px) 0 0 / 48px 48px, linear-gradient(90deg, rgb(255 255 255 / 0.035) 1px, transparent 1px) 0 0 / 48px 48px; }
+  .sbh-k { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #8a93a1; }
+  .sbh-state { display: inline-flex; align-items: center; gap: 8px; color: #ff8a7a; }
+  .sbh-state .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .sbh-state.open { color: #c8ff4d; }
+  .sbh-state.open .dot { animation: pulse-ring 2s infinite; }
+  .sbh-title { margin-top: 18px; font-size: clamp(2.4rem, 1.2rem + 4.5vw, 5rem); line-height: 0.95; letter-spacing: -0.045em; font-weight: 700; max-width: 18ch; }
+  .sbh-due { margin-top: 28px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+  .sbh-due .mono { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #8a93a1; }
+  .sbh-due b { font-weight: 600; color: #ffb547; }
+  .sbh-left { color: #c8ff4d !important; }
+
+  .sb-body { display: grid; gap: 28px; padding-block: 48px 120px; }
+  @media (min-width: 960px) { .sb-body { grid-template-columns: 1fr 460px; gap: 56px; align-items: start; } }
+  .sb-info { display: grid; gap: 22px; align-content: start; }
+  .sb-desc { display: grid; gap: 12px; font-size: 1.05rem; color: var(--text-2); white-space: pre-line; }
+  .sb-attach { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; padding: 16px; border: 1px solid var(--line-2); border-radius: var(--r-lg); background: var(--surface); transition: border-color var(--t-fast), transform var(--t-fast); }
+  .sb-attach:hover { border-color: var(--accent-text); transform: translateY(-1px); }
+  .sb-attach b { display: block; }
+  .sb-attach small { color: var(--text-3); font-size: 12px; }
+  .sb-pdf, .sb-drop-icon { display: grid; place-items: center; width: 44px; height: 52px; border-radius: 8px; background: color-mix(in oklab, var(--danger) 18%, var(--surface)); color: var(--danger); font-size: 11px; font-weight: 700; }
+  .sb-rules { display: grid; gap: 8px; padding-left: 20px; color: var(--text-2); font-size: 14.5px; }
+
+  .sb-card { border: 1px solid var(--line-2); background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); padding: clamp(20px, 4vw, 28px); }
+  @media (min-width: 960px) { .sb-card { position: sticky; top: calc(var(--nav-h) + 20px); } }
+  .sb-card h2 { font-size: var(--fs-lg); letter-spacing: -.02em; }
+  .sb-form, .sb-closed { display: grid; gap: 14px; }
+  .sb-form label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; min-width: 0; }
+  .sb-form small { color: var(--text-3); font-weight: 400; }
+  .sb-form .input { padding: 0 14px; height: 44px; }
+  .sb-form textarea.input { height: auto; padding: 10px 14px; resize: vertical; }
+  .sb-row { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
+  .sb-drop { position: relative; display: flex !important; align-items: center; gap: 14px; padding: 14px; border: 1.5px dashed var(--line-2); border-radius: var(--r-md); cursor: pointer; font-weight: 400 !important; color: var(--text-2); transition: border-color var(--t-fast), background var(--t-fast); }
+  .sb-drop:hover, .sb-drop.over { border-color: var(--accent-text); background: var(--accent-soft); }
+  .sb-drop.has-file { border-style: solid; border-color: var(--accent-text); }
+  .sb-drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .sb-drop b { color: var(--text); }
+  .sb-status { min-height: 20px; font-size: 13px; }
+  .sb-status.err { color: var(--danger); }
+  .sb-status.warn { color: var(--warn); }
+  .sb-status.ok { color: var(--accent-text); }
+  .sb-form progress { width: 100%; accent-color: var(--accent); }
+  .sb-form .btn { justify-self: stretch; }
+  .sb-done { display: grid; gap: 10px; justify-items: start; }
+  .sb-check { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 22px; font-weight: 700; }
+  .sb-done p { color: var(--text-2); }
+</style>
+
+<script>
+  import { upload } from '@vercel/blob/client';
+
+  type Status = { submitted: boolean; locked?: boolean; at?: string; late?: boolean };
+
+  const store = {
+    get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } },
+    set: (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } },
+  };
+  const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+
+  function deviceKey() {
+    let key = store.get('submit:device');
+    if (!key || !/^[A-Za-z0-9_-]{16,64}$/.test(key)) {
+      key = (crypto.randomUUID?.() ?? `${Date.now()}${Math.random()}`).replace(/[^A-Za-z0-9]/g, '').slice(0, 32).padEnd(16, '0');
+      store.set('submit:device', key);
+    }
+    return key;
+  }
+
+  function countdown() {
+    const box = document.querySelector<HTMLElement>('[data-due]');
+    const out = box?.querySelector<HTMLElement>('[data-left]');
+    if (!box || !out) return;
+    const due = Date.parse(box.dataset.due!);
+    const tick = () => {
+      const ms = due - Date.now();
+      if (ms <= 0) { out.textContent = 'past due · hand-ins are marked late'; out.style.color = '#ff8a7a'; return; }
+      const d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24, m = Math.floor(ms / 6e4) % 60;
+      out.textContent = d ? `${d}d ${h}h left` : h ? `${h}h ${m}m left` : `${m}m left`;
+    };
+    tick();
+    const t = setInterval(() => (out.isConnected ? tick() : clearInterval(t)), 30_000);
+  }
+
+  function wire() {
+    countdown();
+    const card = document.querySelector<HTMLElement>('[data-submit]');
+    if (!card) return;
+    const id = card.dataset.id!;
+    store.set(`submit:seen:${id}`, '1'); // clears the NEW badge for this item
+    const form = card.querySelector<HTMLFormElement>('[data-sb-form]');
+    if (!form || form.dataset.wired) return;
+    form.dataset.wired = '1';
+
+    const status = card.querySelector<HTMLElement>('[data-sb-status]')!;
+    const bar = card.querySelector<HTMLProgressElement>('[data-sb-progress]')!;
+    const submit = card.querySelector<HTMLButtonElement>('[data-sb-submit]')!;
+    const drop = card.querySelector<HTMLElement>('[data-sb-drop]')!;
+    const fileIn = form.querySelector<HTMLInputElement>('input[type=file]')!;
+    const fileName = card.querySelector<HTMLElement>('[data-sb-filename]')!;
+    const done = card.querySelector<HTMLElement>('[data-sb-done]')!;
+    const max = Number(card.dataset.max);
+    const say = (text: string, kind: '' | 'ok' | 'err' | 'warn' = '') => { status.textContent = text; status.className = `sb-status ${kind}`; };
+    const field = (n: string) => form.elements.namedItem(n) as HTMLInputElement;
+
+    // Same details the student typed in the labs.
+    try {
+      const me = JSON.parse(store.get('submit:me') ?? store.get('lab:student') ?? 'null');
+      if (me) { field('name').value ||= me.name ?? ''; field('studentId').value ||= me.id ?? ''; field('group').value ||= me.group ?? ''; }
+    } catch { /* ignore */ }
+
+    const showDone = (at: string, late: boolean, replaced: boolean) => {
+      form.hidden = true;
+      done.hidden = false;
+      done.querySelector('[data-sb-done-text]')!.textContent =
+        `${replaced ? 'Your PDF was replaced' : 'Your PDF was received'} on ${when(at)}${late ? ' (late)' : ''}. Your TA can see it now.`;
+    };
+    done.querySelector('[data-sb-again]')!.addEventListener('click', () => { done.hidden = true; form.hidden = false; say('Choose the new PDF. It will replace the one you handed in.', 'warn'); });
+
+    let checked = '';
+    const check = async () => {
+      const sid = field('studentId').value.trim().toUpperCase();
+      if (!/^[A-Za-z0-9-]{3,20}$/.test(sid) || sid === checked) return;
+      checked = sid;
+      const s: Status = await fetch(`/api/submissions/${encodeURIComponent(id)}?studentId=${encodeURIComponent(sid)}&deviceKey=${encodeURIComponent(deviceKey())}`)
+        .then((r) => r.json()).catch(() => ({ submitted: false }));
+      if (s.locked) say('This student ID already handed in from another browser. Use that browser, or ask your TA.', 'err');
+      else if (s.submitted && s.at) showDone(s.at, Boolean(s.late), false);
+    };
+    field('studentId').addEventListener('blur', check);
+    if (field('studentId').value) void check();
+
+    const pick = (f: File | null) => {
+      drop.classList.toggle('has-file', Boolean(f));
+      fileName.innerHTML = '';
+      const b = document.createElement('b');
+      b.textContent = f ? f.name : 'Choose your PDF';
+      fileName.append(b, f ? ` · ${Math.max(1, Math.round(f.size / 1024))} KB` : ' or drop it here');
+    };
+    fileIn.addEventListener('change', () => pick(fileIn.files?.[0] ?? null));
+    for (const ev of ['dragenter', 'dragover']) drop.addEventListener(ev, () => drop.classList.add('over'));
+    for (const ev of ['dragleave', 'drop']) drop.addEventListener(ev, () => drop.classList.remove('over'));
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = field('name').value.replace(/\s+/g, ' ').trim();
+      const studentId = field('studentId').value.trim().toUpperCase();
+      const group = field('group').value.replace(/\s+/g, ' ').trim();
+      const note = (form.elements.namedItem('note') as HTMLTextAreaElement).value.trim();
+      const file = fileIn.files?.[0];
+      if (name.length < 2) return say('Please type your full name.', 'err'), field('name').focus();
+      if (!/^[A-Za-z0-9-]{3,20}$/.test(studentId)) return say('Your student ID should be 3–20 letters or numbers.', 'err'), field('studentId').focus();
+      if (!group) return say('Enter your group or team (for example, G1).', 'err'), field('group').focus();
+      if (!file) return say('Choose your PDF.', 'err');
+      if (file.type && file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) return say('That file is not a PDF.', 'err');
+      if (file.size > max) return say(`The PDF must be ${max / 1024 / 1024} MB or smaller. Compress it and try again.`, 'err');
+
+      const who = { name, studentId, group, note, deviceKey: deviceKey() };
+      submit.disabled = true;
+      bar.hidden = false; bar.value = 0;
+      say('Uploading…');
+      try {
+        let res: Response;
+        if (card.dataset.mode === 'blob') {
+          const blob = await upload(`${card.dataset.folder}/${studentId.toLowerCase()}.pdf`, file, {
+            access: 'public',
+            contentType: 'application/pdf',
+            handleUploadUrl: '/api/submissions/upload',
+            clientPayload: JSON.stringify({ fileId: id }),
+            onUploadProgress: ({ percentage }) => { bar.value = percentage; },
+          });
+          say('Saving…');
+          res = await fetch(`/api/submissions/${encodeURIComponent(id)}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...who, url: blob.url }) });
+        } else {
+          const fd = new FormData();
+          Object.entries(who).forEach(([k, v]) => fd.set(k, v));
+          fd.set('file', file);
+          res = await fetch(`/api/submissions/${encodeURIComponent(id)}`, { method: 'POST', body: fd });
+        }
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error ?? 'Could not save your submission.');
+        store.set('submit:me', JSON.stringify({ name, id: studentId, group }));
+        say('');
+        fileIn.value = ''; pick(null);
+        showDone(data.at, data.late, data.replaced);
+      } catch (error) {
+        say(error instanceof Error ? error.message : 'Upload failed. Check your connection and try again.', 'err');
+      } finally {
+        submit.disabled = false;
+        bar.hidden = true;
+      }
+    });
+  }
+
+  document.addEventListener('astro:page-load', wire);
+</script>

@@ -14,7 +14,7 @@ const required = d?.features.filter((f) => f.required) ?? [];
 const stretch = d?.features.filter((f) => !f.required) ?? [];
 const nav = d ? [
   ['overview', 'Overview'],
-  ['files', 'Files'],
+  ['files', 'Submissions'],
   ['journey', 'Milestones'],
   ['requirements', 'Requirements'],
   ['features', 'Features'],
@@ -71,8 +71,8 @@ const nav = d ? [
         </section>
 
         <section id="files" class="pj-sec pj-split" data-pj-files hidden>
-          <div><p class="eyebrow">Download &amp; submit</p><h2 class="h-2 mt-4">Files</h2></div>
-          <div class="row-list" data-pj-file-list></div>
+          <div><p class="eyebrow">Download &amp; submit</p><h2 class="h-2 mt-4">Submissions</h2></div>
+          <div class="pjf-list" data-pj-file-list></div>
         </section>
 
         <section id="journey" class="pj-sec">
@@ -221,20 +221,30 @@ const nav = d ? [
   .dlv { list-style: none; padding: 0; counter-reset: d; border-top: 1px solid var(--line); }
   .dlv li { display: grid; grid-template-columns: 48px 1fr; gap: 12px; padding: 18px 0; border-bottom: 1px solid var(--line); font-size: 1.05rem; }
   .dlv .mono { color: var(--accent-text); font-size: 13px; padding-top: 3px; }
-  :global(.pjf) { grid-template-columns: 1fr 36px; }
-  :global(.pjf b) { display: block; font-weight: 600; }
-  :global(.pjf small) { display: block; margin-top: 4px; font-size: 12px; color: var(--text-3); }
-  :global(.pjf .pjf-d) { display: block; margin-top: 4px; font-size: 14px; color: var(--text-2); }
-  :global(.pjf .pjf-due) { color: var(--warn); }
+  .pjf-list { display: grid; gap: 12px; }
+  :global(.pjf) { display: grid; gap: 14px; padding: 20px; border: 1px solid var(--line-2); border-radius: var(--r-lg); background: var(--surface); }
+  @media (min-width: 720px) { :global(.pjf) { grid-template-columns: 1fr auto; align-items: center; } }
+  :global(.pjf.is-new) { border-color: color-mix(in oklab, var(--accent-text) 55%, var(--line-2)); box-shadow: 0 0 0 4px var(--accent-soft); }
+  :global(.pjf-t) { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; }
+  :global(.pjf-t a:hover) { color: var(--accent-text); }
+  :global(.pjf-new) { padding: 2px 7px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font: 700 10px/1.5 var(--font-mono); letter-spacing: .08em; }
+  :global(.pjf-closed) { padding: 2px 7px; border-radius: 999px; background: var(--surface-2); color: var(--text-3); font: 600 10px/1.5 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
+  :global(.pjf-d) { margin-top: 6px; font-size: 14.5px; color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  :global(.pjf small) { display: block; margin-top: 8px; font-size: 12px; color: var(--text-3); }
+  :global(.pjf-due) { color: var(--warn); }
+  :global(.pjf-act) { display: flex; flex-wrap: wrap; gap: 8px; }
 </style>
 
 <script>
-  type ProjectFile = { id: string; title: string; description: string; kind: string; due_at: string | null; url: string; size: number; created_at: string };
+  type ProjectFile = { id: string; title: string; description: string; kind: string; due_at: string | null; url: string | null; size: number | null; accepting: boolean; created_at: string };
+  const NEW_FOR_MS = 14 * 24 * 60 * 60 * 1000; // keep in sync with lib/project-files/core.ts
+  const isNew = (f: ProjectFile) => f.accepting && Date.now() - Date.parse(f.created_at) < NEW_FOR_MS && !(f.due_at && Date.parse(f.due_at) < Date.now());
+  const kb = (n: number) => (n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`);
   const KIND: Record<string, string> = { proposal: 'Proposal submission', brief: 'Brief', template: 'Template', other: 'Document' };
   const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
   const day = (s: string) => new Date(s).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
-  /** Published PDFs come from the admin (/admin/project), so they load at runtime, not at build time. */
+  /** Published items come from the admin (/admin/project), so they load at runtime, not at build time. */
   async function loadFiles() {
     const sec = document.querySelector<HTMLElement>('[data-pj-files]');
     const list = sec?.querySelector<HTMLElement>('[data-pj-file-list]');
@@ -244,15 +254,23 @@ const nav = d ? [
     const data = await fetch('/api/project/files').then((r) => (r.ok ? r.json() : null)).catch(() => null);
     const files: ProjectFile[] = data?.files ?? [];
     if (!files.length) return;
-    list.innerHTML = files.map((f) => `
-      <a class="row pjf" href="${esc(f.url)}" target="_blank" rel="noopener">
-        <span>
-          <b>${esc(f.title)}</b>
-          ${f.description ? `<span class="pjf-d">${esc(f.description)}</span>` : ''}
-          <small class="mono">PDF · ${esc(KIND[f.kind] ?? 'Document')} · ${f.size < 1024 * 1024 ? `${Math.max(1, Math.round(f.size / 1024))} KB` : `${(f.size / 1024 / 1024).toFixed(1)} MB`}${f.due_at ? ` · <span class="pjf-due">due ${day(f.due_at)}</span>` : ''}</small>
-        </span>
-        <span class="go" aria-hidden="true">↓</span>
-      </a>`).join('');
+    list.innerHTML = files.map((f) => {
+      const submit = `/submit/${encodeURIComponent(f.id)}`;
+      const title = f.accepting ? `<a href="${submit}">${esc(f.title)}</a>` : esc(f.title);
+      const meta = [esc(KIND[f.kind] ?? 'Document'), f.url && f.size ? `PDF · ${kb(f.size)}` : '', f.due_at ? `<span class="pjf-due">due ${day(f.due_at)}</span>` : ''].filter(Boolean).join(' · ');
+      return `
+      <article class="pjf${isNew(f) ? ' is-new' : ''}">
+        <div>
+          <h3 class="pjf-t">${title}${isNew(f) ? '<span class="pjf-new">NEW</span>' : ''}${!f.accepting && f.kind === 'proposal' ? '<span class="pjf-closed">Closed</span>' : ''}</h3>
+          ${f.description ? `<p class="pjf-d">${esc(f.description)}</p>` : ''}
+          <small class="mono">${meta}</small>
+        </div>
+        <div class="pjf-act">
+          ${f.url ? `<a class="btn btn-ghost btn-sm" href="${esc(f.url)}" target="_blank" rel="noopener">Download PDF ↓</a>` : ''}
+          ${f.accepting ? `<a class="btn btn-primary btn-sm" href="${submit}">Submit →</a>` : ''}
+        </div>
+      </article>`;
+    }).join('');
     sec.hidden = false;
     if (link) link.hidden = false;
   }

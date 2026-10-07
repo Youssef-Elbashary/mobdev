@@ -11,13 +11,13 @@ if (!isAdmin(Astro.cookies)) return Astro.redirect('/admin', 303);
 const setup = projectFilesSetup();
 const ready = setup.database && setup.storage;
 ---
-<Base title="Project files" noindex>
+<Base title="Project submissions" noindex>
   <section class="pf-shell container">
     <header class="pf-top">
       <div>
         <p class="pf-k mono">Admin workspace</p>
-        <h1>Project files</h1>
-        <p class="muted">Publish PDFs, such as the proposal submission form, on the <a href="/project#files">Course Project</a> page.</p>
+        <h1>Project submissions</h1>
+        <p class="muted">Publish a submission (with or without a PDF). It's announced site-wide and students hand in on its own page.</p>
       </div>
       <div class="pf-links">
         <a class="btn btn-ghost btn-sm" href="/admin">Attendance</a>
@@ -31,21 +31,28 @@ const ready = setup.database && setup.storage;
         <h2>Connect storage</h2>
         <ol class="pf-steps">
           {!setup.database && <li>Connect a Neon database to the project in Vercel (it adds <code>DATABASE_URL</code>).</li>}
-          {!setup.storage && <li>In Vercel → Project → <b>Storage</b> → <b>Create</b> → <b>Blob</b> (public), connect it to all environments. This adds <code>BLOB_READ_WRITE_TOKEN</code>. Blob is free on the Hobby plan.</li>}
+          {!setup.storage && <li>Create a public Blob store connected to all environments: <code>vercel blob create-store mobdev-project-files --access public --yes</code>. This adds <code>BLOB_READ_WRITE_TOKEN</code>.</li>}
           <li>Redeploy, then return here.</li>
         </ol>
       </div>
     ) : (
+      <section class="pf-card pf-pad pf-find" data-pf-find>
+        <div class="pf-head"><h2>Find a submission</h2><span class="pf-usage mono">searches every item by name, student ID, group or note</span></div>
+        <input class="input" type="search" placeholder="e.g. 23CS0042, Sara, G3" data-pf-q aria-label="Search all submissions" />
+        <ul class="pf-results" data-pf-results hidden></ul>
+      </section>
+
       <div class="pf-grid" data-pf data-mode={setup.storage} data-folder={blobFolder()}>
         <form class="pf-card pf-pad pf-form" data-pf-form>
-          <h2>Publish a PDF</h2>
+          <h2>Publish</h2>
           <label><span>Title</span><input class="input" name="title" required maxlength="120" value="Project proposal submission" /></label>
           <label><span>Type</span>
             <select class="input" name="kind">{KINDS.map((k) => <option value={k}>{KIND_LABEL[k]}</option>)}</select>
           </label>
-          <label><span>Description <small>(optional)</small></span><textarea class="input" name="description" rows="3" maxlength="600" placeholder="What students should do with this file"></textarea></label>
+          <label><span>Instructions <small>(optional)</small></span><textarea class="input" name="description" rows="4" maxlength="2000" placeholder="What students should hand in, format, team rules…"></textarea></label>
           <label><span>Due <small>(optional)</small></span><input class="input" name="dueAt" type="datetime-local" /></label>
-          <label><span>PDF file <small>(20 MB max)</small></span><input class="input" name="file" type="file" accept="application/pdf,.pdf" required /></label>
+          <label><span>Attach a PDF <small>(optional, 20 MB max)</small></span><input class="input" name="file" type="file" accept="application/pdf,.pdf" /></label>
+          <label class="pf-check"><input type="checkbox" name="accepting" checked /> <span><b>Accept student submissions</b><small>Students hand in a PDF (4 MB max) on its own page. Announced with a banner and a NEW badge for 14 days.</small></span></label>
           <progress max="100" value="0" hidden data-pf-progress></progress>
           <p class="pf-msg" role="status" data-pf-msg></p>
           <button class="btn btn-primary" type="submit" data-pf-submit>Publish</button>
@@ -53,7 +60,7 @@ const ready = setup.database && setup.storage;
         </form>
 
         <div class="pf-card pf-pad">
-          <h2>Published</h2>
+          <div class="pf-head"><h2>Published</h2><span class="pf-usage mono" data-pf-usage></span></div>
           <ul class="pf-list" data-pf-list><li class="muted">Loading…</li></ul>
         </div>
       </div>
@@ -78,34 +85,92 @@ const ready = setup.database && setup.storage;
   .pf-form .input { padding: 0 14px; height: 44px; }
   .pf-form textarea.input { height: auto; padding: 10px 14px; resize: vertical; }
   .pf-form input[type="file"].input { padding: 9px 10px; }
+  .pf-form .pf-check { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-md); cursor: pointer; }
+  .pf-check input { margin-top: 3px; accent-color: var(--accent); width: 16px; height: 16px; }
+  .pf-check small { display: block; margin-top: 2px; }
   .pf-form progress { width: 100%; accent-color: var(--accent); }
   .pf-form .btn { justify-self: start; }
   .pf-msg { min-height: 20px; font-size: 13px; }
   .pf-msg.err { color: var(--danger); }
   .pf-msg.ok { color: var(--accent-text); }
+  .pf-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .pf-usage { font-size: 11.5px; color: var(--text-3); }
   .pf-list { list-style: none; padding: 0; display: grid; }
-  .pf-list > li { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 14px 0; border-top: 1px solid var(--line); }
+  .pf-list > li { display: grid; gap: 12px; padding: 16px 0; border-top: 1px solid var(--line); }
+  @media (min-width: 720px) { .pf-list > li { grid-template-columns: 1fr auto; align-items: center; } }
   .pf-list > li:first-child { border-top: 0; }
-  .pf-list b { display: block; }
-  .pf-list .meta { font-size: 12px; color: var(--text-3); }
-  .pf-list .actions { display: flex; gap: 6px; }
+  .pf-list b { font-size: 15px; }
+  .pf-list .meta { display: block; margin-top: 4px; font-size: 12px; color: var(--text-3); }
+  .pf-list .actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .pf-pill { display: inline-block; margin-left: 6px; padding: 2px 7px; border-radius: 999px; font: 600 10px/1.5 var(--font-mono); letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .pf-pill.open { background: var(--accent-soft); color: var(--accent-text); }
+  .pf-pill.closed { background: var(--surface-2); color: var(--text-3); }
+  .pf-count { font: 600 12px var(--font-mono); color: var(--accent-text); }
   .pf-del { color: var(--danger); }
+  .pf-find .input { padding: 0 14px; height: 44px; }
+  .pf-results { list-style: none; padding: 0; display: grid; }
+  .pf-results li { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+  .pf-results li:first-child { border-top: 0; }
+  .pf-results .meta { display: block; margin-top: 3px; font-size: 12px; color: var(--text-3); }
+  .pf-results .actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .pf-late { color: var(--warn); }
 </style>
 
 <script>
   import { upload } from '@vercel/blob/client';
 
-  type File_ = { id: string; title: string; kind: string; description: string; due_at: string | null; url: string; size: number; created_at: string; published_by: string };
+  type Item = { id: string; title: string; kind: string; description: string; due_at: string | null; url: string | null; size: number | null; accepting: boolean; created_at: string; published_by: string; entries: number; entryBytes: number };
 
   const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
   const mb = (n: number) => (n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`);
   const when = (s: string) => new Date(s).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  const FREE_BYTES = 1024 ** 3;
+
+  type Hit = { id: string; file_id: string; file_title: string; student_id: string; name: string; group_name: string; url: string; size: number; updated_at: string; late: boolean };
+
+  /** Cross-item search: one student's hand-ins wherever they are. */
+  function wireFind() {
+    const box = document.querySelector<HTMLElement>('[data-pf-find]');
+    if (!box || box.dataset.wired) return;
+    box.dataset.wired = '1';
+    const input = box.querySelector<HTMLInputElement>('[data-pf-q]')!;
+    const out = box.querySelector<HTMLUListElement>('[data-pf-results]')!;
+    let timer: number | undefined;
+    let seq = 0;
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      const q = input.value.trim();
+      if (q.length < 2) { out.hidden = true; out.innerHTML = ''; return; }
+      timer = window.setTimeout(async () => {
+        const mine = ++seq;
+        const res = await fetch(`/api/admin/project/entries?q=${encodeURIComponent(q)}`, { cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (mine !== seq) return; // a newer search is on its way
+        const hits: Hit[] = data.results ?? [];
+        out.hidden = false;
+        out.innerHTML = hits.length ? hits.map((h) => `
+          <li>
+            <div>
+              <b>${esc(h.name)}</b> <span class="mono faint">${esc(h.student_id)} · ${esc(h.group_name)}</span>
+              <span class="meta mono">${esc(h.file_title)} · ${when(h.updated_at)}${h.late ? ' · <span class="pf-late">late</span>' : ''} · ${mb(h.size)}</span>
+            </div>
+            <div class="actions">
+              <a class="btn btn-ghost btn-sm" href="${esc(h.url)}" target="_blank" rel="noopener">Open PDF</a>
+              <a class="btn btn-ghost btn-sm" href="/admin/project/${encodeURIComponent(h.file_id)}?q=${encodeURIComponent(h.student_id)}">In list →</a>
+            </div>
+          </li>`).join('') : `<li class="muted">${res.ok ? 'No submissions match.' : esc(data.error ?? 'Search failed.')}</li>`;
+      }, 250);
+    });
+  }
 
   document.addEventListener('astro:page-load', () => {
+    wireFind();
     const root = document.querySelector<HTMLElement>('[data-pf]');
-    if (!root) return;
+    if (!root || root.dataset.wired) return;
+    root.dataset.wired = '1';
     const form = root.querySelector<HTMLFormElement>('[data-pf-form]')!;
     const list = root.querySelector<HTMLUListElement>('[data-pf-list]')!;
+    const usage = root.querySelector<HTMLElement>('[data-pf-usage]')!;
     const msg = root.querySelector<HTMLElement>('[data-pf-msg]')!;
     const bar = root.querySelector<HTMLProgressElement>('[data-pf-progress]')!;
     const submit = root.querySelector<HTMLButtonElement>('[data-pf-submit]')!;
@@ -114,26 +179,45 @@ const ready = setup.database && setup.storage;
     async function load() {
       const res = await fetch('/api/admin/project/files');
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) { list.innerHTML = `<li class="muted">${esc(data.error ?? 'Could not load files.')}</li>`; return; }
-      const files: File_[] = data.files;
-      list.innerHTML = files.length ? files.map((f) => `
+      if (!res.ok) { list.innerHTML = `<li class="muted">${esc(data.error ?? 'Could not load.')}</li>`; return; }
+      const items: Item[] = data.files;
+      const bytes = items.reduce((a, f) => a + (f.size ?? 0) + f.entryBytes, 0);
+      usage.textContent = `${mb(bytes)} of 1 GB free storage used (${Math.round((bytes / FREE_BYTES) * 100)}%)`;
+      list.innerHTML = items.length ? items.map((f) => `
         <li>
           <div>
-            <b>${esc(f.title)}</b>
-            <span class="meta mono">${esc(f.kind)} · ${mb(f.size)} · published ${when(f.created_at)}${f.published_by ? ` by ${esc(f.published_by)}` : ''}${f.due_at ? ` · due ${when(f.due_at)}` : ''}</span>
+            <b>${esc(f.title)}</b><span class="pf-pill ${f.accepting ? 'open' : 'closed'}">${f.accepting ? 'open' : 'closed'}</span>
+            <span class="meta mono">${esc(f.kind)}${f.url && f.size ? ` · PDF ${mb(f.size)}` : ' · no attachment'} · published ${when(f.created_at)}${f.published_by ? ` by ${esc(f.published_by)}` : ''}${f.due_at ? ` · due ${when(f.due_at)}` : ''}</span>
           </div>
           <div class="actions">
-            <a class="btn btn-ghost btn-sm" href="${esc(f.url)}" target="_blank" rel="noreferrer">Open</a>
-            <button class="btn btn-ghost btn-sm pf-del" type="button" data-del="${esc(f.id)}" data-title="${esc(f.title)}">Delete</button>
+            <a class="btn btn-ghost btn-sm" href="/admin/project/${encodeURIComponent(f.id)}"><span class="pf-count">${f.entries}</span>&nbsp;submissions →</a>
+            <button class="btn btn-ghost btn-sm" type="button" data-toggle="${esc(f.id)}" data-on="${f.accepting ? '1' : ''}">${f.accepting ? 'Close' : 'Open'}</button>
+            <a class="btn btn-ghost btn-sm" href="/submit/${encodeURIComponent(f.id)}" target="_blank" rel="noopener">View ↗</a>
+            <button class="btn btn-ghost btn-sm pf-del" type="button" data-del="${esc(f.id)}" data-title="${esc(f.title)}" data-count="${f.entries}">Delete</button>
           </div>
         </li>`).join('') : '<li class="muted">Nothing published yet.</li>';
     }
 
     list.addEventListener('click', async (e) => {
+      const toggle = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-toggle]');
+      if (toggle) {
+        toggle.disabled = true;
+        const res = await fetch(`/api/admin/project/files?id=${encodeURIComponent(toggle.dataset.toggle!)}`, {
+          method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ accepting: !toggle.dataset.on }),
+        });
+        const data = await res.json().catch(() => ({}));
+        say(res.ok ? (data.file.accepting ? `“${data.file.title}” is open for submissions.` : `“${data.file.title}” is closed.`) : data.error ?? 'Could not save.', res.ok ? 'ok' : 'err');
+        return load();
+      }
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-del]');
       if (!btn) return;
       // Two-step confirm instead of window.confirm()
-      if (btn.dataset.armed !== '1') { btn.dataset.armed = '1'; btn.textContent = 'Confirm delete'; setTimeout(() => { btn.dataset.armed = ''; btn.textContent = 'Delete'; }, 4000); return; }
+      if (btn.dataset.armed !== '1') {
+        btn.dataset.armed = '1';
+        btn.textContent = Number(btn.dataset.count) ? `Delete + ${btn.dataset.count} hand-ins?` : 'Confirm delete';
+        setTimeout(() => { btn.dataset.armed = ''; btn.textContent = 'Delete'; }, 4000);
+        return;
+      }
       btn.disabled = true;
       const res = await fetch(`/api/admin/project/files?id=${encodeURIComponent(btn.dataset.del!)}`, { method: 'DELETE' });
       const data = await res.json().catch(() => ({}));
@@ -145,34 +229,39 @@ const ready = setup.database && setup.storage;
       e.preventDefault();
       const fd = new FormData(form);
       const file = fd.get('file') as File | null;
-      if (!file?.size) return say('Choose a PDF file.', 'err');
-      if (file.type && file.type !== 'application/pdf') return say('That file is not a PDF.', 'err');
-      if (file.size > 20 * 1024 * 1024) return say('The PDF must be 20 MB or smaller.', 'err');
+      const hasFile = Boolean(file?.size);
+      if (hasFile && file!.type && file!.type !== 'application/pdf') return say('That file is not a PDF.', 'err');
+      if (hasFile && file!.size > 20 * 1024 * 1024) return say('The PDF must be 20 MB or smaller.', 'err');
       const due = String(fd.get('dueAt') ?? '');
-      const meta = { title: fd.get('title'), kind: fd.get('kind'), description: fd.get('description'), dueAt: due ? new Date(due).toISOString() : '' };
+      const meta = { title: fd.get('title'), kind: fd.get('kind'), description: fd.get('description'), dueAt: due ? new Date(due).toISOString() : '', accepting: fd.get('accepting') === 'on' };
 
       submit.disabled = true;
-      bar.hidden = false; bar.value = 0;
-      say('Uploading…');
+      bar.hidden = !hasFile; bar.value = 0;
+      say(hasFile ? 'Uploading…' : 'Publishing…');
       try {
         let res: Response;
-        if (root.dataset.mode === 'blob') {
-          const name = file.name.replace(/[^\w.-]+/g, '-');
-          const blob = await upload(`${root.dataset.folder}/${name.toLowerCase().endsWith('.pdf') ? name : `${name}.pdf`}`, file, {
-            access: 'public',
-            contentType: 'application/pdf',
-            handleUploadUrl: '/api/admin/project/upload',
-            onUploadProgress: ({ percentage }) => { bar.value = percentage; },
-          });
-          say('Publishing…');
-          res = await fetch('/api/admin/project/files', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...meta, url: blob.url }) });
+        if (root.dataset.mode === 'blob' || !hasFile) {
+          let url = '';
+          if (hasFile) {
+            const name = file!.name.replace(/[^\w.-]+/g, '-');
+            const blob = await upload(`${root.dataset.folder}/${name.toLowerCase().endsWith('.pdf') ? name : `${name}.pdf`}`, file!, {
+              access: 'public',
+              contentType: 'application/pdf',
+              handleUploadUrl: '/api/admin/project/upload',
+              onUploadProgress: ({ percentage }) => { bar.value = percentage; },
+            });
+            url = blob.url;
+            say('Publishing…');
+          }
+          res = await fetch('/api/admin/project/files', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...meta, url }) });
         } else {
           fd.set('dueAt', meta.dueAt);
+          fd.set('accepting', String(meta.accepting));
           res = await fetch('/api/admin/project/files', { method: 'POST', body: fd });
         }
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error ?? 'Could not publish the file.');
-        say(`Published “${data.file.title}”. It now appears on the Course Project page.`, 'ok');
+        if (!res.ok) throw new Error(data.error ?? 'Could not publish.');
+        say(`Published “${data.file.title}”.${data.file.accepting ? ' Students can submit now, and the site shows the NEW banner.' : ''}`, 'ok');
         form.reset();
         load();
       } catch (error) {
