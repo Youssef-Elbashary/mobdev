@@ -49,10 +49,10 @@ if (staff) {
       if (!c.builtIn && a.can('module.build', c.slug)) tools.push({ label: 'Canvas', href: `/admin/builder/${c.slug}` });
       if (c.builtIn && a.can('module.submissions', c.slug)) tools.push({ label: 'Submissions', href: '/admin/project' });
       if (c.builtIn && a.can('cms.edit')) tools.push({ label: 'Content', href: '/admin/cms' });
-      return { ...c, myRole: mr ? ROLE_NAMES[mr] : a.who.platformRole ? ROLE_NAMES[a.who.platformRole] : 'Admin', tools };
+      return { ...c, href: !c.builtIn && a.can('module.build', c.slug) ? `/admin/builder/${c.slug}` : c.href, myRole: mr ? ROLE_NAMES[mr] : a.who.platformRole ? ROLE_NAMES[a.who.platformRole] : 'Admin', tools };
     }),
     platformTools: [
-      a.can('modules.create') && { label: 'New module', href: '/admin/builder', desc: 'Create a module and build its labs on the canvas', icon: '⬡' },
+      a.can('modules.create') && { label: 'Modules & lab builder', href: '/admin/builder', desc: 'Create modules and visually build their labs and exercises', icon: '⬡' },
       a.can('platform.settings') && { label: 'Catalogue', href: '/admin/catalogue', desc: 'Years, specializations, categories, active semester', icon: '▦' },
       (a.can('accounts.manage') || a.can('accounts.staff')) && { label: 'Accounts & roles', href: '/admin/accounts', desc: 'Staff and student accounts, invitations, permissions', icon: '⚿' },
       a.can('cms.edit') && { label: 'Course content', href: '/admin/cms', desc: 'Edit the built-in course’s lists and info', icon: '✎' },

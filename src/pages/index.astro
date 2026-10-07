@@ -190,7 +190,7 @@ const json = JSON.stringify({ years: settings.years, specializations: settings.s
   import { GENERAL, hasSpecialization, inSemester, type Semester } from '@/lib/accounts/core';
   type Card = { slug: string; code: string; title: string; term: string; description: string; color: string; href: string; labs: number; builtIn: boolean; category: string; kind: 'core' | 'elective'; open: boolean; years: string[]; specializations: string[]; semester: 'Both' | Semester };
   type Profile = { year: string; specialization: string; modules: string[] };
-  type Me = { user: { name: string; role: string; studentId: string | null; profile: Profile } | null; staff: boolean; doctor: boolean; accounts: boolean; enrolled: string[]; staffModules: Record<string, string> };
+  type Me = { user: { name: string; role: string; studentId: string | null; profile: Profile } | null; staff: boolean; doctor: boolean; accounts: boolean; enrolled: string[]; staffModules: Record<string, string>; builderModules: string[] };
 
   const KEY = 'mdx:profile';
   const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -202,6 +202,7 @@ const json = JSON.stringify({ years: settings.years, specializations: settings.s
   const selfEnrol = (m: Card, p: Pick<Profile, 'year' | 'specialization'>) => m.open && m.kind === 'elective' && has(m.years, p.year) && fitsSpec(m, p.specialization);
   const optionalFor = (cards: Card[], p: Profile) => cards.filter((m) => selfEnrol(m, p));
   let membership = { enrolled: [] as string[], staff: {} as Record<string, string> };
+  let builderModules = new Set<string>();
   const forMe = (m: Card, p: Profile) => p.modules.includes(m.slug) || membership.enrolled.includes(m.slug) || Boolean(membership.staff[m.slug]) || (m.open && m.kind === 'core' && has(m.years, p.year) && fitsSpec(m, p.specialization));
   const local = {
     get(): Profile | null { try { const p = JSON.parse(localStorage.getItem(KEY) ?? 'null'); return p && p.year ? p : null; } catch { return null; } },
@@ -209,7 +210,8 @@ const json = JSON.stringify({ years: settings.years, specializations: settings.s
   };
 
   function card(m: Card, i: number) {
-    return `<a class="mcard" href="${esc(m.href)}" style="--c:${esc(m.color)};--i:${i}" data-module="${esc(m.slug)}">
+    const href = builderModules.has(m.slug) ? `/admin/builder/${encodeURIComponent(m.slug)}` : m.href;
+    return `<a class="mcard" href="${esc(href)}" style="--c:${esc(m.color)};--i:${i}" data-module="${esc(m.slug)}">
       <span class="mcard-top"><span>${esc(m.code || 'Module')}</span><span class="mcard-tag">${esc(m.category)}${m.open ? ' · open' : ' · by invitation'}</span></span>
       <h3>${esc(m.title)}</h3>
       ${m.description ? `<p>${esc(m.description)}</p>` : ''}
@@ -225,8 +227,9 @@ const json = JSON.stringify({ years: settings.years, specializations: settings.s
     const specialized = (year: string) => hasSpecialization(data, year, data.activeSemester);
     const $ = <T extends HTMLElement = HTMLElement>(s: string) => root.querySelector<T>(s)!;
     const ob = $('[data-ob]'), mine = $('[data-mine]'), who = $('[data-hub-who]');
-    const me: Me = await fetch('/api/auth/me', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({ user: null, staff: false, doctor: false, accounts: false, enrolled: [], staffModules: {} }));
+    const me: Me = await fetch('/api/auth/me', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({ user: null, staff: false, doctor: false, accounts: false, enrolled: [], staffModules: {}, builderModules: [] }));
     membership = { enrolled: me.enrolled ?? [], staff: me.staffModules ?? {} };
+    builderModules = new Set(me.builderModules ?? []);
     const student = me.user?.role === 'student' ? me.user : null;
     let profile: Profile | null = student?.profile?.year ? student.profile : local.get();
     // a choice saved in this browser can only hold modules students may pick themselves

@@ -25,7 +25,7 @@ const groups = [
     { key: 'submissions', label: 'Project submissions', href: '/admin/project', icon: '⇪', show: a.can('module.submissions', 'mobile-development') },
   ] },
   { title: 'Modules', items: [
-    { key: 'builder', label: 'Module builder', href: '/admin/builder', icon: '⬡', show: a.can('modules.create') || any('module.build') },
+    { key: 'builder', label: 'Modules & lab builder', href: '/admin/builder', icon: '⬡', show: a.can('modules.create') || any('module.build') },
     { key: 'teams', label: 'Teams & invitations', href: '/admin#modules', icon: '✉', show: any('module.invite') },
   ] },
   { title: 'Platform', items: [

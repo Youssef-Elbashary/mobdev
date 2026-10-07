@@ -57,6 +57,7 @@ import AdminShell from '@/components/admin/AdminShell.astro';
             <h1>Content manager</h1>
           </div>
           <div class="cms-top-links">
+            <a class="btn btn-primary btn-sm" href="/admin/builder">Lab builder</a>
             <a class="btn btn-ghost btn-sm" href="/admin/sessions">Sessions</a>
             <a class="btn btn-ghost btn-sm" href="/admin/progress">Lab progress</a>
             <a class="btn btn-ghost btn-sm" href="/admin/project">Submissions</a>
@@ -93,9 +94,10 @@ import AdminShell from '@/components/admin/AdminShell.astro';
             <button type="button" data-cms-view="extra"><span>Extra learning</span></button>
             <button type="button" data-cms-view="roadmap"><span>Roadmap</span></button>
             <button type="button" data-cms-view="checklist"><span>Setup checklist</span></button>
+            <p class="cms-side-label mono">Build</p>
+            <a class="cms-side-link" href="/admin/builder"><span>Labs & exercises</span><small>Open builder →</small></a>
             <p class="cms-side-label mono">Coming next</p>
             <button type="button" disabled><span>Pages</span><small>Soon</small></button>
-            <button type="button" disabled><span>Labs & exercises</span><small>Soon</small></button>
             <div class="cms-side-rule"></div>
             <button type="button" data-cms-view="history"><span>History</span></button>
           </aside>
@@ -148,11 +150,12 @@ import AdminShell from '@/components/admin/AdminShell.astro';
   .cms-files { position: absolute; top: calc(100% - 4px); padding: 12px 16px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-md); list-style: none; line-height: 1.8; }
   .cms-workspace { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 18px; align-items: start; }
   .cms-sidebar { padding: 9px; display: grid; gap: 3px; position: sticky; top: calc(var(--nav-h) + 92px); }
-  .cms-sidebar button { min-height: 38px; border: 0; border-radius: 9px; padding: 0 10px; display: flex; align-items: center; justify-content: space-between; color: var(--text-2); background: none; font: 550 13px var(--font-body); text-align: left; cursor: pointer; }
+  .cms-sidebar button, .cms-side-link { min-height: 38px; border: 0; border-radius: 9px; padding: 0 10px; display: flex; align-items: center; justify-content: space-between; color: var(--text-2); background: none; font: 550 13px var(--font-body); text-align: left; cursor: pointer; }
   .cms-sidebar button:hover:not(:disabled) { color: var(--text); background: var(--surface-2); }
+  .cms-side-link:hover { color: var(--text); background: var(--surface-2); }
   .cms-sidebar button[aria-current="true"] { color: var(--accent-text); background: var(--accent-soft); }
   .cms-sidebar button:disabled { opacity: .42; cursor: not-allowed; }
-  .cms-sidebar button small { font: 9px var(--font-mono); text-transform: uppercase; }
+  .cms-sidebar button small, .cms-side-link small { font: 9px var(--font-mono); text-transform: uppercase; }
   .cms-side-label { margin: 13px 10px 3px; font-size: 9px; color: var(--text-3); text-transform: uppercase; letter-spacing: .12em; }
   .cms-side-rule { height: 1px; background: var(--line); margin: 8px; }
   .cms-main { min-width: 0; display: grid; gap: 16px; }

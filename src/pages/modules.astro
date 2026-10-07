@@ -117,6 +117,7 @@ const specFromLabel = `${settings.specFrom.year} · ${settings.specFrom.semester
     let filter = 'all';
 
     const me = await fetch('/api/auth/me', { cache: 'no-store' }).then((r) => r.json()).catch(() => null);
+    const builderModules = new Set<string>(me?.builderModules ?? []);
     let chosen: string[] = me?.user?.profile?.modules ?? [];
     if (!me?.user) { try { chosen = JSON.parse(localStorage.getItem('mdx:profile') ?? 'null')?.modules ?? []; } catch { /* ignore */ } }
     // self-chosen modules only count where students may choose (the open, built-in optional module)
@@ -128,7 +129,9 @@ const specFromLabel = `${settings.specFrom.year} · ${settings.specFrom.semester
       const slug = c.dataset.slug!;
       const isMine = mine.has(slug);
       const open = openSlugs.has(slug);
-      s.textContent = isMine ? (me?.staffModules?.[slug] ? `✓ You teach this (${me.staffModules[slug]})` : '✓ You are in this module') : open ? 'Open: add it from your modules page' : '🔒 Invitation only: ask the module leader';
+      const opensCanvas = builderModules.has(slug);
+      if (opensCanvas) c.setAttribute('href', `/admin/builder/${encodeURIComponent(slug)}`);
+      s.textContent = opensCanvas ? '✓ You teach this · opens lab canvas' : isMine ? (me?.staffModules?.[slug] ? `✓ You teach this (${me.staffModules[slug]})` : '✓ You are in this module') : open ? 'Open: add it from your modules page' : '🔒 Invitation only: ask the module leader';
       s.classList.toggle('in', isMine);
       c.dataset.mine = isMine ? '1' : '';
       c.dataset.open = open ? '1' : '';

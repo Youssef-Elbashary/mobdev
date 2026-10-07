@@ -1,6 +1,6 @@
 /**
  * The signed-in account (or null), for the nav chip, the module hub, the profile page and lab sign-in.
- *   GET    { user, staff, doctor, accounts, enrolled[], staffModules{} }
+ *   GET    { user, staff, doctor, accounts, enrolled[], staffModules{}, builderModules[] }
  *   PATCH  { name?, year?, specialization?, modules?, currentPassword?, newPassword? }   edit your own profile
  * Students choose only the self-enrolment optional modules (Mobile Development); every other module needs an
  * invitation or enrolment by its staff.
@@ -12,6 +12,7 @@ import { NAME_RE, checkPasswordRules, parseProfile } from '@/lib/accounts/core';
 import { getAccountStore, publicUser, startUserSession, viewer } from '@/lib/accounts/server';
 import { verifyPassword } from '@/lib/accounts/tokens';
 import { hubData } from '@/lib/accounts/hub';
+import { access } from '@/lib/accounts/access';
 
 export const prerender = false;
 
@@ -23,7 +24,11 @@ export const GET: APIRoute = async ({ cookies }) => {
   const [enrolled, staffModules] = active && store
     ? await Promise.all([store.enrollmentsFor(active.email).catch(() => []), store.staffFor(active.email).catch(() => ({}))])
     : [[], {}];
-  return json({ user: active ? publicUser(active) : null, staff: isAdmin(cookies), doctor: isDoctor(cookies), accounts: Boolean(store), enrolled, staffModules });
+  const rights = await access(cookies);
+  const builderModules = (await hubData()).cards
+    .filter((module) => !module.builtIn && rights.can('module.build', module.slug))
+    .map((module) => module.slug);
+  return json({ user: active ? publicUser(active) : null, staff: isAdmin(cookies), doctor: isDoctor(cookies), accounts: Boolean(store), enrolled, staffModules, builderModules });
 };
 
 export const PATCH: APIRoute = async ({ cookies, request, url }) => {
