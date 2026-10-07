@@ -155,7 +155,8 @@ export class ExerciseShell {
   async check() {
     if (this.busy) return;
     const { lab, ex } = this.opts;
-    if (!getStudent()) {
+    const practice = this.root.closest<HTMLElement>('[data-lab]')?.dataset.sessionAccess === 'practice';
+    if (!getStudent() && !practice) {
       this.showMessage('Enter your <b>name</b> and <b>student ID</b> at the top of the lab first, so your progress counts. <a href="#lab-start">Go to sign in ↑</a>', 'warn');
       return;
     }

@@ -1,0 +1,188 @@
+---
+import Base from '@/layouts/Base.astro';
+import { isAdmin } from '@/lib/attendance/server';
+import { KINDS, KIND_LABEL } from '@/lib/project-files/core';
+import { blobFolder, projectFilesSetup } from '@/lib/project-files/server';
+
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'no-store, max-age=0');
+if (!isAdmin(Astro.cookies)) return Astro.redirect('/admin', 303);
+
+const setup = projectFilesSetup();
+const ready = setup.database && setup.storage;
+---
+<Base title="Project files" noindex>
+  <section class="pf-shell container">
+    <header class="pf-top">
+      <div>
+        <p class="pf-k mono">Admin workspace</p>
+        <h1>Project files</h1>
+        <p class="muted">Publish PDFs, such as the proposal submission form, on the <a href="/project#files">Course Project</a> page.</p>
+      </div>
+      <div class="pf-links">
+        <a class="btn btn-ghost btn-sm" href="/admin">Attendance</a>
+        <a class="btn btn-ghost btn-sm" href="/admin/cms">CMS</a>
+      </div>
+    </header>
+
+    {!ready ? (
+      <div class="pf-card pf-pad">
+        <p class="pf-k mono">Setup</p>
+        <h2>Connect storage</h2>
+        <ol class="pf-steps">
+          {!setup.database && <li>Connect a Neon database to the project in Vercel (it adds <code>DATABASE_URL</code>).</li>}
+          {!setup.storage && <li>In Vercel → Project → <b>Storage</b> → <b>Create</b> → <b>Blob</b> (public), connect it to all environments. This adds <code>BLOB_READ_WRITE_TOKEN</code>. Blob is free on the Hobby plan.</li>}
+          <li>Redeploy, then return here.</li>
+        </ol>
+      </div>
+    ) : (
+      <div class="pf-grid" data-pf data-mode={setup.storage} data-folder={blobFolder()}>
+        <form class="pf-card pf-pad pf-form" data-pf-form>
+          <h2>Publish a PDF</h2>
+          <label><span>Title</span><input class="input" name="title" required maxlength="120" value="Project proposal submission" /></label>
+          <label><span>Type</span>
+            <select class="input" name="kind">{KINDS.map((k) => <option value={k}>{KIND_LABEL[k]}</option>)}</select>
+          </label>
+          <label><span>Description <small>(optional)</small></span><textarea class="input" name="description" rows="3" maxlength="600" placeholder="What students should do with this file"></textarea></label>
+          <label><span>Due <small>(optional)</small></span><input class="input" name="dueAt" type="datetime-local" /></label>
+          <label><span>PDF file <small>(20 MB max)</small></span><input class="input" name="file" type="file" accept="application/pdf,.pdf" required /></label>
+          <progress max="100" value="0" hidden data-pf-progress></progress>
+          <p class="pf-msg" role="status" data-pf-msg></p>
+          <button class="btn btn-primary" type="submit" data-pf-submit>Publish</button>
+          {setup.storage === 'local' && <p class="muted small">Local mode: files are saved to <code>.uploads/</code> on this computer.</p>}
+        </form>
+
+        <div class="pf-card pf-pad">
+          <h2>Published</h2>
+          <ul class="pf-list" data-pf-list><li class="muted">Loading…</li></ul>
+        </div>
+      </div>
+    )}
+  </section>
+</Base>
+
+<style is:global>
+  .pf-shell { min-height: 85dvh; padding-top: calc(var(--nav-h) + 44px); padding-bottom: 100px; display: grid; gap: 20px; align-content: start; }
+  .pf-k { color: var(--accent-text); text-transform: uppercase; letter-spacing: .12em; font-size: 11px; }
+  .pf-top { display: flex; justify-content: space-between; align-items: end; gap: 20px; flex-wrap: wrap; }
+  .pf-top h1 { font-size: var(--fs-xl); letter-spacing: -.04em; margin-top: 3px; }
+  .pf-links { display: flex; gap: 8px; }
+  .pf-card { border: 1px solid var(--line-2); background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); }
+  .pf-pad { padding: clamp(18px, 4vw, 28px); display: grid; gap: 14px; align-content: start; }
+  .pf-card h2 { font-size: var(--fs-lg); letter-spacing: -.02em; }
+  .pf-steps { display: grid; gap: 10px; padding-left: 22px; color: var(--text-2); line-height: 1.6; }
+  .pf-grid { display: grid; gap: 18px; }
+  @media (min-width: 900px) { .pf-grid { grid-template-columns: 400px 1fr; align-items: start; } }
+  .pf-form label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+  .pf-form small { color: var(--text-3); font-weight: 400; }
+  .pf-form .input { padding: 0 14px; height: 44px; }
+  .pf-form textarea.input { height: auto; padding: 10px 14px; resize: vertical; }
+  .pf-form input[type="file"].input { padding: 9px 10px; }
+  .pf-form progress { width: 100%; accent-color: var(--accent); }
+  .pf-form .btn { justify-self: start; }
+  .pf-msg { min-height: 20px; font-size: 13px; }
+  .pf-msg.err { color: var(--danger); }
+  .pf-msg.ok { color: var(--accent-text); }
+  .pf-list { list-style: none; padding: 0; display: grid; }
+  .pf-list > li { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 14px 0; border-top: 1px solid var(--line); }
+  .pf-list > li:first-child { border-top: 0; }
+  .pf-list b { display: block; }
+  .pf-list .meta { font-size: 12px; color: var(--text-3); }
+  .pf-list .actions { display: flex; gap: 6px; }
+  .pf-del { color: var(--danger); }
+</style>
+
+<script>
+  import { upload } from '@vercel/blob/client';
+
+  type File_ = { id: string; title: string; kind: string; description: string; due_at: string | null; url: string; size: number; created_at: string; published_by: string };
+
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  const mb = (n: number) => (n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`);
+  const when = (s: string) => new Date(s).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+
+  document.addEventListener('astro:page-load', () => {
+    const root = document.querySelector<HTMLElement>('[data-pf]');
+    if (!root) return;
+    const form = root.querySelector<HTMLFormElement>('[data-pf-form]')!;
+    const list = root.querySelector<HTMLUListElement>('[data-pf-list]')!;
+    const msg = root.querySelector<HTMLElement>('[data-pf-msg]')!;
+    const bar = root.querySelector<HTMLProgressElement>('[data-pf-progress]')!;
+    const submit = root.querySelector<HTMLButtonElement>('[data-pf-submit]')!;
+    const say = (text: string, kind: '' | 'ok' | 'err' = '') => { msg.textContent = text; msg.className = `pf-msg ${kind}`; };
+
+    async function load() {
+      const res = await fetch('/api/admin/project/files');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { list.innerHTML = `<li class="muted">${esc(data.error ?? 'Could not load files.')}</li>`; return; }
+      const files: File_[] = data.files;
+      list.innerHTML = files.length ? files.map((f) => `
+        <li>
+          <div>
+            <b>${esc(f.title)}</b>
+            <span class="meta mono">${esc(f.kind)} · ${mb(f.size)} · published ${when(f.created_at)}${f.published_by ? ` by ${esc(f.published_by)}` : ''}${f.due_at ? ` · due ${when(f.due_at)}` : ''}</span>
+          </div>
+          <div class="actions">
+            <a class="btn btn-ghost btn-sm" href="${esc(f.url)}" target="_blank" rel="noreferrer">Open</a>
+            <button class="btn btn-ghost btn-sm pf-del" type="button" data-del="${esc(f.id)}" data-title="${esc(f.title)}">Delete</button>
+          </div>
+        </li>`).join('') : '<li class="muted">Nothing published yet.</li>';
+    }
+
+    list.addEventListener('click', async (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-del]');
+      if (!btn) return;
+      // Two-step confirm instead of window.confirm()
+      if (btn.dataset.armed !== '1') { btn.dataset.armed = '1'; btn.textContent = 'Confirm delete'; setTimeout(() => { btn.dataset.armed = ''; btn.textContent = 'Delete'; }, 4000); return; }
+      btn.disabled = true;
+      const res = await fetch(`/api/admin/project/files?id=${encodeURIComponent(btn.dataset.del!)}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      say(res.ok ? `Removed “${btn.dataset.title}”.` : data.error ?? 'Could not delete.', res.ok ? 'ok' : 'err');
+      load();
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const file = fd.get('file') as File | null;
+      if (!file?.size) return say('Choose a PDF file.', 'err');
+      if (file.type && file.type !== 'application/pdf') return say('That file is not a PDF.', 'err');
+      if (file.size > 20 * 1024 * 1024) return say('The PDF must be 20 MB or smaller.', 'err');
+      const due = String(fd.get('dueAt') ?? '');
+      const meta = { title: fd.get('title'), kind: fd.get('kind'), description: fd.get('description'), dueAt: due ? new Date(due).toISOString() : '' };
+
+      submit.disabled = true;
+      bar.hidden = false; bar.value = 0;
+      say('Uploading…');
+      try {
+        let res: Response;
+        if (root.dataset.mode === 'blob') {
+          const name = file.name.replace(/[^\w.-]+/g, '-');
+          const blob = await upload(`${root.dataset.folder}/${name.toLowerCase().endsWith('.pdf') ? name : `${name}.pdf`}`, file, {
+            access: 'public',
+            contentType: 'application/pdf',
+            handleUploadUrl: '/api/admin/project/upload',
+            onUploadProgress: ({ percentage }) => { bar.value = percentage; },
+          });
+          say('Publishing…');
+          res = await fetch('/api/admin/project/files', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...meta, url: blob.url }) });
+        } else {
+          fd.set('dueAt', meta.dueAt);
+          res = await fetch('/api/admin/project/files', { method: 'POST', body: fd });
+        }
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error ?? 'Could not publish the file.');
+        say(`Published “${data.file.title}”. It now appears on the Course Project page.`, 'ok');
+        form.reset();
+        load();
+      } catch (error) {
+        say(error instanceof Error ? error.message : 'Upload failed.', 'err');
+      } finally {
+        submit.disabled = false;
+        bar.hidden = true;
+      }
+    });
+
+    load();
+  });
+</script>

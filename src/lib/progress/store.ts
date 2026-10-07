@@ -63,6 +63,9 @@ export interface ProgressStore {
   /** Returns the check-in time; the first check-in is kept. */
   checkIn(studentKey: string, lab: string, sessionId?: string): Promise<string>;
   addViews(studentKey: string, lab: string, seen: string[], activeSec: number, sessionId?: string): Promise<void>;
+  /** Open practice: students may solve the lab with no session running (nothing is recorded). */
+  getPractice(lab: string): Promise<boolean>;
+  setPractice(lab: string, on: boolean): Promise<void>;
 }
 
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : v == null ? null : String(v));
@@ -79,6 +82,7 @@ export class MemoryStore implements ProgressStore {
   private memberships = new Map<string, { session_id: string; student_key: string; group_name: string; joined_at: string }>();
   private checkins = new Map<string, { student_key: string; lab: string; at: string; session_id?: string }>();
   private views = new Map<string, { student_key: string; lab: string; seen: Set<string>; active_sec: number; session_id?: string }>();
+  private practice = new Set<string>();
   private seq = 0;
   private now: () => number;
   constructor(now: () => number = Date.now) {
@@ -185,6 +189,8 @@ export class MemoryStore implements ProgressStore {
     return [...this.sessions.values()].filter((s) => s.lab === lab && (!s.closes_at || Date.parse(s.closes_at) > now)).sort((a, b) => b.opens_at.localeCompare(a.opens_at))[0] ?? null;
   }
   async getSessionById(id: string) { return this.sessions.get(id) ?? null; }
+  async getPractice(lab: string) { return this.practice.has(lab); }
+  async setPractice(lab: string, on: boolean) { if (on) this.practice.add(lab); else this.practice.delete(lab); }
   async listSessions(lab: string) { return [...this.sessions.values()].filter((s) => s.lab === lab).sort((a, b) => b.opens_at.localeCompare(a.opens_at)); }
   async createSession(lab: string, taName: string, timeSlot: string, minutes: number | null = 90) {
     const t = this.now();
@@ -256,7 +262,7 @@ type Prefix = 'progress' | 'progress_dev';
 export class NeonStore implements ProgressStore {
   private run: (text: string, params?: unknown[]) => Promise<any[]>;
   private ready: Promise<void> | null = null;
-  private t: { students: string; attempts: string; tasks: string; subs: string; hits: string; checkins: string; sessions: string; views: string };
+  private t: { students: string; attempts: string; tasks: string; subs: string; hits: string; checkins: string; sessions: string; views: string; settings: string };
   private v2: { sessions: string; members: string; attempts: string; tasks: string; subs: string; checkins: string; views: string };
 
   constructor(url: string, prefix: Prefix, driver: 'neon' | 'postgres' = 'neon') {
@@ -269,7 +275,7 @@ export class NeonStore implements ProgressStore {
     }
     this.t = {
       students: `${prefix}_students`, attempts: `${prefix}_attempts`, tasks: `${prefix}_tasks`, subs: `${prefix}_submissions`, hits: `${prefix}_hits`,
-      checkins: `${prefix}_checkins`, sessions: `${prefix}_sessions`, views: `${prefix}_views`,
+      checkins: `${prefix}_checkins`, sessions: `${prefix}_sessions`, views: `${prefix}_views`, settings: `${prefix}_lab_settings`,
     };
     this.v2 = {
       sessions: `${prefix}_class_sessions`, members: `${prefix}_session_students`, attempts: `${prefix}_session_attempts`,
@@ -345,6 +351,7 @@ export class NeonStore implements ProgressStore {
       `create table if not exists ${this.v2.views} (
         session_id text not null references ${this.v2.sessions}(id) on delete cascade, student_key text not null references ${students}(student_key) on delete cascade,
         lab text not null, seen text[] not null default '{}', active_sec int not null default 0, updated_at timestamptz not null default now(), primary key (session_id, student_key))`,
+      `create table if not exists ${this.t.settings} (lab text primary key, practice boolean not null default false, updated_at timestamptz not null default now())`,
     ];
     try {
       for (const s of statements) await this.run(s);
@@ -564,6 +571,14 @@ export class NeonStore implements ProgressStore {
   async getSessionById(id: string) {
     const [row] = await this.q(`select * from ${this.v2.sessions} where id = $1`, [id]);
     return row ? this.sessionRow(row) : null;
+  }
+  async getPractice(lab: string) {
+    const [row] = await this.q<{ practice: boolean }>(`select practice from ${this.t.settings} where lab = $1`, [lab]);
+    return Boolean(row?.practice);
+  }
+  async setPractice(lab: string, on: boolean) {
+    await this.q(`insert into ${this.t.settings} (lab, practice) values ($1, $2)
+      on conflict (lab) do update set practice = excluded.practice, updated_at = now()`, [lab, on]);
   }
   async listSessions(lab: string) {
     const rows = await this.q(`select * from ${this.v2.sessions} where lab = $1 order by opens_at desc limit 200`, [lab]);

@@ -31,6 +31,8 @@
 .ls .ls-session { grid-column: 1 / -1; }
 [data-lab][data-session-access='readonly'] :is([data-exercise], [data-playground], [data-repo-submit], [data-checkin], [data-task-check]) { opacity: 0.62; }
 [data-lab][data-session-access='readonly'] :is(.cm-editor, [data-exercise] button, [data-playground] button, [data-repo-submit] input, [data-repo-submit] button, [data-checkin] button, [data-task-check]) { cursor: not-allowed !important; }
+[data-lab][data-session-access='practice'] :is([data-repo-submit], [data-checkin]) { opacity: 0.62; }
+[data-lab][data-session-access='practice'] :is([data-repo-submit] input, [data-repo-submit] button, [data-checkin] button) { cursor: not-allowed !important; }
 .ls label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: var(--text); }
 .ls input, .ls select { height: 46px; padding: 0 14px; font-size: 16px; border-radius: 12px; }
 .ls .ls-err { color: var(--danger) !important; font-size: 14px; min-height: 1em; }

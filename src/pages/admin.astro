@@ -70,6 +70,11 @@ const error = Astro.url.searchParams.get('e');
               <h1 class="adm-h">Manage teaching sessions</h1>
               <p class="muted">Create a time slot first, then start it when students may begin the lab.</p>
             </div>
+            <label class="practice-toggle">
+              <input type="checkbox" role="switch" data-practice-toggle />
+              <span class="practice-track" aria-hidden="true"><i></i></span>
+              <span><b>Open practice</b><small data-practice-note>Students can edit and check this lab without a session. Nothing is recorded.</small></span>
+            </label>
           </header>
           <form class="session-create" data-session-create>
             <label><span>TA name</span><input class="input" name="taName" required maxlength="60" placeholder="Teaching assistant name" /></label>
@@ -121,6 +126,7 @@ const error = Astro.url.searchParams.get('e');
               <button class="btn btn-primary btn-sm" type="button" data-open-sessions>Manage selected session</button>
               <a class="btn btn-ghost btn-sm" data-session-insights href="/admin/progress">Session insights →</a>
             <a class="btn btn-ghost btn-sm" href="/admin/cms">CMS →</a>
+            <a class="btn btn-ghost btn-sm" href="/admin/project">Project files →</a>
             <form method="post" action="/api/admin/logout"><button class="btn btn-ghost btn-sm" type="submit">Log out</button></form>
           </div>
         </header>
@@ -162,6 +168,16 @@ const error = Astro.url.searchParams.get('e');
   .board-count b { color: var(--accent-text); font-variant-numeric: tabular-nums; }
   .board-count span { font-size: 0.45em; color: var(--text-2); font-weight: 500; letter-spacing: -0.01em; }
   .board-actions { display: flex; align-items: center; gap: 10px; }
+  .practice-toggle { display: flex; align-items: center; gap: 12px; max-width: 360px; padding: 12px 14px; border: 1px solid var(--line-2); border-radius: var(--r-md); background: var(--surface); cursor: pointer; }
+  .practice-toggle input { position: absolute; opacity: 0; pointer-events: none; }
+  .practice-track { flex: none; position: relative; width: 40px; height: 22px; border-radius: 999px; background: var(--line-2); transition: background var(--t-fast); }
+  .practice-track i { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--text); transition: transform var(--t-fast); }
+  .practice-toggle input:checked + .practice-track { background: var(--accent); }
+  .practice-toggle input:checked + .practice-track i { transform: translateX(18px); background: var(--accent-ink); }
+  .practice-toggle input:focus-visible + .practice-track { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+  .practice-toggle input:disabled + .practice-track { opacity: .5; }
+  .practice-toggle b { display: block; font-size: 14px; }
+  .practice-toggle small { display: block; font-size: 12px; color: var(--text-3); line-height: 1.4; }
   .live { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line-2); font-size: 12px; color: var(--text-3); }
   .live::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
   .live.on { color: var(--ok); border-color: color-mix(in oklab, var(--ok) 45%, transparent); }
@@ -188,7 +204,7 @@ const error = Astro.url.searchParams.get('e');
 
   /* session CRUD */
   .session-admin { display: grid; gap: 22px; }
-  .session-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; }
+  .session-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px; }
   .session-head .muted { margin-top: 8px; }
   .session-create { display: grid; grid-template-columns: minmax(180px, 0.8fr) minmax(240px, 1.2fr) 120px auto; align-items: end; gap: 12px; padding: 18px; border: 1px solid var(--line-2); border-radius: var(--r-lg); background: var(--surface); }
   .session-create label, .session-list :global(label) { display: grid; gap: 6px; min-width: 0; font-size: 12px; font-weight: 650; color: var(--text-2); }
@@ -254,6 +270,7 @@ const error = Astro.url.searchParams.get('e');
     students: { key: string; name: string; id: string; group: string; startedAt: string; percent: number; solved: number; lastSeen: string; attended: string | null; checkedInAt: string | null; cells: Record<string, { passed: number; total: number; attempts: number }> }[];
     session: (Session & { closesAt: string | null }) | { open: false; closesAt: null };
     sessions: Session[];
+    practice: boolean;
   };
 
   let timer: number | undefined;
@@ -297,6 +314,8 @@ const error = Astro.url.searchParams.get('e');
   }
 
   function renderSessionManager(stats: LabStats) {
+    const toggle = document.querySelector<HTMLInputElement>('[data-practice-toggle]');
+    if (toggle && !toggle.disabled) toggle.checked = stats.practice;
     const list = document.querySelector<HTMLElement>('[data-session-list]');
     if (!list) return;
     const signature = stats.structure.lab + JSON.stringify(stats.sessions);
@@ -464,6 +483,18 @@ const error = Astro.url.searchParams.get('e');
       void load(root);
     });
     document.querySelector<HTMLSelectElement>('[data-admin-session]')?.addEventListener('change', () => root && void load(root));
+    const practice = document.querySelector<HTMLInputElement>('[data-practice-toggle]');
+    if (practice && !practice.dataset.wired) {
+      practice.dataset.wired = '1';
+      practice.addEventListener('change', async () => {
+        const on = practice.checked;
+        practice.disabled = true;
+        const saved = await sessionAction('practice', { on });
+        practice.disabled = false;
+        if (!saved) practice.checked = !on;
+        else sessionMessage(on ? 'Open practice is on: students can solve this lab without a session.' : 'Open practice is off: the lab needs a running session again.');
+      });
+    }
     const create = document.querySelector<HTMLFormElement>('[data-session-create]');
     if (create && !create.dataset.wired) {
       create.dataset.wired = '1';

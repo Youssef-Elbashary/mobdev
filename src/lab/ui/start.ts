@@ -3,7 +3,7 @@ import { clearStudent, deviceId, getStudent, ID_RE, NAME_RE, setStudent } from '
 import { clearProgressIdentity, getIdentity, setProgressIdentity } from '@/scripts/progress';
 
 type PublicSession = { id: string; open: boolean; ta_name?: string; time_slot?: string };
-type PublicSessionResponse = PublicSession & { sessions?: PublicSession[] };
+type PublicSessionResponse = PublicSession & { sessions?: PublicSession[]; practice?: boolean };
 
 export function mountStart(lab: string) {
   const root = document.querySelector<HTMLElement>('[data-lab-start]');
@@ -22,6 +22,7 @@ export function mountStart(lab: string) {
   const submit = form.querySelector<HTMLButtonElement>('[type="submit"]')!;
   let session: PublicSession | null = null;
   let sessions: PublicSession[] = [];
+  let practice = false; // the admin's "open practice" toggle: solve without a session, nothing recorded
   const labRoot = root.closest<HTMLElement>('[data-lab]');
 
   if (labRoot && !labRoot.dataset.sessionGuard) {
@@ -30,6 +31,8 @@ export function mountStart(lab: string) {
       if (labRoot.dataset.sessionAccess === 'active') return;
       const target = event.target as HTMLElement | null;
       if (!target || target.closest('[data-lab-start]') || target.closest('a')) return;
+      // Practice: exercises and demos work, but attendance and submissions still need a session.
+      if (labRoot.dataset.sessionAccess === 'practice' && !target.closest('[data-repo-submit],[data-checkin]')) return;
       if (target.closest('button,input,textarea,select,[contenteditable="true"],.cm-editor,[data-exercise],[data-playground],[data-repo-submit],[data-checkin]')) {
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -42,7 +45,7 @@ export function mountStart(lab: string) {
     const student = getStudent();
     const current = Boolean(student && session?.open && student.sessionId === session.id);
     form.hidden = sessions.length === 0;
-    if (labRoot) labRoot.dataset.sessionAccess = current ? 'active' : 'readonly';
+    if (labRoot) labRoot.dataset.sessionAccess = current ? 'active' : practice ? 'practice' : 'readonly';
     formBox.hidden = current;
     signed.hidden = !current;
     root.classList.toggle('is-signed', current);
@@ -64,6 +67,7 @@ export function mountStart(lab: string) {
       const response = await fetch(`/api/progress/session?lab=${encodeURIComponent(lab)}`, { cache: 'no-store' });
       const data = (await response.json()) as PublicSessionResponse;
       sessions = Array.isArray(data.sessions) ? data.sessions.filter((item) => item.open) : data.open ? [data] : [];
+      practice = data.practice === true;
       const student = getStudent();
       const previousId = sessionIn.value;
       sessionIn.replaceChildren(...sessions.map((item) => new Option(`${item.time_slot ?? 'Current time slot'} — ${item.ta_name ?? 'TA'}`, item.id)));
@@ -77,10 +81,13 @@ export function mountStart(lab: string) {
         ? `${sessions.length} sessions are running. Choose your time slot and TA, then enter your details.`
         : session
           ? `Session started by ${session.ta_name ?? 'your TA'} · ${session.time_slot ?? 'current time slot'}. Enter your details to begin.`
+        : practice
+          ? 'Practice mode is on: you can edit and check every exercise now. Your progress is saved in this browser only and is not sent to your TA.'
         : 'Waiting for your TA to start this lab session. You can read the content in the meantime.';
     } catch {
       session = null;
       sessions = [];
+      practice = false;
       status.textContent = 'Could not check the session status. You can still read the lab content.';
     }
     show();

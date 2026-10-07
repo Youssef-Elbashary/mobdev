@@ -14,6 +14,7 @@ const required = d?.features.filter((f) => f.required) ?? [];
 const stretch = d?.features.filter((f) => !f.required) ?? [];
 const nav = d ? [
   ['overview', 'Overview'],
+  ['files', 'Files'],
   ['journey', 'Milestones'],
   ['requirements', 'Requirements'],
   ['features', 'Features'],
@@ -67,6 +68,11 @@ const nav = d ? [
             </div>
             {d.objectives.length > 0 && <ul class="dash-list">{d.objectives.map((o) => <li set:html={inline(o)} />)}</ul>}
           </div>
+        </section>
+
+        <section id="files" class="pj-sec pj-split" data-pj-files hidden>
+          <div><p class="eyebrow">Download &amp; submit</p><h2 class="h-2 mt-4">Files</h2></div>
+          <div class="row-list" data-pj-file-list></div>
         </section>
 
         <section id="journey" class="pj-sec">
@@ -215,10 +221,44 @@ const nav = d ? [
   .dlv { list-style: none; padding: 0; counter-reset: d; border-top: 1px solid var(--line); }
   .dlv li { display: grid; grid-template-columns: 48px 1fr; gap: 12px; padding: 18px 0; border-bottom: 1px solid var(--line); font-size: 1.05rem; }
   .dlv .mono { color: var(--accent-text); font-size: 13px; padding-top: 3px; }
+  :global(.pjf) { grid-template-columns: 1fr 36px; }
+  :global(.pjf b) { display: block; font-weight: 600; }
+  :global(.pjf small) { display: block; margin-top: 4px; font-size: 12px; color: var(--text-3); }
+  :global(.pjf .pjf-d) { display: block; margin-top: 4px; font-size: 14px; color: var(--text-2); }
+  :global(.pjf .pjf-due) { color: var(--warn); }
 </style>
 
 <script>
+  type ProjectFile = { id: string; title: string; description: string; kind: string; due_at: string | null; url: string; size: number; created_at: string };
+  const KIND: Record<string, string> = { proposal: 'Proposal submission', brief: 'Brief', template: 'Template', other: 'Document' };
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  const day = (s: string) => new Date(s).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+
+  /** Published PDFs come from the admin (/admin/project), so they load at runtime, not at build time. */
+  async function loadFiles() {
+    const sec = document.querySelector<HTMLElement>('[data-pj-files]');
+    const list = sec?.querySelector<HTMLElement>('[data-pj-file-list]');
+    const link = document.querySelector<HTMLElement>('[data-sub="files"]')?.parentElement;
+    if (!sec || !list) return;
+    if (link) link.hidden = true;
+    const data = await fetch('/api/project/files').then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const files: ProjectFile[] = data?.files ?? [];
+    if (!files.length) return;
+    list.innerHTML = files.map((f) => `
+      <a class="row pjf" href="${esc(f.url)}" target="_blank" rel="noopener">
+        <span>
+          <b>${esc(f.title)}</b>
+          ${f.description ? `<span class="pjf-d">${esc(f.description)}</span>` : ''}
+          <small class="mono">PDF · ${esc(KIND[f.kind] ?? 'Document')} · ${f.size < 1024 * 1024 ? `${Math.max(1, Math.round(f.size / 1024))} KB` : `${(f.size / 1024 / 1024).toFixed(1)} MB`}${f.due_at ? ` · <span class="pjf-due">due ${day(f.due_at)}</span>` : ''}</small>
+        </span>
+        <span class="go" aria-hidden="true">↓</span>
+      </a>`).join('');
+    sec.hidden = false;
+    if (link) link.hidden = false;
+  }
+
   document.addEventListener('astro:page-load', () => {
+    loadFiles();
     const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-sub]'));
     if (!links.length) return;
     const n = document.querySelectorAll('.mj-item').length;

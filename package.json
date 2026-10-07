@@ -27,6 +27,7 @@
     "@shikijs/transformers": "^4.4.3",
     "@supabase/supabase-js": "^2.117.2",
     "@upstash/redis": "^1.39.0",
+    "@vercel/blob": "^2.8.1",
     "astro": "^7.3.5",
     "codemirror": "^6.0.2",
     "pg": "^8.23.1",

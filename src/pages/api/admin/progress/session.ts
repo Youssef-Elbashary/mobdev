@@ -1,4 +1,7 @@
-/** POST /api/admin/progress/session — { lab, action: 'open', minutes: 15 | 30 | 60 | null } or { lab, action: 'close' }. */
+/**
+ * POST /api/admin/progress/session — { lab, action: 'open', minutes: 15 | 30 | 60 | null } or { lab, action: 'close' },
+ * or { lab, action: 'practice', on: boolean } to let students solve the lab without a session.
+ */
 import type { APIRoute } from 'astro';
 import { isAdmin } from '@/lib/attendance/server';
 import { sessionState } from '@/lib/progress/core';
@@ -21,6 +24,12 @@ export const POST: APIRoute = async ({ cookies, request }) => {
     const readDetails = () => sessionDetails(body?.taName, body?.timeSlot);
     const minutes = body?.minutes === undefined ? 90 : body.minutes == null || body.minutes === '' ? null : Number(body.minutes);
     if (['create', 'update', 'open', 'start'].includes(action) && minutes !== null && !LENGTHS.includes(minutes)) return json({ error: 'bad-request', message: 'Choose a valid session duration.' }, 400);
+
+    if (action === 'practice') {
+      if (typeof body?.on !== 'boolean') return json({ error: 'bad-request' }, 400);
+      await store.setPractice(lab, body.on);
+      return json({ ok: true, practice: body.on });
+    }
 
     let changed = null;
     if (action === 'create' || action === 'open') {

@@ -350,3 +350,13 @@ test('store: admins can create, edit, start, end and delete a session', async ()
   assert.equal(await s.getSessionById(draft.id), null);
   assert.equal(await s.deleteSession('lab-02', draft.id), false);
 });
+
+test('open practice is off by default and toggles per lab', async () => {
+  const store = new MemoryStore();
+  assert.equal(await store.getPractice('lab-02'), false);
+  await store.setPractice('lab-02', true);
+  assert.equal(await store.getPractice('lab-02'), true);
+  assert.equal(await store.getPractice('lab-01'), false);
+  await store.setPractice('lab-02', false);
+  assert.equal(await store.getPractice('lab-02'), false);
+});

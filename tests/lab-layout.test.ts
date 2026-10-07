@@ -14,7 +14,9 @@ test('every mission lab asks for identity but keeps lesson content visible in re
   assert.ok(start > 0 && content > start, 'the required identity card must precede the lesson');
   assert.doesNotMatch(interactiveCss, /\.ls:not\(\.is-signed\)\s*~\s*\*\s*\{\s*display:\s*none/);
   assert.match(interactiveCss, /data-session-access='readonly'/);
-  assert.match(labStart, /dataset\.sessionAccess = current \? 'active' : 'readonly'/);
+  assert.match(labStart, /dataset\.sessionAccess = current \? 'active' : practice \? 'practice' : 'readonly'/);
+  // practice mode still keeps attendance and submissions behind a running session
+  assert.ok(labStart.includes("sessionAccess === 'practice' && !target.closest('[data-repo-submit],[data-checkin]')"));
 });
 
 test('attendance is the final lab card before previous/next navigation', () => {

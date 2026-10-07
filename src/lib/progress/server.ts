@@ -179,6 +179,7 @@ export async function buildDashboard(labParam: string | null, sessionParam?: str
       checkedIn: students.filter((x) => x.attended).length,
     },
     session: selected ? { ...selected, ...sessionState(selected, Date.now()) } : { open: false, closesAt: null },
+    practice: await s.getPractice(structure.lab),
     sessions: sessions.map((session) => ({ ...session, ...sessionState(session, Date.now()) })),
     updatedAt: new Date().toISOString(),
   };
