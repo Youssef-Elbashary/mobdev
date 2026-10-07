@@ -1,6 +1,6 @@
 /** POST /api/admin/login — checks the password (form field "password"), sets the admin cookie. */
 import type { APIRoute } from 'astro';
-import { clientIp, getStore, passwordMatches, setupStatus, startAdminSession } from '@/lib/attendance/server';
+import { clientIp, getStore, passwordMatches, setupStatus, sharedPasswordLogin, startAdminSession } from '@/lib/attendance/server';
 
 export const prerender = false;
 
@@ -9,6 +9,8 @@ const WINDOW_SEC = 10 * 60; // per 10 minutes
 
 export const POST: APIRoute = async ({ request, cookies, redirect, url, clientAddress }) => {
   if (!setupStatus().password) return redirect('/admin', 303);
+  // everyone signs in with their own account now; the shared password only works when re-enabled on purpose
+  if (!sharedPasswordLogin()) return redirect('/login?next=/admin', 303);
 
   const store = getStore();
   if (store) {

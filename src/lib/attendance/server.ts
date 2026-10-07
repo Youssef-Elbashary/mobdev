@@ -84,9 +84,12 @@ export function setupStatus() {
 export const ADMIN_COOKIE = 'att_admin';
 
 /** The shared ADMIN_PASSWORD login (counts as a doctor). */
+/** The shared password login is off: everyone signs in with their own account. ADMIN_PASSWORD_LOGIN=on re-enables it (emergencies). */
+export const sharedPasswordLogin = () => env('ADMIN_PASSWORD_LOGIN') === 'on';
+
 export function masterAdmin(cookies: AstroCookies): boolean {
   const pw = env('ADMIN_PASSWORD');
-  if (!pw) return false;
+  if (!pw || !sharedPasswordLogin()) return false;
   return verifySession(cookies.get(ADMIN_COOKIE)?.value, sessionSecret(pw));
 }
 

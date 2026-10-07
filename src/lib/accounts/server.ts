@@ -3,8 +3,9 @@
  * Users, platform settings (years, specializations, built-in module audience) live in the progress
  * PostgreSQL database (accounts_* in production, accounts_dev_* elsewhere), created on first use.
  * The signing secret is SESSION_SECRET, or derived from ADMIN_PASSWORD when that is not set.
- * The ADMIN_PASSWORD login on /admin keeps working and counts as a doctor (it is how the first doctor
- * account gets created).
+ * Everyone signs in with their own account. The Mobile Development team (site.yaml) is seeded on first run:
+ * with STAFF_INITIAL_PASSWORD set they get accounts with that password, otherwise invitation links.
+ * The shared ADMIN_PASSWORD login is off unless ADMIN_PASSWORD_LOGIN=on (emergency access).
  */
 import type { AstroCookies } from 'astro';
 import { randomBytes } from 'node:crypto';
@@ -133,6 +134,15 @@ class AccountStore {
       await this.run(`insert into ${this.staff} (module, email, role, added_by) values ($1, $2, $3, 'site.yaml') on conflict do nothing`, [BUILT_IN, t.email, t.module_role]);
       const [user] = await this.run(`select id, role from ${this.users} where email = $1`, [t.email]);
       if (user) continue;
+      // with STAFF_INITIAL_PASSWORD set, the team get accounts straight away (each should change it on first sign-in);
+      // otherwise they get an invitation link to set their own
+      const initial = env('STAFF_INITIAL_PASSWORD');
+      if (initial) {
+        await this.run(`insert into ${this.users} (id, role, name, email, password_hash) values ($1, $2, $3, $4, $5) on conflict (email) do nothing`,
+          [randomUUID(), t.platform_role, t.name, t.email, hashPassword(initial)]);
+        await this.run(`update ${this.invites} set accepted_at = now() where email = $1 and accepted_at is null`, [t.email]);
+        continue;
+      }
       const [pending] = await this.run(`select token from ${this.invites} where email = $1 and accepted_at is null and expires_at > now()`, [t.email]);
       if (pending) continue;
       await this.run(`insert into ${this.invites} (token, email, name, platform_role, module, module_role, invited_by, expires_at)

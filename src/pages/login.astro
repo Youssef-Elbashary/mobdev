@@ -41,24 +41,16 @@ const json = JSON.stringify({ optional, next: safeNext }).replace(/</g, '\\u003c
             <div class="auth-tabs" role="tablist">
               <button type="button" role="tab" aria-selected="true" data-tab="in">Sign in</button>
               <button type="button" role="tab" aria-selected="false" data-tab="up">Student sign-up</button>
-              <button type="button" role="tab" aria-selected="false" data-tab="admin">Admin password</button>
             </div>
             {ended && <p class="auth-note">Your session ended (the account was changed or disabled). Please sign in again.</p>}
 
             <form class="auth-form" data-form="in" novalidate>
-              <label><span>Email</span><input class="input" type="email" name="email" autocomplete="username" required /></label>
+              <label><span>BUE email or username</span><input class="input" name="email" autocomplete="username" placeholder="name.surname@bue.edu.eg" required /></label>
               <label><span>Password</span><input class="input" type="password" name="password" autocomplete="current-password" required /></label>
               <p class="auth-msg" data-msg role="alert"></p>
               <button class="btn btn-primary btn-lg" type="submit">Sign in →</button>
               <p class="auth-fine">Staff accounts come from an invitation or from the super admin in <b>Admin → Accounts</b>.</p>
             </form>
-
-            <form class="auth-form" data-form="admin" method="post" action="/api/admin/login" hidden>
-              <p class="auth-fine">The shared platform admin password (ADMIN_PASSWORD). It has full access, like a super admin, so use your own account when you can.</p>
-              <label><span>Admin password</span><input class="input" type="password" name="password" autocomplete="current-password" required /></label>
-              <button class="btn btn-primary btn-lg" type="submit">Open admin →</button>
-            </form>
-
             <form class="auth-form" data-form="up" hidden novalidate>
               <div class="auth-row">
                 <label><span>Full name</span><input class="input" name="name" autocomplete="name" required maxlength="60" /></label>
@@ -100,7 +92,7 @@ const json = JSON.stringify({ optional, next: safeNext }).replace(/</g, '\\u003c
   .auth-roles b { color: var(--hero-text); }
   .auth-skip { display: inline-block; margin-top: 26px; color: var(--hero-accent); font-weight: 600; }
   .auth-card { padding: clamp(22px, 4vw, 34px); display: grid; gap: 18px; }
-  .auth-tabs { display: grid; grid-template-columns: repeat(3, 1fr); padding: 4px; border-radius: 14px; background: color-mix(in oklab, var(--hero-text) 6%, transparent); }
+  .auth-tabs { display: grid; grid-template-columns: repeat(2, 1fr); padding: 4px; border-radius: 14px; background: color-mix(in oklab, var(--hero-text) 6%, transparent); }
   .auth-tabs button { padding: 10px; border: 0; border-radius: 11px; background: none; color: var(--hero-lead); font: 600 13.5px var(--font-body); cursor: pointer; }
   .auth-tabs button[aria-selected='true'] { background: var(--hero-accent); color: var(--hero-bg); box-shadow: 0 6px 20px -8px var(--hero-accent); }
   .auth-form { display: grid; gap: 14px; }
@@ -139,7 +131,6 @@ const json = JSON.stringify({ optional, next: safeNext }).replace(/</g, '\\u003c
     };
     tabs.forEach((b) => b.addEventListener('click', () => show(b.dataset.tab!)));
     if (location.hash === '#signup') show('up');
-    if (location.hash === '#admin') show('admin');
 
     const done = (role: string) => {
       try { localStorage.removeItem('mdx:profile'); } catch { /* ignore */ }

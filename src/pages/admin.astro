@@ -6,7 +6,7 @@
  */
 import Base from '@/layouts/Base.astro';
 import AdminShell from '@/components/admin/AdminShell.astro';
-import { isAdmin, setupStatus } from '@/lib/attendance/server';
+import { isAdmin, setupStatus, sharedPasswordLogin } from '@/lib/attendance/server';
 import { access } from '@/lib/accounts/access';
 import { ROLE_NAMES } from '@/lib/accounts/permissions';
 import { getAccountStore } from '@/lib/accounts/server';
@@ -68,7 +68,7 @@ if (staff) {
         <p class="ah-k mono">Admin workspace</p>
         <h1>Sign in to manage your modules</h1>
         <a class="btn btn-primary btn-lg" href="/login?next=/admin">Sign in with your account →</a>
-        {status.password && (
+        {status.password && sharedPasswordLogin() && (
           <form method="post" action="/api/admin/login" class="ah-pw">
             <p class="ah-or mono">or the shared admin password</p>
             <input class="input" type="password" name="password" autocomplete="current-password" required aria-label="Admin password" placeholder="Admin password" />
