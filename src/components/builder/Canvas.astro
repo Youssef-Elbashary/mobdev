@@ -52,7 +52,7 @@ const json = JSON.stringify(config).replace(/</g, '\\u003c');
 
     <div class="cv-stage" data-cv-stage>
       <div class="cv-world" data-cv-world>
-        <svg class="cv-edges" data-cv-edges width="1" height="1" aria-hidden="true"></svg>
+        <svg class="cv-edges" data-cv-edges viewBox="-10000 -10000 30000 30000" aria-hidden="true"></svg>
       </div>
       <div class="cv-warn" data-cv-warnings hidden></div>
       <p class="cv-hint mono">drag background to pan · wheel to zoom · drag from ● to connect · Del removes</p>
@@ -63,7 +63,7 @@ const json = JSON.stringify(config).replace(/</g, '\\u003c');
 </section>
 
 <style is:global>
-  .cv { --cv-bg: #0d1014; --cv-dot: rgb(255 255 255 / 0.07); --cv-node: #161a21; --cv-edge: #4b5563;
+  .cv { --cv-bg: #0d1014; --cv-dot: rgb(255 255 255 / 0.07); --cv-node: #161a21; --cv-edge: #6b7686;
     position: fixed; inset: var(--nav-h) 0 0 0; z-index: 40; display: grid; grid-template-rows: auto 1fr; background: var(--bg); }
   :root[data-theme='light'] .cv { --cv-bg: #f1f0ea; --cv-dot: rgb(0 0 0 / 0.09); --cv-node: #ffffff; --cv-edge: #a3a8b0; }
   .cv-bar { display: flex; align-items: center; gap: 16px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--surface); flex-wrap: wrap; }
@@ -101,7 +101,8 @@ const json = JSON.stringify(config).replace(/</g, '\\u003c');
   .cv-stage { position: relative; overflow: hidden; background-color: var(--cv-bg); background-image: radial-gradient(var(--cv-dot) 1.2px, transparent 1.2px); cursor: grab; touch-action: none; user-select: none; }
   .cv-stage.is-panning { cursor: grabbing; }
   .cv-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
-  .cv-edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+  /* a zero-sized <svg> is never painted, so give it real room (edges can still overflow it) */
+  .cv-edges { position: absolute; left: -10000px; top: -10000px; width: 30000px; height: 30000px; max-width: none; overflow: visible; pointer-events: none; } /* the global svg reset caps max-width at the 0px-wide world */
   .cv-edge { pointer-events: auto; }
   .cv-edge-hit { fill: none; stroke: transparent; stroke-width: 16; cursor: pointer; }
   .cv-edge-line { fill: none; stroke: var(--cv-edge); stroke-width: 2.5; pointer-events: none; }

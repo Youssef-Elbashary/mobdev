@@ -253,15 +253,18 @@ export function mountCanvas(root: HTMLElement, cfg: CanvasConfig) {
     setDirty();
     return n;
   }
-  /** make room after an insert: push the chain that follows a little to the right if it overlaps */
+  /** make room after an insert: push the following nodes on the same row right, one after another, until there's no overlap */
   function shiftRight(fromId: string, inserted: FlowNode) {
     const seen = new Set<string>();
+    let prevX = inserted.x;
     for (let cur = nodeById(fromId); cur && !seen.has(cur.id); cur = nodeById(outOf(cur.id)?.to ?? '')) {
       seen.add(cur.id);
-      if (Math.abs(cur.y - inserted.y) < 100 && cur.x < inserted.x + NODE_W + 40 && cur.x >= inserted.x - 10) cur.x = inserted.x + NODE_W + 60;
-      else break;
+      if (Math.abs(cur.y - inserted.y) >= 100 || cur.x >= prevX + NODE_W + 40) break;
+      cur.x = prevX + NODE_W + 60;
+      prevX = cur.x;
     }
   }
+
 
   function removeNode(id: string) {
     const n = nodeById(id);
