@@ -6,11 +6,15 @@
  */
 import Base from '@/layouts/Base.astro';
 import { isAdmin, setupStatus, isDoctor } from '@/lib/attendance/server';
+import { progressSetup } from '@/lib/progress/server';
 
 export const prerender = false;
 Astro.response.headers.set('cache-control', 'no-store, max-age=0');
 
-const status = setupStatus();
+// This dashboard, including attendance, is backed by the progress/session
+// PostgreSQL store. The old standalone attendance store (Supabase/Redis) is no
+// longer used by this page, so do not block it on those legacy credentials.
+const status = { ...setupStatus(), database: progressSetup().database };
 const ready = status.database && status.password;
 const admin = ready && isAdmin(Astro.cookies);
 const error = Astro.url.searchParams.get('e');
@@ -33,7 +37,7 @@ import AdminShell from '@/components/admin/AdminShell.astro';
             <span class="st" aria-hidden="true">{status.database ? '✓' : '1'}</span>
             <div>
               <b>Database {status.database ? 'connected' : 'not connected'}</b>
-              {!status.database && <p>In Supabase, run <code>supabase/attendance.sql</code> in the <b>SQL Editor</b>. Then in Vercel → <b>Settings</b> → <b>Environment Variables</b> add <code>SUPABASE_URL</code> and <code>SUPABASE_SECRET_KEY</code>.</p>}
+              {!status.database && <p>Connect the project PostgreSQL database in Vercel, or add <code>DATABASE_URL</code> in <b>Settings</b> → <b>Environment Variables</b>.</p>}
             </div>
           </li>
           <li class:list={[{ ok: status.password }]}>
