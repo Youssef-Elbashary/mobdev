@@ -74,6 +74,18 @@
   --shadow-lg: 0 40px 80px -24px rgb(0 0 0 / 0.75), 0 0 0 1px var(--line);
   --grid-dot: rgb(255 255 255 / 0.055);
   --glass: rgb(14 17 21 / 0.72);
+  /* full-bleed page headers under the transparent nav (project, submit) */
+  --hero-bg: #08090b;
+  --hero-text: #eceef1;
+  --hero-lead: #aab1bd;
+  --hero-muted: #8a93a1;
+  --hero-dim: #6f7887;
+  --hero-line: #262c36;
+  --hero-grid: rgb(255 255 255 / 0.04);
+  --hero-glow: rgb(200 255 77 / 0.35);
+  --hero-accent: #c8ff4d;
+  --hero-warn: #ffb547;
+  --hero-danger: #ff8a7a;
 }
 
 :root[data-theme='light'] {
@@ -109,6 +121,17 @@
   --shadow-lg: 0 40px 80px -30px rgb(30 30 10 / 0.25), 0 0 0 1px var(--line);
   --grid-dot: rgb(0 0 0 / 0.07);
   --glass: rgb(245 244 239 / 0.78);
+  --hero-bg: #eceade;
+  --hero-text: #0e1013;
+  --hero-lead: #464c56;
+  --hero-muted: #5b616b;
+  --hero-dim: #6e7480;
+  --hero-line: #d2cfc4;
+  --hero-grid: rgb(14 16 19 / 0.06);
+  --hero-glow: rgb(170 230 30 / 0.45);
+  --hero-accent: #4a6b00;
+  --hero-warn: #a45f00;
+  --hero-danger: #c0352a;
 }
 
 /* ---------- 2. BASE ------------------------------------------------------ */
