@@ -1,0 +1,230 @@
+---
+/**
+ * A module's people, for its module leader (anyone with `module.invite`): teaching staff and their module
+ * roles, enrolled students, and invitations (link + email). Create accounts directly with a temporary password,
+ * or invite by email so people set their own.
+ */
+import Base from '@/layouts/Base.astro';
+import { access } from '@/lib/accounts/access';
+import { BUILT_IN_MODULE, getPlatformStore } from '@/lib/platform/server';
+import { compileModule } from '@/lib/platform/core';
+
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'no-store, max-age=0');
+const slug = Astro.params.module ?? '';
+const a = await access(Astro.cookies);
+if (!a.can('module.invite', slug)) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname), 303);
+const mod = slug === BUILT_IN_MODULE.slug ? null : await getPlatformStore()?.getModule(slug);
+if (slug !== BUILT_IN_MODULE.slug && !mod) return Astro.redirect('/admin', 303);
+const meta = mod ? compileModule(mod.flow).meta : { title: BUILT_IN_MODULE.title, code: BUILT_IN_MODULE.code, color: BUILT_IN_MODULE.color };
+---
+<Base title={`Team · ${meta.title}`} noindex>
+  <section class="tm container" data-tm data-module={slug} style={`--mc:${meta.color || '#7cb1ff'}`}>
+    <header class="tm-top">
+      <div>
+        <p class="tm-k mono">{meta.code || 'Module'} · people</p>
+        <h1>{meta.title}</h1>
+        <p class="muted">Invite teaching staff and students, or create their accounts directly. Students only see this module once they're enrolled{slug === BUILT_IN_MODULE.slug ? ' (Mobile Development is also open to everyone as an optional module)' : ''}.</p>
+      </div>
+      <div class="tm-links">
+        <a class="btn btn-ghost btn-sm" href={`/admin/assessment/${slug}`}>Assessment</a>
+        {mod && <a class="btn btn-ghost btn-sm" href={`/admin/builder/${slug}`}>Module canvas</a>}
+        <a class="btn btn-ghost btn-sm" href="/admin">Attendance</a>
+      </div>
+    </header>
+
+    <div class="tm-grid">
+      <form class="tm-card tm-form" data-tm-invite>
+        <h2>Add someone</h2>
+        <div class="tm-seg" role="radiogroup" aria-label="Who">
+          <label><input type="radio" name="kind" value="student" checked /><span>Student</span></label>
+          <label><input type="radio" name="kind" value="staff" /><span>Teaching staff</span></label>
+        </div>
+        <label><span>Email</span><input class="input" type="email" name="email" required placeholder="name@bue.edu.eg" /></label>
+        <label><span>Name <small>(optional for invites)</small></span><input class="input" name="name" maxlength="60" /></label>
+        <div class="tm-staff" data-staff-only hidden>
+          <label><span>Module role</span><select class="input" name="moduleRole"><option value="ta">TA</option><option value="admin">Module admin</option><option value="leader" data-leader>Module leader</option></select></label>
+          <label><span>Account type</span><select class="input" name="platformRole"><option value="ta">TA</option><option value="doctor">Doctor</option></select></label>
+        </div>
+        <div class="tm-actions">
+          <button class="btn btn-primary" type="submit" data-act="invite">Send invitation</button>
+          <button class="btn btn-ghost" type="submit" data-act="add">Add by email (no invite)</button>
+        </div>
+        <details class="tm-create">
+          <summary>Or create the account now with a temporary password</summary>
+          <label data-sid><span>Student ID</span><input class="input mono" name="studentId" maxlength="20" /></label>
+          <label><span>Temporary password</span><span class="tm-pw"><input class="input mono" name="password" /><button class="btn btn-ghost btn-sm" type="button" data-gen>Generate</button></span></label>
+          <button class="btn btn-ghost" type="submit" data-act="create">Create account</button>
+        </details>
+        <p class="tm-msg" data-tm-msg role="status"></p>
+        <div class="tm-link" data-tm-link hidden></div>
+        <p class="tm-fine" data-mail-note></p>
+      </form>
+
+      <div class="tm-col">
+        <section class="tm-card"><div class="tm-h"><h2>Teaching staff</h2><span class="mono" data-n="staff"></span></div><div data-list="staff"></div></section>
+        <section class="tm-card"><div class="tm-h"><h2>Students</h2><span class="mono" data-n="students"></span></div>
+          <form class="tm-bulk" data-tm-bulk><textarea class="input" name="emails" rows="2" placeholder="Enrol several students: paste emails separated by spaces, commas or new lines"></textarea><button class="btn btn-ghost btn-sm" type="submit">Enrol</button></form>
+          <input class="input tm-q" type="search" placeholder="Search students" data-tm-q />
+          <div data-list="students"></div></section>
+        <section class="tm-card"><div class="tm-h"><h2>Pending invitations</h2><span class="mono" data-n="invites"></span></div><div data-list="invites"></div></section>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style is:global>
+  .tm { min-height: 85dvh; padding-top: calc(var(--nav-h) + 44px); padding-bottom: 100px; display: grid; gap: 22px; align-content: start; }
+  .tm-k { color: var(--accent-text); text-transform: uppercase; letter-spacing: .12em; font-size: 11px; }
+  .tm-top { display: flex; justify-content: space-between; align-items: end; gap: 20px; flex-wrap: wrap; border-left: 4px solid var(--mc); padding-left: 16px; }
+  .tm-top h1 { font-size: var(--fs-xl); letter-spacing: -.04em; margin-top: 3px; }
+  .tm-top .muted { margin-top: 6px; max-width: 72ch; }
+  .tm-links { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tm-grid { display: grid; gap: 18px; }
+  @media (min-width: 1040px) { .tm-grid { grid-template-columns: 400px 1fr; align-items: start; } }
+  .tm-col { display: grid; gap: 18px; }
+  .tm-card { border: 1px solid var(--line-2); background: var(--surface); border-radius: var(--r-lg); padding: 20px; display: grid; gap: 12px; align-content: start; }
+  .tm-card h2 { font-size: var(--fs-lg); }
+  .tm-h { display: flex; justify-content: space-between; align-items: baseline; }
+  .tm-h .mono { font-size: 12px; color: var(--text-3); }
+  .tm-form label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+  .tm-form small { color: var(--text-3); font-weight: 400; }
+  .tm-form .input, .tm-q { height: 42px; padding: 0 12px; }
+  .tm-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .tm-seg label { display: block; cursor: pointer; }
+  .tm-seg input { position: absolute; opacity: 0; }
+  .tm-seg span { display: block; text-align: center; padding: 10px; border-radius: 10px; border: 1px solid var(--line-2); font-size: 13px; }
+  .tm-seg input:checked + span { border-color: var(--mc); background: color-mix(in oklab, var(--mc) 14%, transparent); }
+  .tm-staff { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tm-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tm-create { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 10px; }
+  .tm-create summary { cursor: pointer; font-size: 13px; color: var(--text-2); }
+  .tm-create[open] { gap: 10px; }
+  .tm-pw { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+  .tm-msg { min-height: 18px; font-size: 13px; }
+  .tm-msg.err { color: var(--danger); }
+  .tm-msg.ok { color: var(--ok); }
+  .tm-link { display: grid; gap: 8px; padding: 12px; border-radius: 12px; background: var(--accent-soft); border: 1px solid color-mix(in oklab, var(--accent-text) 30%, var(--line)); }
+  .tm-link code { word-break: break-all; font-size: 12px; }
+  .tm-link div { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tm-fine { font-size: 12px; color: var(--text-3); }
+  .tm-bulk { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: start; }
+  .tm-bulk textarea { min-height: 42px; padding: 10px 12px; resize: vertical; }
+  .tm-row { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 10px 2px; border-top: 1px solid var(--line); }
+  .tm-row:first-child { border-top: 0; }
+  .tm-av { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; font: 700 11px var(--font-mono); background: color-mix(in oklab, var(--mc) 25%, transparent); }
+  .tm-row b { display: block; font-size: 14px; }
+  .tm-row small { font-size: 12px; color: var(--text-3); }
+  .tm-role { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; font: 600 10px/1.6 var(--font-mono); text-transform: uppercase; background: var(--surface-2); }
+  .tm-ra { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .tm-ra select { height: 30px; padding: 0 8px; font-size: 12px; width: auto; }
+  .tm-x { color: var(--danger); }
+</style>
+
+<script>
+  type Staff = { email: string; role: string; name: string | null; hasAccount: boolean; platformRole: string | null; added_by: string };
+  type Student = { email: string; name: string | null; student_id: string | null; source: string; created_at: string };
+  type Inv = { token: string; email: string; name: string; platform_role: string; module_role: string | null; invited_by: string; expires_at: string };
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  const ROLE: Record<string, string> = { leader: 'Leader', admin: 'Module admin', ta: 'TA', student: 'Student', doctor: 'Doctor', super_admin: 'Super admin' };
+  const genPw = () => { const a = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ', d = '23456789'; const r = (s: string) => s[crypto.getRandomValues(new Uint32Array(1))[0] % s.length]; return Array.from({ length: 10 }, () => r(a)).join('') + r(d) + r(d); };
+  const initials = (s: string) => s.split(/[\s.@]+/).filter(Boolean).map((p) => p[0].toUpperCase()).slice(0, 2).join('');
+
+  document.addEventListener('astro:page-load', () => {
+    const root = document.querySelector<HTMLElement>('[data-tm]');
+    if (!root || root.dataset.wired) return;
+    root.dataset.wired = '1';
+    const module = root.dataset.module!;
+    const api = (q = '') => `/api/admin/team?module=${encodeURIComponent(module)}${q}`;
+    const form = root.querySelector<HTMLFormElement>('[data-tm-invite]')!;
+    const msg = root.querySelector<HTMLElement>('[data-tm-msg]')!;
+    const linkBox = root.querySelector<HTMLElement>('[data-tm-link]')!;
+    let students: Student[] = [];
+    const say = (t: string, ok = true) => { msg.textContent = t; msg.className = `tm-msg ${ok ? 'ok' : 'err'}`; };
+
+    const list = (k: string) => root.querySelector<HTMLElement>(`[data-list="${k}"]`)!;
+    const renderStudents = () => {
+      const q = root.querySelector<HTMLInputElement>('[data-tm-q]')!.value.trim().toLowerCase();
+      const shown = students.filter((s) => !q || `${s.email} ${s.name ?? ''} ${s.student_id ?? ''}`.toLowerCase().includes(q));
+      list('students').innerHTML = shown.map((s) => `<div class="tm-row"><span class="tm-av">${esc(initials(s.name ?? s.email))}</span>
+        <div><b>${esc(s.name ?? s.email)}</b><small class="mono">${esc(s.email)}${s.student_id ? ` · ${esc(s.student_id)}` : ''} · ${s.name ? 'has an account' : 'no account yet'} · ${s.source === 'invite' ? 'accepted invite' : 'added by staff'}</small></div>
+        <div class="tm-ra"><button class="btn btn-ghost btn-sm tm-x" type="button" data-rm="student" data-key="${esc(s.email)}">Remove</button></div></div>`).join('') || '<p class="tm-fine">No students enrolled yet.</p>';
+    };
+    async function load() {
+      const r = await fetch(api(), { cache: 'no-store' });
+      const d = await r.json();
+      if (!r.ok) { say(d.error ?? 'Could not load.', false); return; }
+      root.querySelector<HTMLElement>('[data-mail-note]')!.textContent = d.mail
+        ? 'Invitations are emailed automatically, and you also get the link.'
+        : 'Email sending is not set up (RESEND_API_KEY + MAIL_FROM), so share the link yourself: copy it, or open your email app with a ready message.';
+      root.querySelector<HTMLOptionElement>('[data-leader]')!.hidden = !d.canAssignLeader;
+      root.querySelector('[data-n="staff"]')!.textContent = String(d.staff.length);
+      root.querySelector('[data-n="students"]')!.textContent = String(d.students.length);
+      root.querySelector('[data-n="invites"]')!.textContent = String(d.invites.length);
+      list('staff').innerHTML = (d.staff as Staff[]).map((s) => `<div class="tm-row"><span class="tm-av">${esc(initials(s.name ?? s.email))}</span>
+        <div><b>${esc(s.name ?? s.email)}<span class="tm-role">${ROLE[s.role] ?? s.role}</span></b><small class="mono">${esc(s.email)} · ${s.hasAccount ? `${ROLE[s.platformRole ?? ''] ?? ''} account` : 'no account yet'}</small></div>
+        <div class="tm-ra"><select class="input" data-setrole="${esc(s.email)}" aria-label="Module role">${['ta', 'admin', ...(d.canAssignLeader || s.role === 'leader' ? ['leader'] : [])].map((r) => `<option value="${r}" ${r === s.role ? 'selected' : ''}>${ROLE[r]}</option>`).join('')}</select>
+        <button class="btn btn-ghost btn-sm tm-x" type="button" data-rm="staff" data-key="${esc(s.email)}">Remove</button></div></div>`).join('') || '<p class="tm-fine">No staff yet.</p>';
+      students = d.students;
+      renderStudents();
+      list('invites').innerHTML = (d.invites as Inv[]).map((i) => `<div class="tm-row"><span class="tm-av">✉</span>
+        <div><b>${esc(i.name || i.email)}<span class="tm-role">${ROLE[i.module_role ?? i.platform_role] ?? ''}</span></b><small class="mono">${esc(i.email)} · by ${esc(i.invited_by)} · expires ${new Date(i.expires_at).toLocaleDateString()}</small></div>
+        <div class="tm-ra"><button class="btn btn-ghost btn-sm" type="button" data-copy="${esc(location.origin + '/invite/' + i.token)}">Copy link</button><button class="btn btn-ghost btn-sm tm-x" type="button" data-rm="invite" data-key="${esc(i.token)}">Revoke</button></div></div>`).join('') || '<p class="tm-fine">No pending invitations.</p>';
+    }
+
+    form.addEventListener('change', () => {
+      const staff = new FormData(form).get('kind') === 'staff';
+      root.querySelector<HTMLElement>('[data-staff-only]')!.hidden = !staff;
+      root.querySelector<HTMLElement>('[data-sid]')!.hidden = staff;
+    });
+    form.querySelector('[data-gen]')!.addEventListener('click', () => { (form.elements.namedItem('password') as HTMLInputElement).value = genPw(); });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const act = ((e as SubmitEvent).submitter as HTMLElement | null)?.dataset.act ?? 'invite';
+      const fd = Object.fromEntries(new FormData(form)) as Record<string, string>;
+      const body = act === 'add'
+        ? (fd.kind === 'staff' ? { action: 'staff', email: fd.email, moduleRole: fd.moduleRole } : { action: 'enroll', emails: [fd.email] })
+        : { action: act === 'create' ? 'create' : 'invite', ...fd };
+      linkBox.hidden = true;
+      const r = await fetch(api(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) return say(d.error ?? 'Could not save.', false);
+      if (act === 'invite') {
+        say(d.sent ? `Invitation emailed to ${fd.email}.` : `Invitation created for ${fd.email}. Send them the link:`);
+        linkBox.hidden = false;
+        linkBox.innerHTML = `<code>${esc(d.link)}</code><div><button class="btn btn-ghost btn-sm" type="button" data-copy="${esc(d.link)}">Copy link</button><a class="btn btn-ghost btn-sm" href="${esc(d.mailto)}">Open in email app</a></div>`;
+      } else say(act === 'create' ? `Account created for ${fd.email}. Share the temporary password privately.` : `${fd.email} added. They'll see the module when they sign in with that email.`);
+      form.reset();
+      form.dispatchEvent(new Event('change'));
+      load();
+    });
+    root.querySelector<HTMLFormElement>('[data-tm-bulk]')!.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.currentTarget as HTMLFormElement;
+      const r = await fetch(api(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'enroll', emails: new FormData(f).get('emails') }) });
+      const d = await r.json().catch(() => ({}));
+      say(r.ok ? `Enrolled ${d.enrolled} student${d.enrolled === 1 ? '' : 's'}.` : d.error ?? 'Could not enrol.', r.ok);
+      if (r.ok) { f.reset(); load(); }
+    });
+    root.querySelector('[data-tm-q]')!.addEventListener('input', renderStudents);
+    root.addEventListener('click', async (e) => {
+      const t = e.target as HTMLElement;
+      const copy = t.closest<HTMLElement>('[data-copy]');
+      if (copy) { await navigator.clipboard?.writeText(copy.dataset.copy!).catch(() => {}); copy.textContent = 'Copied ✓'; setTimeout(() => (copy.textContent = 'Copy link'), 1500); return; }
+      const rm = t.closest<HTMLButtonElement>('[data-rm]');
+      if (!rm) return;
+      if (rm.dataset.armed !== '1') { rm.dataset.armed = '1'; const was = rm.textContent; rm.textContent = 'Confirm'; setTimeout(() => { rm.dataset.armed = ''; rm.textContent = was; }, 4000); return; }
+      const r = await fetch(api(`&kind=${rm.dataset.rm}&key=${encodeURIComponent(rm.dataset.key!)}`), { method: 'DELETE' });
+      if (!r.ok) say((await r.json().catch(() => ({}))).error ?? 'Could not remove.', false);
+      load();
+    });
+    root.addEventListener('change', async (e) => {
+      const sel = (e.target as HTMLElement).closest<HTMLSelectElement>('[data-setrole]');
+      if (!sel) return;
+      const r = await fetch(api(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'staff', email: sel.dataset.setrole, moduleRole: sel.value }) });
+      if (!r.ok) say((await r.json().catch(() => ({}))).error ?? 'Could not change the role.', false);
+      load();
+    });
+    load();
+  });
+</script>

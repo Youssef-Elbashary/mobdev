@@ -27,10 +27,14 @@ export type LabEvent = {
   score: number | null;
 };
 
-export function validateLabEvent(body: unknown): { ok: true; event: LabEvent } | { ok: false; error: string } {
+/**
+ * `known` lists every other lab that exists (file-based and builder labs): they may record a `start`
+ * (the session gate binds the student to the session); check/hint events need an interactive definition.
+ */
+export function validateLabEvent(body: unknown, known: (lab: string) => boolean = () => false): { ok: true; event: LabEvent } | { ok: false; error: string } {
   const o = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
   const lab = String(o.lab ?? '');
-  const def = LABS[lab];
+  const def = LABS[lab] ?? (known(lab) ? { exercises: [], final: '' } : null);
   if (!def) return { ok: false, error: 'Unknown lab.' };
   const who = validateCheckIn({ name: o.name, studentId: o.studentId, deviceId: o.deviceId });
   if (!who.ok) return { ok: false, error: Object.values(who.errors)[0] ?? 'Invalid student.' };

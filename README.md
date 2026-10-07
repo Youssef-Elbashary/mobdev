@@ -219,6 +219,28 @@ The teaching team publishes submissions, such as the **project proposal**, and s
 - **Safety:** admin routes need the admin login. Student uploads are rate-limited per IP and confined to that item's folder. Every PDF must be `application/pdf`, start with `%PDF-` and come from this project's own store, and rejected uploads are deleted. Hand-in PDF links are unguessable but public, and are only shown to admins.
 - **Code:** rules in `src/lib/project-files/core.ts` (unit-tested: `npm test`), storage in `src/lib/project-files/server.ts`, endpoints in `src/pages/api/project/`, `src/pages/api/submissions/` and `src/pages/api/admin/project/`, the banner in `src/components/Announce.astro`, and the ZIP builder in `src/scripts/submissions-zip.ts`.
 
+## LabVerse platform (modules, builder, accounts)
+
+The site is **LabVerse**, an interactive courses platform. The Mobile Development course is its built-in module, and further modules are built in the browser.
+
+- **Choose a module first:** `/` asks for your year, then your specialization (only from **Year 3 · Semester 2** on; before that students are "General"), then the optional modules you chose. It then shows your modules for the **active semester**, with the rest under "other semesters". The nav and footer show a module's sections only once you're inside it. `/modules` searches every module, grouped by year, with year, semester and specialization filters.
+- **Enrolment:** Mobile Development is an optional module anyone may add. Every builder module is **invitation-only**: its pages and labs open for staff and for students enrolled through an invitation or by the module team (`/admin/team/<module>`).
+- **Accounts (`/login`):** doctors, TAs and the super admin sign in with email and password. Students may sign in (their name and ID then fill each lab's sign-in) or keep typing their name and ID. The shared `ADMIN_PASSWORD` still works on the **Admin password** tab and counts as a super admin. Everyone has a profile at `/account` (name, password, studies, their modules).
+- **Roles & permissions (`/admin/accounts`):**
+  - **Platform roles:** super admin, doctor, TA, student. `ali.motawea@bue.edu.eg` is the super admin.
+  - **Module roles:** leader, admin, TA, held per module.
+  - The super admin edits the permission matrix (who builds, sets assessment, invites, runs sessions, views progress…).
+  - The Mobile Development team in `site.yaml` is seeded as that module's staff, with Dr. Amira as leader. Each member gets an invitation link, shown under Pending invitations.
+- **Invitations:** super admins and module leaders invite by email. Each invitation is a single-use link that expires in 14 days, at `/invite/<token>`. Accepting creates or links the account and adds the module role or enrolment. Emails go out through Resend when `RESEND_API_KEY` and `MAIL_FROM` are set; otherwise share the link (copy, or "open in email app").
+- **Module leader:** sets the module's assessment (`/admin/assessment/<module>`, weights add up to 100%) and manages its people.
+- **Semesters:** `/admin/accounts` → Platform settings switches the **active semester** and where specializations start. Each module node has its semester, years, specializations and category.
+- **Node builder (`/admin/builder`):** an n8n-style canvas.
+  - A **module canvas** orders the module's labs and week labels.
+  - A **lab canvas** chains Part · Task · Text · Callout · Checkpoint · Code · Terminal · graded **Exercise** (live React Native editor; checks like `+ adds 1 :: press +; expect exact 1`) · Repo link · Check-in.
+  - Published labs (`/m/<module>/<lab>`) use the same session gate, Done ticks, graded exercises, repo submission, check-in, attendance and admin dashboards as the course labs (their tracking id is `<module>--<lab>`).
+- **Storage:** the progress PostgreSQL database (`platform_*` and `accounts_*` in production, `*_dev_*` elsewhere), created on first use. Account sessions are signed with `SESSION_SECRET` (or derived from `ADMIN_PASSWORD`). Revoked accounts are signed out on their next admin request (`src/middleware.ts`).
+- **Code:** `src/lib/platform/` (flows, compiler, storage), `src/lib/accounts/` (accounts, permissions, invites, mail), `src/scripts/builder/canvas.ts`, tests in `tests/platform.test.ts` and `tests/accounts.test.ts`.
+
 ## Project structure
 
 ```text

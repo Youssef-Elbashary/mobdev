@@ -9,7 +9,7 @@
  */
 import type { AstroCookies } from 'astro';
 import { getSecret } from 'astro:env/server';
-import { isAdmin, noStore } from '@/lib/attendance/server';
+import { isDoctor, noStore } from '@/lib/attendance/server';
 import { team } from '@/site.config';
 import * as schemas from '@/content/schemas';
 import { GitHubRepo, LocalRepo, RepoError, type ContentRepo } from './repo';
@@ -49,7 +49,7 @@ export const json = (data: unknown, status = 200) =>
 
 /** Admin + chosen editor + a configured repo, or the response explaining what is missing. */
 export function guard(cookies: AstroCookies): { editor: string; repo: ContentRepo } | Response {
-  if (!isAdmin(cookies)) return json({ error: 'unauthorised' }, 401);
+  if (!isDoctor(cookies)) return json({ error: 'unauthorised' }, 401);
   const r = getRepo();
   if (!r) return json({ error: 'setup', message: 'Add GITHUB_TOKEN and GITHUB_REPO in Vercel to enable the CMS.' }, 503);
   const editor = currentEditor(cookies);

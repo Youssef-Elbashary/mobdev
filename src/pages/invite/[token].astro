@@ -1,0 +1,92 @@
+---
+/** Accept an invitation: create your account (or sign in to an existing one) and join the module. */
+import Base from '@/layouts/Base.astro';
+import { ROLE_LABEL } from '@/lib/accounts/core';
+import { ROLE_NAMES } from '@/lib/accounts/permissions';
+import { getAccountStore } from '@/lib/accounts/server';
+import { BUILT_IN_MODULE, getPlatformStore } from '@/lib/platform/server';
+
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'no-store');
+Astro.response.headers.set('referrer-policy', 'no-referrer'); // keep the token out of Referer headers
+
+const store = getAccountStore();
+const invite = store ? await store.getInvite(Astro.params.token ?? '').catch(() => null) : null;
+const existing = invite && store ? Boolean(await store.byEmail(invite.email)) : false;
+const moduleTitle = invite?.module
+  ? invite.module === BUILT_IN_MODULE.slug ? BUILT_IN_MODULE.title : (await getPlatformStore()?.getModule(invite.module))?.title ?? invite.module
+  : null;
+const role = invite ? (invite.module_role ? ROLE_NAMES[invite.module_role] : ROLE_LABEL[invite.platform_role]) : '';
+---
+<Base title="Your invitation" noindex>
+  <section class="iv">
+    <div class="iv-sky" aria-hidden="true"></div>
+    <div class="container iv-in">
+      {!invite ? (
+        <div class="glass iv-card">
+          <p class="iv-k mono">Invitation</p>
+          <h1>This link has expired or was already used</h1>
+          <p class="iv-l">Ask whoever invited you to send a new invitation. If you already accepted it, just <a href="/login">sign in</a>.</p>
+        </div>
+      ) : (
+        <form class="glass iv-card" data-iv data-token={invite.token} data-existing={existing ? '1' : ''} data-student={invite.platform_role === 'student' ? '1' : ''} novalidate>
+          <p class="iv-k mono">You're invited</p>
+          <h1>{moduleTitle ? <>Join <span>{moduleTitle}</span></> : <>Join the platform</>}</h1>
+          <p class="iv-l"><b>{invite.invited_by || 'The teaching team'}</b> invited <b>{invite.email}</b> as <b>{role}</b>.</p>
+          {existing ? (
+            <>
+              <p class="iv-note">You already have an account with this email. Enter its password to accept.</p>
+              <label><span>Password</span><input class="input" type="password" name="password" autocomplete="current-password" required /></label>
+            </>
+          ) : (
+            <>
+              <label><span>Full name</span><input class="input" name="name" value={invite.name} autocomplete="name" required maxlength="60" /></label>
+              {invite.platform_role === 'student' && <label><span>Student ID</span><input class="input mono" name="studentId" required maxlength="20" /></label>}
+              <label><span>Choose a password <small>(10+ characters, letters and numbers)</small></span><input class="input" type="password" name="password" autocomplete="new-password" required /></label>
+            </>
+          )}
+          <p class="iv-msg" data-iv-msg role="alert"></p>
+          <button class="btn btn-primary btn-lg" type="submit">{existing ? 'Accept and sign in →' : 'Create account and join →'}</button>
+        </form>
+      )}
+    </div>
+  </section>
+</Base>
+
+<style>
+  .iv { position: relative; min-height: 100dvh; display: grid; place-items: center; padding: calc(var(--nav-h) + 40px) 0 80px; background: var(--hero-bg); color: var(--hero-text); isolation: isolate; overflow: hidden; }
+  .iv-sky { position: absolute; inset: 0; z-index: -1; background: radial-gradient(circle at 20% 10%, color-mix(in oklab, #c8ff4d 30%, transparent), transparent 45%), radial-gradient(circle at 90% 90%, color-mix(in oklab, #7cb1ff 35%, transparent), transparent 45%), linear-gradient(var(--hero-grid) 1px, transparent 1px) 0 0 / 52px 52px, linear-gradient(90deg, var(--hero-grid) 1px, transparent 1px) 0 0 / 52px 52px; }
+  .iv-in { display: grid; place-items: center; }
+  .iv-card { width: min(100%, 560px); padding: clamp(26px, 5vw, 44px); display: grid; gap: 14px; }
+  .iv-k { font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--hero-accent); }
+  h1 { font-size: clamp(2rem, 1.2rem + 3vw, 3.4rem); letter-spacing: -.05em; line-height: .98; }
+  h1 span { background: linear-gradient(100deg, #c8ff4d, #7cb1ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  :global(:root[data-theme='light']) h1 span { background-image: linear-gradient(100deg, #6f9a00, #3d7be0); }
+  .iv-l, .iv-note { color: var(--hero-lead); }
+  .iv-l b { color: var(--hero-text); }
+  .iv-l a { color: var(--hero-accent); }
+  label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+  small { color: var(--hero-dim); font-weight: 400; }
+  .input { height: 46px; padding: 0 14px; background: color-mix(in oklab, var(--hero-bg) 70%, transparent); border-color: var(--hero-line); color: var(--hero-text); }
+  .iv-msg { min-height: 18px; font-size: 13px; color: var(--hero-danger); }
+</style>
+
+<script>
+  document.addEventListener('astro:page-load', () => {
+    const form = document.querySelector<HTMLFormElement>('[data-iv]');
+    if (!form || form.dataset.wired) return;
+    form.dataset.wired = '1';
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = form.querySelector<HTMLElement>('[data-iv-msg]')!;
+      const fd = new FormData(form);
+      const r = await fetch('/api/invite', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: form.dataset.token, name: fd.get('name'), studentId: fd.get('studentId'), password: fd.get('password') }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { msg.textContent = d.error ?? 'Could not accept the invitation.'; return; }
+      try { sessionStorage.removeItem('mdx:me'); } catch { /* ignore */ }
+      const staff = d.user.role !== 'student';
+      location.href = d.module ? (d.module === 'mobile-development' ? '/course' : `/m/${d.module}`) : staff ? '/admin' : '/';
+    });
+  });
+</script>

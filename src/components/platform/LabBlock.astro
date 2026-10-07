@@ -1,0 +1,27 @@
+---
+/** One block of a builder lab, drawn with the same components as the file-based labs. */
+import Part from '@/components/lab/Part.astro';
+import Task from '@/components/lab/Task.astro';
+import Checkpoint from '@/components/lab/Checkpoint.astro';
+import Terminal from '@/components/lab/Terminal.astro';
+import Playground from '@/components/lab/Playground.astro';
+import RepoSubmit from '@/components/lab/RepoSubmit.astro';
+import CheckinCard from '@/components/lab/CheckinCard.astro';
+import type { RenderedBlock } from '@/lib/platform/render';
+
+interface Props { block: RenderedBlock; lab: string; label: string }
+const { block: b, lab, label } = Astro.props;
+---
+{b.kind === 'part' && <Part n={b.n} title={b.title} time={b.time || undefined} />}
+{b.kind === 'task' && (
+  <Task n={b.n} title={b.title} time={b.time || undefined}>
+    {b.html && <Fragment set:html={b.html} />}
+    {b.children?.map((c) => <Astro.self block={c} lab={lab} label={label} />)}
+  </Task>
+)}
+{(b.kind === 'text' || b.kind === 'callout' || b.kind === 'code') && <Fragment set:html={b.html} />}
+{b.kind === 'checkpoint' && <Checkpoint><Fragment set:html={b.html} /></Checkpoint>}
+{b.kind === 'terminal' && <Terminal lines={b.lines} />}
+{b.kind === 'exercise' && <Playground ex={b.id} def={b.def} demo={b.def.checks.length === 0} />}
+{b.kind === 'repo' && <RepoSubmit lab={lab} />}
+{b.kind === 'checkin' && <CheckinCard lab={lab} label={label} />}

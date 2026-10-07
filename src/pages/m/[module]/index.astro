@@ -1,0 +1,107 @@
+---
+/** A builder module: its description and labs in the order set on the module canvas. */
+import Base from '@/layouts/Base.astro';
+import EmptyState from '@/components/EmptyState.astro';
+import { isAdmin } from '@/lib/attendance/server';
+import Locked from '@/components/platform/Locked.astro';
+import { moduleAccess } from '@/lib/accounts/enrolment';
+import SplitBar from '@/components/SplitBar.astro';
+import { loadModule } from '@/lib/platform/server';
+import { moduleAssessment } from '@/lib/platform/assessment';
+
+export const prerender = false;
+const preview = isAdmin(Astro.cookies) && Astro.url.searchParams.has('preview');
+// invitation-only: depends on who is viewing, so never cached publicly
+Astro.response.headers.set('cache-control', 'private, no-store');
+const data = await loadModule(Astro.params.module ?? '', { drafts: preview }).catch(() => null);
+const gate = data ? await moduleAccess(Astro.cookies, data.module.slug) : { ok: false, signedIn: false };
+if (!data) Astro.response.status = 404;
+const color = data?.meta.color || '#7cb1ff';
+// set by the module leader in /admin/assessment/<module>
+const assessment = data ? (await moduleAssessment(data.module.slug)).items : [];
+const pad = (n: number) => String(n).padStart(2, '0');
+let lastWeek = '';
+---
+<Base title={data ? data.meta.title || data.module.title : 'Module not found'} description={data?.meta.description} module={data ? { slug: data.module.slug, title: data.meta.title || data.module.title, color } : undefined}>
+  {data && !gate.ok ? (
+    <Locked title={data.meta.title || data.module.title} code={data.meta.code} color={color} description={data.meta.description} signedIn={gate.signedIn} next={Astro.url.pathname} />
+  ) : !data ? (
+    <div class="container" style="padding-block: 160px 120px">
+      <EmptyState title="This module isn't available." body="It may not be published yet." path="modules/" />
+    </div>
+  ) : (
+    <>
+      <header class="mdh" style={`--c:${color}`}>
+        <div class="mdh-bg" aria-hidden="true"></div>
+        <div class="container">
+          <nav class="crumbs" aria-label="Breadcrumb"><a href="/">~</a><span aria-hidden="true">/</span><a href="/modules">modules</a><span aria-hidden="true">/</span><span aria-current="page">{data.module.slug}</span></nav>
+          {preview && <p class="mdh-prev mono">Admin preview · drafts included</p>}
+          <p class="mdh-k mono">{[data.meta.code, data.meta.term].filter(Boolean).join(' · ') || 'Module'}</p>
+          <h1 class="mdh-t">{data.meta.title || data.module.title}</h1>
+          {data.meta.description && <p class="lead mdh-l">{data.meta.description}</p>}
+          <p class="mdh-n mono"><b>{data.items.length}</b> lab{data.items.length === 1 ? '' : 's'}</p>
+        </div>
+      </header>
+
+      {assessment.length > 0 && (
+        <section class="container mda" id="assessment">
+          <p class="mdh-k mono">Assessment</p>
+          <SplitBar items={assessment.map((a) => ({ label: a.label, value: a.weight, sub: a.detail }))} size="md" />
+        </section>
+      )}
+
+      <section class="container mdl" id="labs">
+        {data.items.length === 0 && <EmptyState title="No labs yet." body="Labs appear here once they are published." path={`m/${data.module.slug}/`} />}
+        <ol class="mdl-list">
+          {data.items.map(({ lab, compiled, week, n }) => {
+            const tasks = compiled.blocks.filter((b) => b.kind === 'task').length;
+            const exercises = Object.values(compiled.exercises).filter((e) => e.checks.length).length;
+            const heading = week && week !== lastWeek ? week : '';
+            lastWeek = week || lastWeek;
+            return (
+              <>
+                {heading && <li class="mdl-week mono" aria-hidden="true">{heading}</li>}
+                <li>
+                  <a class="lab" href={`/m/${data.module.slug}/${lab.slug}${preview ? '?preview' : ''}`} style={`--c:${color}`}>
+                    <span class="lab-n mono">LAB<b>{pad(n)}</b></span>
+                    <span class="lab-main">
+                      <span class="lab-t">{compiled.meta.title}{!lab.published && <span class="lab-draft mono">draft</span>}</span>
+                      {compiled.meta.description && <span class="lab-d">{compiled.meta.description}</span>}
+                      <span class="lab-m mono">{[compiled.meta.difficulty, compiled.meta.estimatedTime, `${tasks} task${tasks === 1 ? '' : 's'}`, exercises ? `${exercises} graded exercise${exercises === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ')}</span>
+                    </span>
+                    <span class="lab-go" aria-hidden="true">→</span>
+                  </a>
+                </li>
+              </>
+            );
+          })}
+        </ol>
+      </section>
+    </>
+  )}
+</Base>
+
+<style>
+  .mdh { position: relative; overflow: hidden; padding: calc(var(--nav-h) + 56px) 0 48px; border-bottom: 1px solid var(--line); }
+  .mdh-bg { position: absolute; inset: 0; z-index: -1; background: radial-gradient(circle at 90% -10%, color-mix(in oklab, var(--c) 40%, transparent), transparent 50%), radial-gradient(var(--grid-dot) 1px, transparent 1px) 0 0 / 22px 22px; }
+  .mdh-prev { margin-top: 18px; display: inline-block; padding: 4px 10px; border-radius: 999px; background: var(--warn-soft); color: var(--warn); font-size: 11px; }
+  .mdh-k { margin-top: 24px; font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); }
+  .mdh-t { margin-top: 10px; font-size: clamp(2.4rem, 1.3rem + 4.5vw, 5rem); letter-spacing: -.05em; line-height: .95; font-weight: 700; max-width: 18ch; }
+  .mdh-l { margin-top: 18px; max-width: 60ch; }
+  .mdh-n { margin-top: 22px; font-size: 12px; color: var(--text-3); }
+  .mdh-n b { color: var(--text); font-size: 15px; }
+  .mdl { padding-block: 36px 120px; }
+  .mda { padding-top: 36px; display: grid; gap: 14px; max-width: 920px; }
+  .mdl-list { list-style: none; padding: 0; display: grid; gap: 12px; max-width: 920px; }
+  .mdl-week { margin-top: 22px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
+  .lab { display: grid; grid-template-columns: auto 1fr auto; gap: 20px; align-items: center; padding: 18px 20px; border: 1px solid var(--line-2); border-radius: var(--r-lg); background: var(--surface); transition: border-color var(--t-fast), transform var(--t-fast); }
+  .lab:hover { border-color: var(--c); transform: translateX(3px); }
+  .lab-n { display: grid; font-size: 10px; letter-spacing: .14em; color: var(--text-3); line-height: 1; }
+  .lab-n b { font-family: var(--font-display); font-size: 40px; letter-spacing: -.05em; color: var(--text); margin-top: 4px; }
+  .lab-main { display: grid; gap: 4px; min-width: 0; }
+  .lab-t { font-size: 1.15rem; font-weight: 650; letter-spacing: -.01em; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .lab-draft { font-size: 10px; padding: 2px 7px; border-radius: 999px; background: var(--warn-soft); color: var(--warn); }
+  .lab-d { color: var(--text-2); font-size: 14.5px; }
+  .lab-m { font-size: 11.5px; color: var(--text-3); }
+  .lab-go { font-size: 20px; color: var(--text-3); }
+</style>

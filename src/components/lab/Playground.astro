@@ -9,11 +9,12 @@ import { Code } from 'astro:components';
 import Device from '../Device.astro';
 import Icon from '../Icon.astro';
 import { inline } from '@/lib/content';
-import { getPlayground } from '@/lib/playgrounds';
+import { getPlayground, type Playground } from '@/lib/playgrounds';
 
-interface Props { ex: string; demo?: boolean }
+/** `def` passes a definition directly (exercises built in /admin/builder); otherwise it is looked up by `ex`. */
+interface Props { ex: string; demo?: boolean; def?: Playground }
 const { ex, demo = false } = Astro.props;
-const def = getPlayground(ex);
+const def = Astro.props.def ? { ...Astro.props.def, checks: Astro.props.def.checks ?? [] } : getPlayground(ex);
 const exercise = !demo && def.checks.length > 0;
 const names = Object.keys(def.files);
 const themes = { light: 'github-light', dark: 'github-dark-default' } as const;

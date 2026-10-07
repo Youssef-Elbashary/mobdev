@@ -1,22 +1,30 @@
 ---
 import Logo from './Logo.astro';
 import InstitutionBrand from './InstitutionBrand.astro';
-import { course, nav, secondaryNav } from '@/site.config';
-const groups = [
-  { title: 'Learn', links: nav.slice(1, 4) },
-  { title: 'Build', links: nav.slice(4, 7) },
-  { title: 'Help', links: [nav[7], ...secondaryNav] },
-];
+import { course, nav, secondaryNav, platform } from '@/site.config';
+// Inside the built-in course the footer lists its sections; elsewhere (module chooser, builder modules,
+// sign-in, admin) it stays platform-level, so students choose a module first.
+const path = Astro.url.pathname;
+const inCourse = /^\/(course|labs|coursework|project|commands|tools|setup|resources|troubleshooting|extra|submit|attendance)(\/|$)/.test(path);
+const groups = inCourse
+  ? [
+      { title: 'Learn', links: nav.slice(1, 4) },
+      { title: 'Build', links: nav.slice(4, 7) },
+      { title: 'Help', links: [nav[7], ...secondaryNav] },
+    ]
+  : [{ title: 'Platform', links: [{ label: 'Choose a module', href: '/' }, { label: 'All modules', href: '/modules' }, { label: 'Sign in', href: '/login' }] }];
 ---
 <footer class="footer">
   <div class="container">
     <div class="f-top">
       <div class="f-brand">
-        <a href="/" class="f-logo"><Logo size={36} /><span>{course.name}</span></a>
+        <a href="/" class="f-logo"><Logo size={36} /><span>{platform.name}</span></a>
         <InstitutionBrand />
         <p class="f-institution">{course.university}</p>
-        <p class="muted">The complete workspace for the course — labs, coursework, project, commands, tools and setup, in one place.</p>
-        <div class="f-status mono"><span class="pulse"></span> {course.code} · {course.term}</div>
+        <p class="muted">{inCourse
+          ? `${course.name}: labs, coursework, project, commands, tools and setup, in one place.`
+          : `${platform.tagline}: every module's labs, live sessions, attendance and progress in one place.`}</p>
+        <div class="f-status mono"><span class="pulse"></span> {inCourse ? `${course.code} · ${course.term}` : course.term}</div>
       </div>
       {groups.map((g) => (
         <nav aria-label={g.title} class="f-col">
@@ -25,10 +33,10 @@ const groups = [
         </nav>
       ))}
     </div>
-    <div class="f-mark" aria-hidden="true">mobile<span>/</span>dev</div>
+    <div class="f-mark" aria-hidden="true">{inCourse ? <>mobile<span>/</span>dev</> : <>lab<span>/</span>verse</>}</div>
     <div class="f-bottom mono">
-      <span>Module leader: {course.instructor} · <a href="/#team">Teaching team</a></span>
-      <span>Built for students · content in <code>src/content/</code></span>
+      {inCourse ? <span>Module leader: {course.instructor} · <a href="/course#team">Teaching team</a></span> : <span>{platform.name} · {platform.tagline}</span>}
+      <span>Built for students and teaching teams</span>
     </div>
   </div>
 </footer>

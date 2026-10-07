@@ -158,6 +158,23 @@ export function mountStart(lab: string) {
     nameIn.focus();
   });
 
+  // Signed-in students: name and ID come from their account (locked); signing in is optional.
+  void (async () => {
+    let me: { user: { name: string; role: string; studentId: string | null } | null } | null = null;
+    try { me = JSON.parse(sessionStorage.getItem('mdx:me') ?? 'null'); } catch { /* ignore */ }
+    me ??= await fetch('/api/auth/me', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const u = me?.user;
+    if (!u || u.role !== 'student' || !u.studentId) return;
+    nameIn.value = u.name;
+    idIn.value = u.studentId;
+    nameIn.readOnly = idIn.readOnly = true;
+    nameIn.title = idIn.title = 'From your account';
+    const note = document.createElement('p');
+    note.className = 'ls-acct';
+    note.textContent = `Signed in as ${u.name}: your name and ID come from your account. Just add your group.`;
+    form.prepend(note);
+  })();
+
   void refreshSession();
   const timer = window.setInterval(() => {
     if (!root.isConnected) return clearInterval(timer);

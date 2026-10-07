@@ -1,0 +1,29 @@
+---
+/** Module canvas: the module node, week labels and lab nodes in order. Double-click a lab to build it. */
+import Base from '@/layouts/Base.astro';
+import Canvas from '@/components/builder/Canvas.astro';
+import { access } from '@/lib/accounts/access';
+import { getPlatformStore } from '@/lib/platform/server';
+
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'no-store, max-age=0');
+const slug0 = Astro.params.module ?? '';
+if (!(await access(Astro.cookies)).can('module.build', slug0)) return Astro.redirect('/admin/builder', 303);
+
+const store = getPlatformStore();
+const mod = store ? await store.getModule(Astro.params.module ?? '') : null;
+if (!mod) return Astro.redirect('/admin/builder', 303);
+const labs = await store!.listLabs(mod.slug);
+---
+<Base title={`Builder · ${mod.title}`} noindex>
+  <Canvas
+    heading={mod.title}
+    kicker={`Module canvas · /m/${mod.slug}`}
+    back={{ href: '/admin/builder', label: 'Modules' }}
+    config={{
+      kind: 'module', flow: mod.flow, saveUrl: `/api/admin/platform/modules?slug=${encodeURIComponent(mod.slug)}`,
+      published: mod.published, previewHref: `/m/${mod.slug}?preview`, module: mod.slug,
+      labs: labs.map((l) => ({ slug: l.slug, title: l.title, published: l.published })),
+    }}
+  />
+</Base>

@@ -1,0 +1,162 @@
+---
+/** Your profile: name, password, study details (students), modules and roles. Every account has one. */
+import Base from '@/layouts/Base.astro';
+import { ROLE_LABEL } from '@/lib/accounts/core';
+import { ROLE_NAMES } from '@/lib/accounts/permissions';
+import { getAccountStore, viewer } from '@/lib/accounts/server';
+import { hubData } from '@/lib/accounts/hub';
+
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'private, no-store');
+const claims = viewer(Astro.cookies);
+const store = getAccountStore();
+const user = claims && store ? await store.byId(claims.u).catch(() => null) : null;
+if (!user || !user.active) return Astro.redirect('/login?next=/account', 303);
+const [{ settings, cards, optional }, enrolled, staffModules] = await Promise.all([hubData(), store!.enrollmentsFor(user.email), store!.staffFor(user.email)]);
+const byslug = new Map(cards.map((c) => [c.slug, c]));
+const mine = [
+  ...Object.entries(staffModules).map(([slug, role]) => ({ slug, how: `You teach: ${ROLE_NAMES[role]}` })),
+  ...enrolled.filter((s) => !staffModules[s]).map((slug) => ({ slug, how: 'Enrolled' })),
+  ...user.profile.modules.filter((s) => !staffModules[s] && !enrolled.includes(s)).map((slug) => ({ slug, how: 'Your optional choice' })),
+].map((m) => ({ ...m, card: byslug.get(m.slug) })).filter((m) => m.card);
+const student = user.role === 'student';
+const initials = user.name.split(/\s+/).map((p) => p[0]).slice(0, 2).join('');
+const optionalCards = cards.filter((c) => optional.includes(c.slug));
+---
+<Base title="Your profile" noindex>
+  <section class="pr">
+    <div class="pr-sky" aria-hidden="true"></div>
+    <div class="container pr-in">
+      <header class="pr-head">
+        <span class="pr-av" aria-hidden="true">{initials}</span>
+        <div>
+          <p class="pr-k mono">{ROLE_LABEL[user.role]}{user.studentId && ` · ${user.studentId}`}</p>
+          <h1 data-pr-name>{user.name}</h1>
+          <p class="pr-mail mono">{user.email}</p>
+        </div>
+        <button class="btn btn-ghost btn-sm pr-out" type="button" data-pr-out>Sign out</button>
+      </header>
+
+      <div class="pr-grid">
+        <div class="pr-col">
+          <form class="glass pr-card" data-pr-form="name">
+            <h2>Your details</h2>
+            <label><span>Full name</span><input class="input" name="name" value={user.name} required maxlength="60" /></label>
+            <label><span>Email <small>(ask an admin to change it)</small></span><input class="input" value={user.email} readonly /></label>
+            {student && <label><span>Student ID <small>(fixed)</small></span><input class="input mono" value={user.studentId ?? ''} readonly /></label>}
+            <p class="pr-msg" data-msg role="status"></p>
+            <button class="btn btn-primary" type="submit">Save</button>
+          </form>
+
+          {student && (
+            <form class="glass pr-card" data-pr-form="study">
+              <h2>Your studies</h2>
+              <div class="pr-row">
+                <label><span>Year</span><select class="input" name="year">{settings.years.map((y) => <option selected={y === user.profile.year}>{y}</option>)}</select></label>
+                <label><span>Specialization</span><select class="input" name="specialization">{settings.specializations.map((s) => <option selected={s === user.profile.specialization}>{s}</option>)}</select></label>
+              </div>
+              <fieldset class="pr-opts"><legend>Optional modules you chose</legend>
+                {optionalCards.length ? optionalCards.map((c) => (
+                  <label class="pr-opt"><input type="checkbox" name="modules" value={c.slug} checked={user.profile.modules.includes(c.slug)} /> <span>{c.title} <small>{c.code}</small></span></label>
+                )) : <p class="pr-fine">No optional modules are open right now.</p>}
+                <p class="pr-fine">Other modules are added when you accept an invitation from their module leader.</p>
+              </fieldset>
+              <p class="pr-msg" data-msg role="status"></p>
+              <button class="btn btn-primary" type="submit">Save</button>
+            </form>
+          )}
+
+          <form class="glass pr-card" data-pr-form="password">
+            <h2>Password</h2>
+            <label><span>Current password</span><input class="input" type="password" name="currentPassword" autocomplete="current-password" required /></label>
+            <label><span>New password <small>(10+ characters, letters and numbers)</small></span><input class="input" type="password" name="newPassword" autocomplete="new-password" required /></label>
+            <p class="pr-msg" data-msg role="status"></p>
+            <button class="btn btn-primary" type="submit">Change password</button>
+            <p class="pr-fine">Changing it signs you out on your other devices.</p>
+          </form>
+        </div>
+
+        <div class="glass pr-card pr-mods">
+          <div class="pr-mods-head"><h2>Your modules</h2><a class="pr-link" href="/modules">Find a module →</a></div>
+          {mine.length ? mine.map((m) => (
+            <a class="pr-mod" href={m.card!.href} style={`--c:${m.card!.color}`}>
+              <span class="pr-dot" aria-hidden="true"></span>
+              <span><b>{m.card!.title}</b><small class="mono">{m.card!.code} · {m.how}</small></span>
+              <span aria-hidden="true">→</span>
+            </a>
+          )) : <p class="pr-fine">You aren't in any module yet. {student ? 'Pick Mobile Development as an optional module, or accept an invitation from a module leader.' : 'A module leader or the super admin can add you to a module team.'}</p>}
+          {!student && <a class="btn btn-ghost btn-sm" href="/admin">Open the admin workspace</a>}
+        </div>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .pr { position: relative; min-height: 100dvh; padding: calc(var(--nav-h) + 44px) 0 100px; background: var(--hero-bg); color: var(--hero-text); isolation: isolate; overflow: hidden; }
+  .pr-sky { position: absolute; inset: 0; z-index: -1; background: radial-gradient(circle at 85% 0%, color-mix(in oklab, #7cb1ff 30%, transparent), transparent 45%), radial-gradient(circle at 0% 20%, color-mix(in oklab, #c8ff4d 22%, transparent), transparent 40%); }
+  .pr-in { display: grid; gap: 28px; }
+  .pr-head { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .pr-av { display: grid; place-items: center; width: 84px; height: 84px; border-radius: 26px; font: 700 28px var(--font-display); color: #0b0d10; background: linear-gradient(135deg, #c8ff4d, #7cb1ff); box-shadow: 0 18px 40px -16px #7cb1ff; }
+  .pr-k { font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--hero-accent); }
+  .pr-head h1 { font-size: clamp(2rem, 1.2rem + 3vw, 3.6rem); letter-spacing: -.05em; line-height: 1; }
+  .pr-mail { margin-top: 4px; color: var(--hero-dim); font-size: 13px; }
+  .pr-out { margin-left: auto; }
+  .pr-grid { display: grid; gap: 18px; }
+  @media (min-width: 980px) { .pr-grid { grid-template-columns: 1fr 1fr; align-items: start; } }
+  .pr-col { display: grid; gap: 18px; }
+  .pr-card { padding: 24px; display: grid; gap: 14px; }
+  .pr-card h2 { font-size: var(--fs-lg); letter-spacing: -.02em; }
+  label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+  small { color: var(--hero-dim); font-weight: 400; }
+  .input { height: 44px; padding: 0 14px; background: color-mix(in oklab, var(--hero-bg) 70%, transparent); border-color: var(--hero-line); color: var(--hero-text); }
+  .input[readonly] { opacity: .7; }
+  .pr-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .pr-opts { border: 1px solid var(--hero-line); border-radius: 14px; padding: 12px 14px; display: grid; gap: 8px; }
+  .pr-opts legend { padding: 0 6px; font-size: 13px; font-weight: 600; }
+  .pr-opt { display: flex; align-items: center; gap: 10px; font-weight: 400; }
+  .pr-opt input { width: 16px; height: 16px; accent-color: var(--hero-accent); }
+  .pr-msg { min-height: 18px; font-size: 13px; }
+  .pr-msg.err { color: var(--hero-danger); }
+  .pr-msg.ok { color: var(--hero-accent); }
+  .pr-fine { font-size: 12.5px; color: var(--hero-dim); }
+  .pr-mods-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .pr-link { color: var(--hero-accent); font-size: 13px; }
+  .pr-mod { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 14px; border-radius: 16px; border: 1px solid color-mix(in oklab, var(--c) 35%, var(--hero-line)); color: var(--hero-text); transition: transform var(--t-fast), border-color var(--t-fast); }
+  .pr-mod:hover { transform: translateX(3px); border-color: var(--c); }
+  .pr-mod b { display: block; }
+  .pr-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--c); box-shadow: 0 0 14px var(--c); }
+  [type='submit'] { justify-self: start; }
+</style>
+
+<script>
+  document.addEventListener('astro:page-load', () => {
+    document.querySelectorAll<HTMLFormElement>('[data-pr-form]').forEach((form) => {
+      if (form.dataset.wired) return;
+      form.dataset.wired = '1';
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msg = form.querySelector<HTMLElement>('[data-msg]')!;
+        const fd = new FormData(form);
+        const kind = form.dataset.prForm;
+        const body = kind === 'study'
+          ? { year: fd.get('year'), specialization: fd.get('specialization'), modules: fd.getAll('modules') }
+          : Object.fromEntries(fd);
+        const r = await fetch('/api/auth/me', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+        const d = await r.json().catch(() => ({}));
+        msg.className = `pr-msg ${r.ok ? 'ok' : 'err'}`;
+        msg.textContent = r.ok ? (kind === 'password' ? 'Password changed.' : 'Saved.') : d.error ?? 'Could not save.';
+        if (r.ok) {
+          try { sessionStorage.removeItem('mdx:me'); localStorage.setItem('mdx:profile', JSON.stringify(d.user.profile)); } catch { /* ignore */ }
+          if (kind === 'name') document.querySelector('[data-pr-name]')!.textContent = d.user.name;
+          if (kind === 'password') form.reset();
+        }
+      });
+    });
+    document.querySelector('[data-pr-out]')?.addEventListener('click', async () => {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      try { sessionStorage.removeItem('mdx:me'); } catch { /* ignore */ }
+      location.href = '/';
+    });
+  });
+</script>

@@ -1,0 +1,138 @@
+---
+/** Module leader: set the module's assessment components and weights (must add up to 100%). */
+import Base from '@/layouts/Base.astro';
+import { isAdmin } from '@/lib/attendance/server';
+import { compileModule } from '@/lib/platform/core';
+import { canSetAssessment, moduleAssessment } from '@/lib/platform/assessment';
+import { BUILT_IN_MODULE, getPlatformStore } from '@/lib/platform/server';
+
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'no-store, max-age=0');
+if (!isAdmin(Astro.cookies)) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname), 303);
+
+const slug = Astro.params.module ?? '';
+const builtIn = slug === BUILT_IN_MODULE.slug;
+const mod = builtIn ? null : await getPlatformStore()?.getModule(slug);
+if (!builtIn && !mod) return Astro.redirect('/admin/builder', 303);
+const meta = mod ? compileModule(mod.flow).meta : { title: BUILT_IN_MODULE.title, code: BUILT_IN_MODULE.code, color: BUILT_IN_MODULE.color };
+const [current, perm] = await Promise.all([moduleAssessment(slug), canSetAssessment(Astro.cookies, slug)]);
+const view = builtIn ? '/course#assessment' : `/m/${slug}#assessment`;
+const json = JSON.stringify({ items: current.items }).replace(/</g, '\\u003c');
+const when = current.updated_at ? new Date(current.updated_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Cairo' }) : '';
+---
+<Base title={`Assessment · ${meta.title}`} noindex>
+  <section class="as container" data-as data-module={slug} data-edit={perm.ok ? '1' : ''} style={`--mc:${meta.color || '#7cb1ff'}`}>
+    <script type="application/json" data-as-data set:html={json} />
+    <header class="as-top">
+      <div>
+        <p class="as-k mono">{meta.code || 'Module'} · assessment</p>
+        <h1>{meta.title}</h1>
+        <p class="muted">
+          {perm.leader ? <>Module leader: <b>{perm.leader}</b>. </> : <>No module leader is set yet. </>}
+          {perm.ok ? 'You can edit the assessment.' : 'Only the module leader can change it; you are viewing it.'}
+          {when && <> Last saved {when}{current.updated_by && ` by ${current.updated_by}`}.</>}
+        </p>
+      </div>
+      <div class="as-links">
+        <a class="btn btn-ghost btn-sm" href={view} target="_blank" rel="noopener">View on the module ↗</a>
+        {!builtIn && <a class="btn btn-ghost btn-sm" href={`/admin/builder/${slug}`}>Module canvas</a>}
+      </div>
+    </header>
+
+    <div class="as-bar" data-as-bar aria-hidden="true"></div>
+    <p class="as-total mono" data-as-total></p>
+
+    <div class="as-card">
+      <div class="as-head mono"><span>Component</span><span>Weight</span><span>Description</span><span></span></div>
+      <div data-as-rows></div>
+      {perm.ok && <button class="btn btn-ghost btn-sm as-add" type="button" data-as-add>+ Add component</button>}
+    </div>
+    <p class="as-msg" data-as-msg role="status"></p>
+    {perm.ok && <button class="btn btn-primary" type="button" data-as-save>Save assessment</button>}
+  </section>
+</Base>
+
+<style is:global>
+  .as { min-height: 85dvh; padding-top: calc(var(--nav-h) + 44px); padding-bottom: 100px; display: grid; gap: 18px; align-content: start; max-width: 980px; }
+  .as-k { color: var(--accent-text); text-transform: uppercase; letter-spacing: .12em; font-size: 11px; }
+  .as-top { display: flex; justify-content: space-between; align-items: end; gap: 20px; flex-wrap: wrap; }
+  .as-top h1 { font-size: var(--fs-xl); letter-spacing: -.04em; margin-top: 3px; }
+  .as-top .muted { margin-top: 6px; max-width: 70ch; }
+  .as-links { display: flex; gap: 8px; }
+  .as-bar { display: flex; height: 54px; border-radius: 16px; overflow: hidden; border: 1px solid var(--line-2); background: var(--surface); }
+  .as-bar span { display: grid; place-items: center; min-width: 0; padding: 0 8px; color: #0b0d10; font: 600 12px var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: flex-grow 400ms var(--ease-out); }
+  .as-total { font-size: 12.5px; color: var(--ok); }
+  .as-total.bad { color: var(--danger); }
+  .as-card { border: 1px solid var(--line-2); border-radius: var(--r-lg); background: var(--surface); padding: 14px; display: grid; gap: 8px; }
+  .as-head, .as-row { display: grid; grid-template-columns: 1.2fr 110px 2fr 36px; gap: 8px; align-items: center; }
+  .as-head { font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-3); padding: 0 4px; }
+  .as-row .input { height: 40px; padding: 0 12px; }
+  .as-w { position: relative; }
+  .as-w::after { content: '%'; position: absolute; right: 12px; top: 50%; translate: 0 -50%; color: var(--text-3); font-size: 13px; }
+  .as-del { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line-2); background: none; color: var(--danger); cursor: pointer; }
+  .as-add { justify-self: start; }
+  .as-ro .input { pointer-events: none; opacity: .85; }
+  .as-msg { min-height: 18px; font-size: 13px; }
+  .as-msg.err { color: var(--danger); }
+  .as-msg.ok { color: var(--ok); }
+  [data-as-save] { justify-self: start; }
+  @media (max-width: 700px) { .as-head { display: none; } .as-row { grid-template-columns: 1fr 90px 36px; } .as-row .as-d { grid-column: 1 / -1; } }
+</style>
+
+<script>
+  type Item = { label: string; weight: number; detail: string };
+  const COLORS = ['var(--mc)', '#7cb1ff', '#ffb547', '#ff8ad8', '#5ee0d2', '#b69cff', '#c8ff4d', '#ff7a6b'];
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+  document.addEventListener('astro:page-load', () => {
+    const root = document.querySelector<HTMLElement>('[data-as]');
+    if (!root || root.dataset.wired) return;
+    root.dataset.wired = '1';
+    const edit = Boolean(root.dataset.edit);
+    let items: Item[] = JSON.parse(root.querySelector('[data-as-data]')!.textContent!).items;
+    if (!items.length && edit) items = [{ label: 'Coursework', weight: 40, detail: '' }, { label: 'Final exam', weight: 60, detail: '' }];
+    const rows = root.querySelector<HTMLElement>('[data-as-rows]')!;
+    const bar = root.querySelector<HTMLElement>('[data-as-bar]')!;
+    const total = root.querySelector<HTMLElement>('[data-as-total]')!;
+    const msg = root.querySelector<HTMLElement>('[data-as-msg]')!;
+    root.querySelector('.as-card')!.classList.toggle('as-ro', !edit);
+
+    const preview = () => {
+      const sum = items.reduce((a, i) => a + (Number(i.weight) || 0), 0);
+      bar.innerHTML = items.map((i, n) => `<span style="flex-grow:${Math.max(0, Number(i.weight) || 0)};background:${COLORS[n % COLORS.length]}" title="${esc(i.label)}">${esc(i.label)} · ${Number(i.weight) || 0}%</span>`).join('');
+      total.textContent = sum === 100 ? 'Total 100% ✓' : `Total ${sum}%: the weights must add up to 100%.`;
+      total.classList.toggle('bad', sum !== 100);
+    };
+    const render = () => {
+      rows.innerHTML = items.map((i, n) => `<div class="as-row" data-n="${n}">
+        <input class="input" data-k="label" value="${esc(i.label)}" maxlength="60" aria-label="Component name" ${edit ? '' : 'readonly'} />
+        <span class="as-w"><input class="input mono" data-k="weight" type="number" min="1" max="100" value="${i.weight}" aria-label="Weight" ${edit ? '' : 'readonly'} /></span>
+        <input class="input as-d" data-k="detail" value="${esc(i.detail)}" maxlength="200" placeholder="e.g. Phase 1 report + prototype" aria-label="Description" ${edit ? '' : 'readonly'} />
+        ${edit ? `<button type="button" class="as-del" data-del="${n}" aria-label="Remove component">✕</button>` : '<span></span>'}
+      </div>`).join('') || '<p class="muted small">No assessment has been set yet.</p>';
+      preview();
+    };
+    rows.addEventListener('input', (e) => {
+      const t = e.target as HTMLInputElement;
+      const n = Number(t.closest<HTMLElement>('[data-n]')?.dataset.n);
+      if (!t.dataset.k || Number.isNaN(n)) return;
+      (items[n] as Record<string, unknown>)[t.dataset.k] = t.dataset.k === 'weight' ? Number(t.value) : t.value;
+      preview();
+    });
+    rows.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-del]');
+      if (!b) return;
+      items.splice(Number(b.dataset.del), 1);
+      render();
+    });
+    root.querySelector('[data-as-add]')?.addEventListener('click', () => { items.push({ label: 'New component', weight: 10, detail: '' }); render(); });
+    root.querySelector('[data-as-save]')?.addEventListener('click', async () => {
+      msg.textContent = 'Saving…'; msg.className = 'as-msg';
+      const r = await fetch(`/api/admin/assessment?module=${encodeURIComponent(root.dataset.module!)}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items }) });
+      const d = await r.json().catch(() => ({}));
+      msg.textContent = r.ok ? 'Saved. Students see it on the module page.' : d.error ?? 'Could not save.';
+      msg.className = `as-msg ${r.ok ? 'ok' : 'err'}`;
+    });
+    render();
+  });
+</script>

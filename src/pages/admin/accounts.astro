@@ -1,0 +1,380 @@
+---
+/**
+ * Accounts & roles. Each panel appears only with its permission:
+ *   Roles & permissions matrix (super admin) · invite / create staff (accounts.staff) · account list
+ *   (accounts.manage) · platform settings (platform.settings) · module teams (module leaders).
+ */
+import Base from '@/layouts/Base.astro';
+import { access } from '@/lib/accounts/access';
+import { MATRIX_ROLES, PERMISSIONS, PERMISSION_KEYS, ROLE_NAMES, modulesWith } from '@/lib/accounts/permissions';
+import { getAccountStore } from '@/lib/accounts/server';
+import { BUILT_IN_MODULE, getPlatformStore } from '@/lib/platform/server';
+
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'no-store, max-age=0');
+const a = await access(Astro.cookies);
+const can = Object.fromEntries(PERMISSION_KEYS.map((p) => [p, a.can(p)])) as Record<string, boolean>;
+const teamModules = can['platform.roles']
+  ? [BUILT_IN_MODULE.slug, ...((await getPlatformStore()?.listModules().catch(() => [])) ?? []).map((m) => m.slug)]
+  : modulesWith(a.matrix, a.who, 'module.invite');
+if (!Object.values(can).some(Boolean) && !teamModules.length) return Astro.redirect('/login?next=/admin/accounts', 303);
+const enabled = Boolean(getAccountStore());
+const titles = new Map([[BUILT_IN_MODULE.slug, BUILT_IN_MODULE.title], ...(((await getPlatformStore()?.listModules().catch(() => [])) ?? []).map((m) => [m.slug, m.title] as [string, string]))]);
+const roleLabel = a.who.platformRole ? ROLE_NAMES[a.who.platformRole] : a.master ? 'Admin password' : '';
+---
+<Base title="Accounts & roles" noindex>
+  <section class="ac container" data-ac data-perms={JSON.stringify(can)}>
+    <header class="ac-top">
+      <div>
+        <p class="ac-k mono">Admin workspace · {roleLabel}</p>
+        <h1>Accounts &amp; roles</h1>
+        <p class="muted">Super admins control roles and permissions. Module leaders build their teams and invite students. Students sign in optionally, or type their name and ID in each lab.</p>
+      </div>
+      <div class="ac-links"><a class="btn btn-ghost btn-sm" href="/admin">Attendance</a><a class="btn btn-ghost btn-sm" href="/admin/builder">Builder</a><a class="btn btn-ghost btn-sm" href="/account">My profile</a></div>
+    </header>
+
+    {!enabled ? (
+      <div class="ac-card"><h2>Accounts are off</h2><p class="muted">They need a database plus ADMIN_PASSWORD or SESSION_SECRET.</p></div>
+    ) : (
+      <>
+        {teamModules.length > 0 && (
+          <section class="ac-card">
+            <h2>Module teams</h2>
+            <p class="muted small">Invite staff and students to a module, or create their accounts.</p>
+            <div class="ac-teams">{teamModules.map((m) => <a class="ac-team" href={`/admin/team/${m}`}><b>{titles.get(m) ?? m}</b><small class="mono">/admin/team/{m} →</small></a>)}</div>
+          </section>
+        )}
+
+        {can['platform.roles'] && (
+          <section class="ac-card" data-matrix-card>
+            <div class="ac-h"><h2>Roles &amp; permissions</h2><span class="mono ac-pill">Super admin</span></div>
+            <p class="muted small">Tick what each role may do. Platform roles apply to every module; module roles apply only in the modules where someone holds them. Super admins always have everything.</p>
+            <div class="table-wrap">
+              <table class="ac-matrix">
+                <thead><tr><th>Permission</th>{MATRIX_ROLES.map((r) => <th class={r.kind}>{r.kind === 'module' ? `Module ${r.key === 'ta' ? 'TA' : ROLE_NAMES[r.key].replace('Module ', '').toLowerCase()}` : ROLE_NAMES[r.key]}<small>{r.kind}</small></th>)}</tr></thead>
+                <tbody>
+                  {PERMISSION_KEYS.map((p) => (
+                    <tr>
+                      <td><b>{PERMISSIONS[p].label}</b><small class="mono">{p}</small></td>
+                      {MATRIX_ROLES.map((r) => {
+                        const fixed = 'fixed' in PERMISSIONS[p];
+                        const na = fixed || (r.kind === 'module' && PERMISSIONS[p].scope !== 'module');
+                        const on = !na && (a.matrix as any)[r.kind][r.key]?.includes(p);
+                        return <td class="c">{na ? <span class="ac-na" title={fixed ? 'Super admin only' : 'Platform-wide permission'}>—</span> : <input type="checkbox" data-perm={p} data-kind={r.kind} data-role={r.key} checked={on} aria-label={`${p} for ${r.kind} ${r.key}`} />}</td>;
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p class="ac-msg" data-matrix-msg role="status"></p>
+            <button class="btn btn-primary" type="button" data-matrix-save>Save permissions</button>
+          </section>
+        )}
+
+        <div class="ac-grid">
+          <div class="ac-col">
+            {can['accounts.staff'] && (
+              <form class="ac-card ac-form" data-ac-new>
+                <h2>Invite or create an account</h2>
+                <div class="ac-roles" role="radiogroup" aria-label="Role">
+                  <label><input type="radio" name="role" value="ta" checked /> <span>TA</span></label>
+                  <label><input type="radio" name="role" value="doctor" /> <span>Doctor</span></label>
+                  <label><input type="radio" name="role" value="student" /> <span>Student</span></label>
+                  {can['platform.roles'] && <label><input type="radio" name="role" value="super_admin" /> <span>Super admin</span></label>}
+                </div>
+                <label><span>Email</span><input class="input" type="email" name="email" required /></label>
+                <label><span>Full name</span><input class="input" name="name" maxlength="60" /></label>
+                <button class="btn btn-primary" type="submit" data-act="invite">Send invitation</button>
+                <details class="ac-create">
+                  <summary>Or create it now with a temporary password</summary>
+                  <label data-ac-sid hidden><span>Student ID</span><input class="input mono" name="studentId" maxlength="20" /></label>
+                  <label><span>Temporary password</span><span class="ac-pw"><input class="input mono" name="password" /><button type="button" class="btn btn-ghost btn-sm" data-gen>Generate</button></span></label>
+                  <button class="btn btn-ghost" type="submit" data-act="create">Create account</button>
+                </details>
+                <p class="ac-msg" data-ac-msg role="status"></p>
+                <div class="ac-link" data-ac-link hidden></div>
+                <p class="ac-fine" data-mail-note></p>
+              </form>
+            )}
+
+            {can['platform.settings'] && (
+              <form class="ac-card ac-form" data-ac-settings>
+                <h2>Platform settings</h2>
+                <fieldset class="ac-fs ac-sem">
+                  <legend>Active semester</legend>
+                  <div class="ac-semsw" role="radiogroup" aria-label="Active semester">
+                    <label><input type="radio" name="activeSemester" value="Semester 1" /><span>Semester 1</span></label>
+                    <label><input type="radio" name="activeSemester" value="Semester 2" /><span>Semester 2</span></label>
+                  </div>
+                  <small>Students see this semester's modules first; the rest move to "other semesters".</small>
+                </fieldset>
+                <label><span>Years <small>(one per line, in order)</small></span><textarea class="input" name="years" rows="4"></textarea></label>
+                <label><span>Specializations <small>(one per line)</small></span><textarea class="input" name="specializations" rows="5"></textarea></label>
+                <div class="ac-two">
+                  <label><span>Specializations start in</span><select class="input" name="specFromYear"></select></label>
+                  <label><span>from</span><select class="input" name="specFromSemester"><option>Semester 1</option><option>Semester 2</option></select></label>
+                </div>
+                <small class="ac-fine">Before this, students are “General” and aren't asked for a specialization.</small>
+                <fieldset class="ac-fs">
+                  <legend>Mobile Development (built-in course): who may choose it</legend>
+                  <label><span>Category</span><select class="input" name="bcategory"><option>Optional</option><option>Core</option></select></label>
+                  <label><span>Years <small>(comma-separated; empty = all)</small></span><input class="input" name="byears" /></label>
+                  <label><span>Specializations <small>(comma-separated; empty = all)</small></span><input class="input" name="bspecs" /></label>
+                  <label><span>Semester</span><select class="input" name="bsemester"><option>Semester 1</option><option>Semester 2</option><option>Both</option></select></label>
+                </fieldset>
+                <p class="ac-msg" data-settings-msg role="status"></p>
+                <button class="btn btn-primary" type="submit">Save settings</button>
+              </form>
+            )}
+          </div>
+
+          {(can['accounts.manage'] || can['accounts.staff']) && (
+            <div class="ac-col">
+              <div class="ac-card ac-list">
+                <div class="ac-head">
+                  <h2>Accounts</h2>
+                  <div class="ac-filter" role="tablist">
+                    <button type="button" aria-pressed="true" data-f="all">All</button>
+                    <button type="button" aria-pressed="false" data-f="staff">Staff</button>
+                    <button type="button" aria-pressed="false" data-f="student">Students</button>
+                  </div>
+                  <input class="input ac-q" type="search" placeholder="Search name, email, ID" data-ac-q />
+                </div>
+                <div class="ac-rows" data-ac-rows><p class="muted">Loading…</p></div>
+              </div>
+              <div class="ac-card"><h2>Pending invitations</h2><div data-ac-invites><p class="muted small">Loading…</p></div></div>
+            </div>
+          )}
+        </div>
+      </>
+    )}
+  </section>
+</Base>
+
+<style is:global>
+  .ac { min-height: 85dvh; padding-top: calc(var(--nav-h) + 44px); padding-bottom: 100px; display: grid; gap: 20px; align-content: start; }
+  .ac-k { color: var(--accent-text); text-transform: uppercase; letter-spacing: .12em; font-size: 11px; }
+  .ac-top { display: flex; justify-content: space-between; align-items: end; gap: 20px; flex-wrap: wrap; }
+  .ac-top h1 { font-size: var(--fs-xl); letter-spacing: -.04em; margin-top: 3px; }
+  .ac-top .muted { max-width: 72ch; margin-top: 6px; }
+  .ac-links { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ac-grid { display: grid; gap: 18px; }
+  @media (min-width: 1040px) { .ac-grid { grid-template-columns: 380px 1fr; align-items: start; } }
+  .ac-col { display: grid; gap: 18px; align-content: start; }
+  .ac-card { border: 1px solid var(--line-2); background: var(--surface); border-radius: var(--r-lg); padding: 22px; display: grid; gap: 12px; align-content: start; }
+  .ac-card h2 { font-size: var(--fs-lg); }
+  .ac-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .ac-pill { padding: 3px 10px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 10.5px; }
+  .ac-teams { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  .ac-team { display: grid; gap: 2px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--bg); }
+  .ac-team:hover { border-color: var(--accent-text); }
+  .ac-team small { color: var(--text-3); font-size: 11px; }
+  .ac-matrix { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .ac-matrix th, .ac-matrix td { padding: 10px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+  .ac-matrix th { font-size: 12px; white-space: nowrap; }
+  .ac-matrix th small, .ac-matrix td small { display: block; font-size: 10.5px; color: var(--text-3); font-weight: 400; }
+  .ac-matrix th.module { color: var(--info); }
+  .ac-matrix td.c { text-align: center; }
+  .ac-matrix input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+  .ac-na { color: var(--text-3); }
+  .ac-form label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+  .ac-form small { color: var(--text-3); font-weight: 400; }
+  .ac-form .input { height: 42px; padding: 0 12px; }
+  .ac-form textarea.input { height: auto; padding: 10px 12px; }
+  .ac-pw { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+  .ac-roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 6px; }
+  .ac-roles label { display: block; cursor: pointer; }
+  .ac-roles input { position: absolute; opacity: 0; }
+  .ac-roles span { display: block; text-align: center; padding: 9px; border-radius: 10px; border: 1px solid var(--line-2); font-size: 13px; }
+  .ac-roles input:checked + span { border-color: var(--accent-text); background: var(--accent-soft); color: var(--accent-text); }
+  .ac-create { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 10px; }
+  .ac-create summary { cursor: pointer; font-size: 13px; color: var(--text-2); }
+  .ac-fs { border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px; display: grid; gap: 10px; }
+  .ac-fs legend { padding: 0 6px; font-size: 13px; font-weight: 600; }
+  .ac-sem { border-color: color-mix(in oklab, var(--accent-text) 40%, var(--line)); background: var(--accent-soft); }
+  .ac-semsw { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .ac-semsw label { display: block; cursor: pointer; }
+  .ac-semsw input { position: absolute; opacity: 0; }
+  .ac-semsw span { display: block; text-align: center; padding: 12px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--surface); font-weight: 650; }
+  .ac-semsw input:checked + span { border-color: var(--accent-text); background: var(--accent); color: var(--accent-ink); box-shadow: 0 8px 20px -10px var(--accent); }
+  .ac-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ac-msg { min-height: 18px; font-size: 13px; }
+  .ac-msg.err { color: var(--danger); }
+  .ac-msg.ok { color: var(--ok); }
+  .ac-fine { font-size: 12px; color: var(--text-3); }
+  .ac-link { display: grid; gap: 8px; padding: 12px; border-radius: 12px; background: var(--accent-soft); }
+  .ac-link code { word-break: break-all; font-size: 12px; }
+  .ac-link div { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ac-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+  .ac-filter { display: flex; gap: 4px; }
+  .ac-filter button { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line-2); background: none; color: var(--text-2); font-size: 12.5px; cursor: pointer; }
+  .ac-filter button[aria-pressed='true'] { border-color: var(--accent-text); background: var(--accent-soft); color: var(--accent-text); }
+  .ac-q { max-width: 240px; height: 38px; padding: 0 12px; }
+  .ac-row { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; padding: 12px 4px; border-top: 1px solid var(--line); }
+  .ac-row:first-child { border-top: 0; }
+  .ac-row.off { opacity: .55; }
+  .ac-av { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; font: 700 12px var(--font-mono); background: var(--rc); color: #0b0d10; }
+  .ac-row b { display: block; }
+  .ac-meta { font-size: 12px; color: var(--text-3); }
+  .ac-role { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; font: 600 10px/1.6 var(--font-mono); text-transform: uppercase; background: color-mix(in oklab, var(--rc) 25%, transparent); }
+  .ac-act { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .ac-act select { height: 32px; padding: 0 8px; font-size: 12px; width: auto; }
+  .ac-del { color: var(--danger); }
+</style>
+
+<script>
+  type U = { id: string; role: string; name: string; email: string; studentId: string | null; profile: { year: string; specialization: string; modules: string[] }; active: boolean; last_login: string | null };
+  type Inv = { token: string; email: string; name: string; platform_role: string; module: string | null; module_role: string | null; invited_by: string; expires_at: string };
+  const RC: Record<string, string> = { super_admin: '#ff8ad8', doctor: '#c8ff4d', ta: '#7cb1ff', student: '#ffb547' };
+  const NAME: Record<string, string> = { super_admin: 'Super admin', doctor: 'Doctor', ta: 'TA', student: 'Student', leader: 'Leader', admin: 'Module admin' };
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  const when = (s: string | null) => (s ? new Date(s).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'never');
+  const genPw = () => { const a = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ', d = '23456789'; const r = (s: string) => s[crypto.getRandomValues(new Uint32Array(1))[0] % s.length]; return Array.from({ length: 10 }, () => r(a)).join('') + r(d) + r(d); };
+
+  document.addEventListener('astro:page-load', () => {
+    const root = document.querySelector<HTMLElement>('[data-ac]');
+    if (!root || root.dataset.wired) return;
+    root.dataset.wired = '1';
+    const perms = JSON.parse(root.dataset.perms ?? '{}') as Record<string, boolean>;
+    const rows = root.querySelector<HTMLElement>('[data-ac-rows]');
+    const q = root.querySelector<HTMLInputElement>('[data-ac-q]');
+    let users: U[] = [];
+    let me: string | null = null;
+    let filter = 'all';
+
+    const render = () => {
+      if (!rows || !q) return;
+      const t = q.value.trim().toLowerCase();
+      const shown = users.filter((u) => (filter === 'all' || (filter === 'student' ? u.role === 'student' : u.role !== 'student')) && (!t || `${u.name} ${u.email} ${u.studentId ?? ''}`.toLowerCase().includes(t)));
+      rows.innerHTML = shown.length ? shown.map((u) => `
+        <div class="ac-row ${u.active ? '' : 'off'}" style="--rc:${RC[u.role] ?? '#888'}" data-id="${esc(u.id)}">
+          <span class="ac-av">${esc(u.name.split(/\s+/).map((p) => p[0]).slice(0, 2).join(''))}</span>
+          <div><b>${esc(u.name)}<span class="ac-role">${NAME[u.role] ?? u.role}</span>${u.id === me ? ' <small class="mono">(you)</small>' : ''}${u.active ? '' : ' <small class="mono">disabled</small>'}</b>
+            <span class="ac-meta mono">${esc(u.email)}${u.studentId ? ` · ${esc(u.studentId)}` : ''}${u.profile.year ? ` · ${esc(u.profile.year)} · ${esc(u.profile.specialization)}` : ''} · last sign-in ${when(u.last_login)}</span></div>
+          ${perms['accounts.manage'] && u.id !== me ? `<div class="ac-act">
+            <select class="input" data-role aria-label="Role">${['super_admin', 'doctor', 'ta', 'student'].filter((r) => perms['platform.roles'] || (r !== 'super_admin' && u.role !== 'super_admin')).map((r) => `<option value="${r}" ${r === u.role ? 'selected' : ''}>${NAME[r]}</option>`).join('')}</select>
+            <button class="btn btn-ghost btn-sm" type="button" data-reset>Reset password</button>
+            <button class="btn btn-ghost btn-sm" type="button" data-toggle>${u.active ? 'Disable' : 'Enable'}</button>
+            <button class="btn btn-ghost btn-sm ac-del" type="button" data-delete>Delete</button></div>` : '<span></span>'}
+        </div>`).join('') : '<p class="muted">No accounts match.</p>';
+    };
+    const renderInvites = (list: Inv[]) => {
+      const box = root.querySelector<HTMLElement>('[data-ac-invites]');
+      if (!box) return;
+      box.innerHTML = list.length ? list.map((i) => `<div class="ac-row" style="--rc:${RC[i.platform_role] ?? '#888'}"><span class="ac-av">✉</span>
+        <div><b>${esc(i.name || i.email)}<span class="ac-role">${NAME[i.module_role ?? i.platform_role] ?? ''}</span></b><span class="ac-meta mono">${esc(i.email)}${i.module ? ` · ${esc(i.module)}` : ''} · by ${esc(i.invited_by)} · expires ${new Date(i.expires_at).toLocaleDateString()}</span></div>
+        <div class="ac-act"><button class="btn btn-ghost btn-sm" type="button" data-copy="${esc(location.origin + '/invite/' + i.token)}">Copy link</button><button class="btn btn-ghost btn-sm ac-del" type="button" data-revoke="${esc(i.token)}">Revoke</button></div></div>`).join('')
+        : '<p class="muted small">No pending invitations.</p>';
+    };
+    const load = async () => {
+      const r = await fetch('/api/admin/accounts', { cache: 'no-store' });
+      if (!r.ok) return;
+      const d = await r.json();
+      users = d.users; me = d.me;
+      const note = root.querySelector<HTMLElement>('[data-mail-note]');
+      if (note) note.textContent = d.mail ? 'Invitations are emailed automatically, and you also get the link.' : 'Email sending is not set up (RESEND_API_KEY + MAIL_FROM), so share the link: copy it, or open your email app with a ready message.';
+      const f = root.querySelector<HTMLFormElement>('[data-ac-settings]');
+      if (f) {
+        (f.elements.namedItem('years') as HTMLTextAreaElement).value = d.settings.years.join('\n');
+        (f.elements.namedItem('specializations') as HTMLTextAreaElement).value = d.settings.specializations.join('\n');
+        (f.elements.namedItem('bcategory') as HTMLSelectElement).value = d.settings.builtIn.category;
+        (f.elements.namedItem('byears') as HTMLInputElement).value = d.settings.builtIn.years;
+        (f.elements.namedItem('bspecs') as HTMLInputElement).value = d.settings.builtIn.specializations;
+        (f.elements.namedItem('bsemester') as HTMLSelectElement).value = d.settings.builtIn.semester ?? 'Semester 1';
+        f.querySelectorAll<HTMLInputElement>('[name=activeSemester]').forEach((r) => (r.checked = r.value === d.settings.activeSemester));
+        const fy = f.elements.namedItem('specFromYear') as HTMLSelectElement;
+        fy.replaceChildren(...d.settings.years.map((y: string) => new Option(y, y, false, y === d.settings.specFrom.year)));
+        (f.elements.namedItem('specFromSemester') as HTMLSelectElement).value = d.settings.specFrom.semester;
+      }
+      render();
+      renderInvites(d.invites ?? []);
+    };
+    const patch = async (id: string, body: Record<string, unknown>) => {
+      const r = await fetch(`/api/admin/accounts?id=${encodeURIComponent(id)}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      return r.ok ? null : (await r.json().catch(() => ({}))).error ?? 'Could not save.';
+    };
+    const note = (el: HTMLElement, text: string, ok = false) => { const m = document.createElement('p'); m.className = `ac-msg ${ok ? 'ok' : 'err'} mono`; m.textContent = text; el.closest('.ac-row')!.append(m); if (!ok) setTimeout(() => m.remove(), 5000); };
+
+    root.querySelectorAll<HTMLButtonElement>('[data-f]').forEach((b) => b.addEventListener('click', () => { filter = b.dataset.f!; root.querySelectorAll('[data-f]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); render(); }));
+    q?.addEventListener('input', render);
+    root.addEventListener('change', async (e) => {
+      const sel = (e.target as HTMLElement).closest<HTMLSelectElement>('[data-role]');
+      if (!sel) return;
+      const err = await patch(sel.closest<HTMLElement>('[data-id]')!.dataset.id!, { role: sel.value });
+      if (err) note(sel, err);
+      load();
+    });
+    root.addEventListener('click', async (e) => {
+      const t = e.target as HTMLElement;
+      const copy = t.closest<HTMLElement>('[data-copy]');
+      if (copy) { await navigator.clipboard?.writeText(copy.dataset.copy!).catch(() => {}); copy.textContent = 'Copied ✓'; setTimeout(() => (copy.textContent = 'Copy link'), 1500); return; }
+      const rev = t.closest<HTMLElement>('[data-revoke]');
+      if (rev) { await fetch(`/api/admin/accounts?invite=${encodeURIComponent(rev.dataset.revoke!)}`, { method: 'DELETE' }); return load(); }
+      const row = t.closest<HTMLElement>('[data-id]');
+      if (!row) return;
+      const id = row.dataset.id!;
+      const u = users.find((x) => x.id === id)!;
+      if (t.closest('[data-toggle]')) { const err = await patch(id, { active: !u.active }); if (err) return note(t, err); return load(); }
+      if (t.closest('[data-reset]')) { const pw = genPw(); const err = await patch(id, { password: pw }); if (err) return note(t, err); return note(t, `New temporary password for ${u.name}: ${pw} (shown once; signed out everywhere)`, true); }
+      const del = t.closest<HTMLButtonElement>('[data-delete]');
+      if (del) {
+        if (del.dataset.armed !== '1') { del.dataset.armed = '1'; del.textContent = 'Confirm delete'; setTimeout(() => { del.dataset.armed = ''; del.textContent = 'Delete'; }, 4000); return; }
+        const r = await fetch(`/api/admin/accounts?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+        if (!r.ok) return note(t, (await r.json().catch(() => ({}))).error ?? 'Could not delete.');
+        load();
+      }
+    });
+
+    const form = root.querySelector<HTMLFormElement>('[data-ac-new]');
+    if (form) {
+      const sid = root.querySelector<HTMLElement>('[data-ac-sid]')!;
+      const msg = form.querySelector<HTMLElement>('[data-ac-msg]')!;
+      const linkBox = form.querySelector<HTMLElement>('[data-ac-link]')!;
+      form.addEventListener('change', () => { sid.hidden = new FormData(form).get('role') !== 'student'; });
+      form.querySelector('[data-gen]')!.addEventListener('click', () => { (form.elements.namedItem('password') as HTMLInputElement).value = genPw(); });
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const act = ((e as SubmitEvent).submitter as HTMLElement | null)?.dataset.act ?? 'invite';
+        const body = { ...Object.fromEntries(new FormData(form)), ...(act === 'invite' ? { action: 'invite' } : {}) };
+        linkBox.hidden = true;
+        const r = await fetch('/api/admin/accounts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+        const d = await r.json().catch(() => ({}));
+        msg.className = `ac-msg ${r.ok ? 'ok' : 'err'}`;
+        if (!r.ok) { msg.textContent = d.error ?? 'Could not save.'; return; }
+        if (act === 'invite') {
+          msg.textContent = d.sent ? `Invitation emailed to ${d.invite.email}.` : `Invitation created for ${d.invite.email}. Send them the link:`;
+          linkBox.hidden = false;
+          linkBox.innerHTML = `<code>${esc(d.link)}</code><div><button class="btn btn-ghost btn-sm" type="button" data-copy="${esc(d.link)}">Copy link</button><a class="btn btn-ghost btn-sm" href="${esc(d.mailto)}">Open in email app</a></div>`;
+        } else msg.textContent = `Created ${d.user.name}. Share the temporary password privately.`;
+        form.reset(); sid.hidden = true; load();
+      });
+    }
+
+    const settings = root.querySelector<HTMLFormElement>('[data-ac-settings]');
+    settings?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(settings);
+      const msg = settings.querySelector<HTMLElement>('[data-settings-msg]')!;
+      const r = await fetch('/api/admin/accounts', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
+        years: fd.get('years'), specializations: fd.get('specializations'), activeSemester: fd.get('activeSemester'),
+        specFromYear: fd.get('specFromYear'), specFromSemester: fd.get('specFromSemester'),
+        builtIn: { category: fd.get('bcategory'), years: fd.get('byears'), specializations: fd.get('bspecs'), semester: fd.get('bsemester') },
+      }) });
+      const d = await r.json().catch(() => ({}));
+      msg.className = `ac-msg ${r.ok ? 'ok' : 'err'}`;
+      msg.textContent = r.ok ? `Saved. ${d.settings.activeSemester} is now active.` : d.error ?? 'Could not save.';
+    });
+
+    root.querySelector('[data-matrix-save]')?.addEventListener('click', async () => {
+      const m: Record<string, Record<string, string[]>> = { platform: { doctor: [], ta: [], student: [] }, module: { leader: [], admin: [], ta: [] } };
+      root.querySelectorAll<HTMLInputElement>('[data-perm]').forEach((c) => { if (c.checked) m[c.dataset.kind!][c.dataset.role!].push(c.dataset.perm!); });
+      const msg = root.querySelector<HTMLElement>('[data-matrix-msg]')!;
+      const r = await fetch('/api/admin/accounts', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ matrix: m }) });
+      const d = await r.json().catch(() => ({}));
+      msg.className = `ac-msg ${r.ok ? 'ok' : 'err'}`;
+      msg.textContent = r.ok ? 'Permissions saved. They apply on everyone’s next request.' : d.error ?? 'Could not save.';
+    });
+    if (rows) load();
+  });
+</script>

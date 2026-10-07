@@ -1,0 +1,172 @@
+---
+/**
+ * Module directory, categorized by year → semester → specialization, with search and filters.
+ * Each card shows whether you're in it, whether you can add it yourself (Mobile Development, an optional
+ * module) or whether it needs an invitation from its module leader. Defaults to the active semester.
+ */
+import Base from '@/layouts/Base.astro';
+import { hubData } from '@/lib/accounts/hub';
+
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'public, max-age=0, s-maxage=30, stale-while-revalidate=120');
+const { cards, settings } = await hubData();
+const q = Astro.url.searchParams.get('q') ?? '';
+// a module is listed under each year it is for; modules for every year go under "All years"
+const groups = [...settings.years, 'All years'].map((year) => ({
+  year,
+  cards: cards.filter((c) => (year === 'All years' ? !c.years.length : c.years.some((y) => y.toLowerCase() === year.toLowerCase()))),
+})).filter((g) => g.cards.length);
+const specFromLabel = `${settings.specFrom.year} · ${settings.specFrom.semester}`;
+---
+<Base title="Find a module" description="Search every module on the platform by year, semester and specialization.">
+  <section class="md" data-md data-active={settings.activeSemester}>
+    <div class="md-sky" aria-hidden="true"></div>
+    <div class="container">
+      <p class="md-k mono">Module directory · {settings.activeSemester} is active · {cards.length} modules</p>
+      <h1 class="md-t">Find a <span>module</span></h1>
+      <p class="md-l">Browse by year, semester and specialization. Specializations start in {specFromLabel}. Mobile Development is open to everyone as an optional module; other modules need an invitation from their module leader.</p>
+      <div class="md-search">
+        <input class="md-q" type="search" placeholder="Search modules…" value={q} data-md-q aria-label="Search modules" />
+        <select class="md-sel" data-md-year aria-label="Year"><option value="">All years</option>{settings.years.map((y) => <option>{y}</option>)}</select>
+        <select class="md-sel" data-md-sem aria-label="Semester"><option value="">Both semesters</option><option selected={settings.activeSemester === 'Semester 1'}>Semester 1</option><option selected={settings.activeSemester === 'Semester 2'}>Semester 2</option></select>
+        <select class="md-sel" data-md-spec aria-label="Specialization"><option value="">Any specialization</option>{settings.specializations.map((s) => <option>{s}</option>)}</select>
+        <div class="md-filters mono" role="group" aria-label="Filter">
+          <button type="button" aria-pressed="true" data-f="all">All</button>
+          <button type="button" aria-pressed="false" data-f="mine">Mine</button>
+          <button type="button" aria-pressed="false" data-f="open">Open to join</button>
+        </div>
+      </div>
+
+      {groups.map((g) => (
+        <section class="md-group" data-group>
+          <h2 class="md-gh"><span>{g.year}</span><small class="mono" data-count></small></h2>
+          <div class="md-grid">
+            {g.cards.map((m, i) => (
+              <a href={m.href} class="mcard" style={`--c:${m.color}; --i:${i}`} data-card data-slug={m.slug} data-builtin={m.builtIn ? '1' : ''} data-cat={m.category}
+                data-sem={m.semester} data-years={m.years.join('|')} data-specs={m.specializations.join('|')}
+                data-text={`${m.title} ${m.code} ${m.description} ${m.term} ${m.specializations.join(' ')}`.toLowerCase()}>
+                <span class="mcard-top"><span>{m.code || 'Module'}</span><span class="mcard-tag">{m.builtIn && m.category === 'Optional' ? 'Optional · open' : m.category === 'Optional' ? 'Optional · invite' : 'Core · invite'}</span></span>
+                <h3>{m.title}</h3>
+                <span class="md-chips mono">
+                  <span class:list={['md-chip', { on: m.semester === settings.activeSemester || m.semester === 'Both' }]}>{m.semester === 'Both' ? 'Both semesters' : m.semester}</span>
+                  {m.specializations.length ? m.specializations.map((s) => <span class="md-chip spec">{s}</span>) : <span class="md-chip">All specializations</span>}
+                </span>
+                {m.description && <p>{m.description}</p>}
+                <span class="md-state mono" data-state></span>
+                <span class="mcard-foot"><span>{m.labs} lab{m.labs === 1 ? '' : 's'}{m.term && ` · ${m.term}`}</span><span class="mcard-go" aria-hidden="true">→</span></span>
+              </a>
+            ))}
+          </div>
+        </section>
+      ))}
+      <p class="md-none" data-md-none hidden>No modules match. Try another year, semester or specialization.</p>
+    </div>
+  </section>
+</Base>
+
+<style is:global>
+  .md { --g1: #c8ff4d; --g2: #7cb1ff; position: relative; min-height: 100dvh; padding: calc(var(--nav-h) + 48px) 0 100px; background: var(--hero-bg); color: var(--hero-text); isolation: isolate; overflow: hidden; }
+  :root[data-theme='light'] .md { --g1: #9fd400; --g2: #3d7be0; }
+  .md-sky { position: absolute; inset: 0; z-index: -1; background: radial-gradient(circle at 90% -10%, color-mix(in oklab, var(--g2) 35%, transparent), transparent 45%), radial-gradient(circle at 0% 30%, color-mix(in oklab, var(--g1) 25%, transparent), transparent 40%),
+    linear-gradient(var(--hero-grid) 1px, transparent 1px) 0 0 / 56px 56px, linear-gradient(90deg, var(--hero-grid) 1px, transparent 1px) 0 0 / 56px 56px; }
+  .md-k { font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--hero-accent); }
+  .md-t { margin-top: 14px; font-size: clamp(2.6rem, 1.4rem + 5vw, 6rem); letter-spacing: -.055em; line-height: .92; }
+  .md-t span { background: linear-gradient(100deg, var(--g1), var(--g2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .md-l { margin-top: 18px; max-width: 66ch; color: var(--hero-lead); font-size: var(--fs-md); }
+  .md-search { margin-top: 30px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .md-q { flex: 1 1 320px; height: 56px; padding: 0 22px; border-radius: 999px; border: 1px solid var(--hero-line); background: color-mix(in oklab, var(--hero-bg) 60%, transparent); color: var(--hero-text); font: 17px var(--font-body); backdrop-filter: blur(12px); }
+  .md-q:focus, .md-sel:focus { outline: none; border-color: var(--hero-accent); box-shadow: 0 0 0 4px color-mix(in oklab, var(--hero-accent) 20%, transparent); }
+  .md-sel { height: 46px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--hero-line); background: color-mix(in oklab, var(--hero-bg) 70%, transparent); color: var(--hero-text); font: 13.5px var(--font-body); }
+  .md-filters { display: flex; gap: 6px; }
+  .md-filters button { padding: 10px 16px; border-radius: 999px; border: 1px solid var(--hero-line); background: none; color: var(--hero-lead); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+  .md-filters button[aria-pressed='true'] { border-color: var(--hero-accent); color: var(--hero-text); background: color-mix(in oklab, var(--hero-accent) 14%, transparent); }
+  .md-group { margin-top: 40px; }
+  .md-gh { display: flex; align-items: baseline; gap: 14px; font-size: clamp(1.6rem, 1.1rem + 1.4vw, 2.6rem); letter-spacing: -.04em; padding-bottom: 12px; border-bottom: 1px solid var(--hero-line); }
+  .md-gh small { font-size: 12px; letter-spacing: .08em; color: var(--hero-dim); }
+  .md-grid { margin-top: 18px; display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); }
+  .md-chips { display: flex; flex-wrap: wrap; gap: 6px; font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; }
+  .md-chip { padding: 3px 9px; border-radius: 999px; border: 1px solid var(--hero-line); color: var(--hero-lead); }
+  .md-chip.on { border-color: var(--hero-accent); color: var(--hero-accent); }
+  .md-chip.spec { border-color: color-mix(in oklab, var(--c) 55%, var(--hero-line)); color: var(--hero-text); }
+  .md-state { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--hero-dim); }
+  .md-state.in { color: var(--hero-accent); }
+  .md-none { margin-top: 24px; color: var(--hero-lead); }
+  .md .mcard { position: relative; display: grid; gap: 12px; align-content: start; min-height: 220px; padding: 24px; border-radius: 24px; overflow: hidden; color: var(--hero-text); isolation: isolate;
+    border: 1px solid color-mix(in oklab, var(--c) 35%, var(--hero-line)); background: color-mix(in oklab, var(--hero-bg) 50%, transparent); backdrop-filter: blur(14px); transition: transform 300ms var(--ease-out), box-shadow 300ms; }
+  .md .mcard::after { content: ''; position: absolute; inset: auto -30% -60% auto; width: 280px; height: 280px; border-radius: 50%; background: radial-gradient(circle, color-mix(in oklab, var(--c) 45%, transparent), transparent 65%); z-index: -1; opacity: .5; }
+  .md .mcard:hover { transform: translateY(-5px); box-shadow: 0 26px 50px -28px color-mix(in oklab, var(--c) 70%, transparent), 0 0 0 1px var(--c); }
+  .md .mcard-top { display: flex; justify-content: space-between; gap: 8px; font: 500 11px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--hero-dim); }
+  .md .mcard-tag { padding: 3px 9px; border-radius: 999px; border: 1px solid color-mix(in oklab, var(--c) 50%, transparent); color: var(--hero-text); }
+  .md .mcard h3 { font-size: 1.7rem; letter-spacing: -.04em; line-height: 1; }
+  .md .mcard p { color: var(--hero-lead); font-size: 14.5px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .md .mcard-foot { margin-top: auto; display: flex; justify-content: space-between; align-items: center; font: 500 12px var(--font-mono); color: var(--hero-dim); }
+  .md .mcard-go { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--c); color: #0b0d10; }
+</style>
+
+<script>
+  document.addEventListener('astro:page-load', async () => {
+    const root = document.querySelector<HTMLElement>('[data-md]');
+    if (!root || root.dataset.wired) return;
+    root.dataset.wired = '1';
+    const q = root.querySelector<HTMLInputElement>('[data-md-q]')!;
+    const year = root.querySelector<HTMLSelectElement>('[data-md-year]')!;
+    const sem = root.querySelector<HTMLSelectElement>('[data-md-sem]')!;
+    const spec = root.querySelector<HTMLSelectElement>('[data-md-spec]')!;
+    const cards = [...root.querySelectorAll<HTMLElement>('[data-card]')];
+    let filter = 'all';
+
+    const me = await fetch('/api/auth/me', { cache: 'no-store' }).then((r) => r.json()).catch(() => null);
+    let chosen: string[] = me?.user?.profile?.modules ?? [];
+    if (!me?.user) { try { chosen = JSON.parse(localStorage.getItem('mdx:profile') ?? 'null')?.modules ?? []; } catch { /* ignore */ } }
+    // self-chosen modules only count where students may choose (the open, built-in optional module)
+    const openSlugs = new Set(cards.filter((c) => c.dataset.builtin && c.dataset.cat === 'Optional').map((c) => c.dataset.slug!));
+    chosen = chosen.filter((s) => openSlugs.has(s));
+    const mine = new Set<string>([...chosen, ...(me?.enrolled ?? []), ...Object.keys(me?.staffModules ?? {})]);
+    for (const c of cards) {
+      const s = c.querySelector<HTMLElement>('[data-state]')!;
+      const slug = c.dataset.slug!;
+      const isMine = mine.has(slug);
+      const open = openSlugs.has(slug);
+      s.textContent = isMine ? (me?.staffModules?.[slug] ? `✓ You teach this (${me.staffModules[slug]})` : '✓ You are in this module') : open ? 'Open: add it from your modules page' : '🔒 Invitation only: ask the module leader';
+      s.classList.toggle('in', isMine);
+      c.dataset.mine = isMine ? '1' : '';
+      c.dataset.open = open ? '1' : '';
+    }
+    // a student's own year preselected
+    const profileYear = me?.user?.profile?.year || (() => { try { return JSON.parse(localStorage.getItem('mdx:profile') ?? 'null')?.year ?? ''; } catch { return ''; } })();
+    if (profileYear && [...year.options].some((o) => o.value === profileYear)) year.value = profileYear;
+
+    const has = (list: string, v: string) => !list || list.toLowerCase().split('|').includes(v.toLowerCase());
+    const apply = () => {
+      const t = q.value.trim().toLowerCase();
+      let total = 0;
+      root.querySelectorAll<HTMLElement>('[data-group]').forEach((g) => {
+        const title = g.querySelector('.md-gh span')!.textContent!;
+        let n = 0;
+        g.querySelectorAll<HTMLElement>('[data-card]').forEach((c) => {
+          const show = (!t || c.dataset.text!.includes(t))
+            && (!year.value || title === year.value || (title === 'All years' && !c.dataset.years))
+            && (!sem.value || c.dataset.sem === 'Both' || c.dataset.sem === sem.value)
+            && (!spec.value || has(c.dataset.specs!, spec.value))
+            && (filter === 'all' || (filter === 'mine' && c.dataset.mine) || (filter === 'open' && c.dataset.open));
+          c.hidden = !show;
+          if (show) n++;
+        });
+        g.hidden = n === 0;
+        g.querySelector('[data-count]')!.textContent = `${n} module${n === 1 ? '' : 's'}`;
+        total += n;
+      });
+      root.querySelector<HTMLElement>('[data-md-none]')!.hidden = total > 0;
+      const url = new URL(location.href);
+      if (t) url.searchParams.set('q', t); else url.searchParams.delete('q');
+      history.replaceState(history.state, '', url);
+    };
+    [q, year, sem, spec].forEach((el) => el.addEventListener('input', apply));
+    root.querySelectorAll<HTMLButtonElement>('[data-f]').forEach((b) => b.addEventListener('click', () => {
+      filter = b.dataset.f!;
+      root.querySelectorAll('[data-f]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      apply();
+    }));
+    apply();
+  });
+</script>

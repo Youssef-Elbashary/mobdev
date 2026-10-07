@@ -18,8 +18,12 @@ export const team = site.team;
 /** Assessment split for the module. */
 export const assessment = site.assessment;
 
+/** The platform that hosts every module (the course below is its built-in module). */
+export const platform = { name: 'LabVerse', tagline: 'Interactive courses platform' };
+
+/** Sections of the built-in course, shown in the nav once a student is inside it. */
 export const nav = [
-  { label: 'Home', href: '/' },
+  { label: 'Overview', href: '/course' },
   { label: 'Labs', href: '/labs' },
   { label: 'Coursework', href: '/coursework' },
   { label: 'Project', href: '/project' },

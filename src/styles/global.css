@@ -553,3 +553,10 @@ a.row:hover .go { background: var(--accent); color: var(--accent-ink); border-co
 .w-full { width: 100%; }
 @media (max-width: 719px) { .hide-sm { display: none !important; } }
 @media (min-width: 720px) { .show-sm { display: none !important; } }
+
+/* frosted panel with a glowing gradient edge (module hub, sign-in) */
+.glass { position: relative; border-radius: 26px; border: 1px solid color-mix(in oklab, var(--hero-text) 14%, transparent); background: color-mix(in oklab, var(--hero-bg) 55%, transparent);
+  backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%); box-shadow: 0 30px 80px -40px rgb(0 0 0 / .6), inset 0 1px 0 color-mix(in oklab, var(--hero-text) 10%, transparent); }
+.glass::before { content: ''; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; background: linear-gradient(130deg, color-mix(in oklab, var(--g1, #c8ff4d) 70%, transparent), transparent 40%, transparent 60%, color-mix(in oklab, var(--g2, #7cb1ff) 60%, transparent));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; }
+

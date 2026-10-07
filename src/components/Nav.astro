@@ -2,17 +2,29 @@
 import Icon from './Icon.astro';
 import InstitutionBrand from './InstitutionBrand.astro';
 import Logo from './Logo.astro';
-import { nav, secondaryNav, course } from '@/site.config';
+import { nav, secondaryNav, course, platform } from '@/site.config';
+
+/**
+ * Students choose a module first: the platform pages (module chooser, sign-in, admin) show no section links.
+ * Inside the built-in course the nav lists its sections; inside a builder module, that module's.
+ */
+interface Props { module?: { slug: string; title: string; color?: string } }
+const { module } = Astro.props;
 const path = Astro.url.pathname.replace(/\/$/, '') || '/';
-const isActive = (href: string) => (href === '/' ? path === '/' : path === href || path.startsWith(href + '/'));
+const COURSE = /^\/(course|labs|coursework|project|commands|tools|setup|resources|troubleshooting|extra|submit|attendance)(\/|$)/;
+const context = module
+  ? { title: module.title, color: module.color ?? '#7cb1ff', items: [{ label: 'Overview', href: `/m/${module.slug}` }, { label: 'Labs', href: `/m/${module.slug}#labs` }] }
+  : COURSE.test(path) ? { title: course.name, color: '#c8ff4d', items: nav } : null;
+const items = context?.items ?? [];
+const isActive = (href: string) => path === href.replace(/#.*$/, '') || (href !== `/m/${module?.slug}` && !href.includes('#') && path.startsWith(href + '/'));
 ---
 <header class="nav" data-nav>
   <div class="nav-inner container">
-    <a href="/" class="brand" aria-label={`${course.name} — home`}>
+    <a href="/" class="brand" aria-label={`${platform.name} — choose a module`}>
       <Logo />
       <span class="brand-text">
-        <span class="brand-name">{course.name}</span>
-        <span class="brand-sub mono">BUE · Faculty of Informatics &amp; Computer Science</span>
+        <span class="brand-name">{platform.name}</span>
+        <span class="brand-sub mono">{context ? context.title : platform.tagline}</span>
       </span>
     </a>
 
@@ -20,7 +32,8 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path === href 
 
     <nav aria-label="Primary" class="nav-links">
       <ul>
-        {nav.map((item) => (
+        {context && <li><a href="/" class="nav-modules" style={`--mc:${context.color}`}>← Modules</a></li>}
+        {items.map((item) => (
           <li>
             <a href={item.href} data-nav-link aria-current={isActive(item.href) ? 'page' : undefined}>{item.label}</a>
           </li>
@@ -34,6 +47,7 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path === href 
         <span class="hide-sm">Search</span>
         <span class="keys hide-sm"><kbd class="kbd" data-mod-key>Ctrl</kbd><kbd class="kbd">K</kbd></span>
       </button>
+      <a class="nav-account" href="/login" data-nav-account>Sign in</a>
       <button class="icon-btn theme-toggle" data-theme-toggle aria-label="Toggle color theme">
         <Icon name="sun" class="i-sun" />
         <Icon name="moon" class="i-moon" />
@@ -46,21 +60,22 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path === href 
 
   <div id="mobile-menu" class="mobile-menu" data-menu hidden>
     <div class="mm-top container">
-      <a href="/" class="brand"><Logo /><span class="brand-name">{course.name}</span></a>
+      <a href="/" class="brand"><Logo /><span class="brand-name">{platform.name}</span></a>
       <button class="icon-btn" data-menu-close aria-label="Close menu"><Icon name="close" /></button>
     </div>
     <nav aria-label="Mobile" class="container mm-body">
       <ol class="mm-list">
-        {nav.map((item, i) => (
+        <li style="--i:0"><a href="/"><span class="mono ix">00</span><span>All modules</span></a></li>
+        {items.map((item, i) => (
           <li style={`--i:${i}`}>
             <a href={item.href} aria-current={isActive(item.href) ? 'page' : undefined}>
-              <span class="mono ix">{String(i).padStart(2, '0')}</span>
+              <span class="mono ix">{String(i + 1).padStart(2, '0')}</span>
               <span>{item.label}</span>
             </a>
           </li>
         ))}
       </ol>
-      <div class="mm-secondary">
+      <div class="mm-secondary" hidden={!context || Boolean(module)}>
         {secondaryNav.map((item) => <a href={item.href} class="chip">{item.label}</a>)}
       </div>
     </nav>
@@ -68,6 +83,13 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path === href 
 </header>
 
 <style>
+  .nav-modules { color: var(--mc) !important; font-weight: 600; }
+  :global(:root[data-theme='light']) .nav-modules { color: color-mix(in oklab, var(--mc) 50%, #000) !important; }
+  .nav-account { display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 600;
+    border: 1px solid var(--line-2); color: var(--text); white-space: nowrap; transition: border-color var(--t-fast), background var(--t-fast); }
+  .nav-account:hover { border-color: var(--accent-text); }
+  .nav-account.in { background: var(--accent-soft); border-color: color-mix(in oklab, var(--accent-text) 40%, var(--line-2)); }
+  @media (max-width: 640px) { .nav-account { display: none; } }
   .nav {
     position: fixed; inset: 0 0 auto; z-index: 100; height: var(--nav-h);
     transition: background var(--t-med), border-color var(--t-med), height var(--t-med) var(--ease-out);
@@ -137,3 +159,23 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path === href 
   .mm-list .ix { font-size: 12px; color: var(--text-3); font-family: var(--font-mono); letter-spacing: 0; }
   .mm-secondary { display: flex; flex-wrap: wrap; gap: 8px; }
 </style>
+
+<script>
+  /** Sign in → "Name · role" once signed in (doctors and TAs go to /admin, students to their modules). */
+  async function account() {
+    const a = document.querySelector<HTMLAnchorElement>('[data-nav-account]');
+    if (!a) return;
+    let me: { user: { name: string; role: string } | null } | null = null;
+    try { me = JSON.parse(sessionStorage.getItem('mdx:me') ?? 'null'); } catch { /* ignore */ }
+    if (!me) {
+      me = await fetch('/api/auth/me', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      try { sessionStorage.setItem('mdx:me', JSON.stringify(me)); } catch { /* ignore */ }
+    }
+    if (!me?.user) return;
+    const first = me.user.name.split(' ')[0];
+    a.textContent = `${first} · ${({ super_admin: 'super admin', doctor: 'Dr.', ta: 'TA', student: 'student' } as Record<string, string>)[me.user.role] ?? me.user.role}`;
+    a.href = '/account';
+    a.classList.add('in');
+  }
+  document.addEventListener('astro:page-load', () => void account());
+</script>

@@ -1,0 +1,185 @@
+---
+/**
+ * Sign in (doctors, TAs, students) and optional student sign-up with onboarding (year, specialization,
+ * optional modules). Students never have to sign in: they can keep typing their name and ID in each lab.
+ */
+import Base from '@/layouts/Base.astro';
+import { hubData } from '@/lib/accounts/hub';
+import { getAccountStore } from '@/lib/accounts/server';
+
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'no-store, max-age=0');
+const enabled = Boolean(getAccountStore());
+const { settings, cards } = await hubData();
+const optional = cards.filter((c) => c.category === 'Optional').map((c) => ({ slug: c.slug, title: c.title, code: c.code, color: c.color, years: c.years, specializations: c.specializations }));
+const next = Astro.url.searchParams.get('next');
+const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : '';
+const ended = Astro.url.searchParams.has('ended');
+const json = JSON.stringify({ optional, next: safeNext }).replace(/</g, '\\u003c');
+---
+<Base title="Sign in" noindex>
+  <section class="auth" data-auth>
+    <script type="application/json" data-auth-data set:html={json} />
+    <div class="auth-sky" aria-hidden="true"><div class="auth-grid"></div><div class="auth-orb a"></div><div class="auth-orb b"></div></div>
+    <div class="container auth-in">
+      <div class="auth-copy">
+        <p class="auth-k mono"><span></span> Secure access</p>
+        <h1>One account.<br /><em>Every module.</em></h1>
+        <ul class="auth-roles">
+          <li><b>Super admins &amp; module leaders</b> manage roles, teams and invitations; <b>doctors</b> build modules and labs.</li>
+          <li><b>Teaching assistants</b> start lab sessions, take attendance and follow progress.</li>
+          <li><b>Students</b> can sign in to skip typing their details, or keep using their name and ID.</li>
+        </ul>
+        <a class="auth-skip" href="/">Continue without an account →</a>
+      </div>
+
+      <div class="auth-card glass">
+        {!enabled ? (
+          <div class="auth-off"><h2>Accounts aren't set up yet</h2><p>This site needs a database and an ADMIN_PASSWORD (or SESSION_SECRET). Staff can still use the <a href="/admin">admin password</a>.</p></div>
+        ) : (
+          <>
+            <div class="auth-tabs" role="tablist">
+              <button type="button" role="tab" aria-selected="true" data-tab="in">Sign in</button>
+              <button type="button" role="tab" aria-selected="false" data-tab="up">Student sign-up</button>
+              <button type="button" role="tab" aria-selected="false" data-tab="admin">Admin password</button>
+            </div>
+            {ended && <p class="auth-note">Your session ended (the account was changed or disabled). Please sign in again.</p>}
+
+            <form class="auth-form" data-form="in" novalidate>
+              <label><span>Email</span><input class="input" type="email" name="email" autocomplete="username" required /></label>
+              <label><span>Password</span><input class="input" type="password" name="password" autocomplete="current-password" required /></label>
+              <p class="auth-msg" data-msg role="alert"></p>
+              <button class="btn btn-primary btn-lg" type="submit">Sign in →</button>
+              <p class="auth-fine">Staff accounts come from an invitation or from the super admin in <b>Admin → Accounts</b>.</p>
+            </form>
+
+            <form class="auth-form" data-form="admin" method="post" action="/api/admin/login" hidden>
+              <p class="auth-fine">The shared platform admin password (ADMIN_PASSWORD). It has full access, like a super admin, so use your own account when you can.</p>
+              <label><span>Admin password</span><input class="input" type="password" name="password" autocomplete="current-password" required /></label>
+              <button class="btn btn-primary btn-lg" type="submit">Open admin →</button>
+            </form>
+
+            <form class="auth-form" data-form="up" hidden novalidate>
+              <div class="auth-row">
+                <label><span>Full name</span><input class="input" name="name" autocomplete="name" required maxlength="60" /></label>
+                <label><span>Student ID</span><input class="input mono" name="studentId" required maxlength="20" /></label>
+              </div>
+              <label><span>University email</span><input class="input" type="email" name="email" autocomplete="email" required /></label>
+              <label><span>Password <small>(10+ characters, letters and numbers)</small></span><input class="input" type="password" name="password" autocomplete="new-password" required /></label>
+              <div class="auth-row">
+                <label><span>Year</span><select class="input" name="year" required><option value="">Choose…</option>{settings.years.map((y) => <option>{y}</option>)}</select></label>
+                <label><span>Specialization</span><select class="input" name="specialization" required><option value="">Choose…</option>{settings.specializations.map((s) => <option>{s}</option>)}</select></label>
+              </div>
+              <fieldset class="auth-opts"><legend>Optional modules you chose</legend><div data-up-opts><p class="auth-fine">Choose your year and specialization first.</p></div></fieldset>
+              <p class="auth-msg" data-msg role="alert"></p>
+              <button class="btn btn-primary btn-lg" type="submit">Create account →</button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style is:global>
+  .auth { --g1: #c8ff4d; --g2: #7cb1ff; position: relative; min-height: 100dvh; overflow: hidden; isolation: isolate; padding: calc(var(--nav-h) + 56px) 0 80px; background: var(--hero-bg); color: var(--hero-text); }
+  :root[data-theme='light'] .auth { --g1: #9fd400; --g2: #3d7be0; }
+  .auth-sky { position: absolute; inset: 0; z-index: -1; }
+  .auth-grid { position: absolute; inset: 0; background-image: linear-gradient(var(--hero-grid) 1px, transparent 1px), linear-gradient(90deg, var(--hero-grid) 1px, transparent 1px); background-size: 48px 48px; mask-image: radial-gradient(ellipse at 30% 40%, #000, transparent 75%); }
+  .auth-orb { position: absolute; border-radius: 50%; filter: blur(70px); opacity: .5; }
+  .auth-orb.a { width: 520px; height: 520px; left: -160px; top: -120px; background: radial-gradient(circle, color-mix(in oklab, var(--g1) 60%, transparent), transparent 65%); }
+  .auth-orb.b { width: 520px; height: 520px; right: -160px; bottom: -200px; background: radial-gradient(circle, color-mix(in oklab, var(--g2) 60%, transparent), transparent 65%); }
+  .auth-in { display: grid; gap: 40px; align-items: center; }
+  @media (min-width: 1000px) { .auth-in { grid-template-columns: 1fr 520px; gap: 72px; } }
+  .auth-k { display: inline-flex; gap: 10px; align-items: center; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--hero-accent); }
+  .auth-k span { width: 8px; height: 8px; border-radius: 50%; background: var(--hero-accent); box-shadow: 0 0 12px var(--hero-accent); }
+  .auth-copy h1 { margin-top: 18px; font-size: clamp(2.6rem, 1.4rem + 4.5vw, 5.4rem); line-height: .95; letter-spacing: -.05em; }
+  .auth-copy em { font-style: normal; background: linear-gradient(100deg, var(--g1), var(--g2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .auth-roles { list-style: none; padding: 0; margin-top: 28px; display: grid; gap: 12px; max-width: 52ch; color: var(--hero-lead); }
+  .auth-roles li { padding-left: 18px; border-left: 2px solid var(--hero-line); }
+  .auth-roles b { color: var(--hero-text); }
+  .auth-skip { display: inline-block; margin-top: 26px; color: var(--hero-accent); font-weight: 600; }
+  .auth-card { padding: clamp(22px, 4vw, 34px); display: grid; gap: 18px; }
+  .auth-tabs { display: grid; grid-template-columns: repeat(3, 1fr); padding: 4px; border-radius: 14px; background: color-mix(in oklab, var(--hero-text) 6%, transparent); }
+  .auth-tabs button { padding: 10px; border: 0; border-radius: 11px; background: none; color: var(--hero-lead); font: 600 13.5px var(--font-body); cursor: pointer; }
+  .auth-tabs button[aria-selected='true'] { background: var(--hero-accent); color: var(--hero-bg); box-shadow: 0 6px 20px -8px var(--hero-accent); }
+  .auth-form { display: grid; gap: 14px; }
+  .auth-form label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: var(--hero-text); }
+  .auth-form small { color: var(--hero-dim); font-weight: 400; }
+  .auth-form .input { height: 46px; padding: 0 14px; background: color-mix(in oklab, var(--hero-bg) 70%, transparent); border-color: var(--hero-line); color: var(--hero-text); }
+  .auth-form .input:focus { border-color: var(--hero-accent); box-shadow: 0 0 0 4px color-mix(in oklab, var(--hero-accent) 20%, transparent); }
+  .auth-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 520px) { .auth-row { grid-template-columns: 1fr; } }
+  .auth-opts { border: 1px solid var(--hero-line); border-radius: 14px; padding: 12px 14px; }
+  .auth-opts legend { padding: 0 6px; font-size: 13px; font-weight: 600; }
+  .auth-opts [data-up-opts] { display: grid; gap: 8px; }
+  .auth-opt { display: flex; gap: 10px; align-items: center; font-weight: 400 !important; cursor: pointer; }
+  .auth-opt input { accent-color: var(--hero-accent); width: 16px; height: 16px; }
+  .auth-msg { min-height: 18px; font-size: 13px; color: var(--hero-danger); }
+  .auth-note { padding: 10px 12px; border-radius: 12px; background: color-mix(in oklab, var(--hero-warn) 16%, transparent); color: var(--hero-warn); font-size: 13px; }
+  .auth-fine { font-size: 12.5px; color: var(--hero-dim); }
+  .auth-fine a, .auth-off a { color: var(--hero-accent); }
+  .auth-off p { margin-top: 8px; color: var(--hero-lead); }
+</style>
+
+<script>
+  type Opt = { slug: string; title: string; code: string; color: string; years: string[]; specializations: string[] };
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  const has = (list: string[], v: string) => !list.length || list.some((x) => x.toLowerCase() === v.toLowerCase());
+
+  document.addEventListener('astro:page-load', () => {
+    const root = document.querySelector<HTMLElement>('[data-auth]');
+    if (!root || root.dataset.wired) return;
+    root.dataset.wired = '1';
+    const data = JSON.parse(root.querySelector('[data-auth-data]')!.textContent!) as { optional: Opt[]; next: string };
+    const tabs = root.querySelectorAll<HTMLButtonElement>('[data-tab]');
+    const show = (t: string) => {
+      tabs.forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
+      root.querySelectorAll<HTMLElement>('[data-form]').forEach((f) => (f.hidden = f.dataset.form !== t));
+    };
+    tabs.forEach((b) => b.addEventListener('click', () => show(b.dataset.tab!)));
+    if (location.hash === '#signup') show('up');
+    if (location.hash === '#admin') show('admin');
+
+    const done = (role: string) => {
+      try { localStorage.removeItem('mdx:profile'); } catch { /* ignore */ }
+      location.href = data.next || (role === 'student' ? '/' : '/admin');
+    };
+
+    const signin = root.querySelector<HTMLFormElement>('[data-form="in"]');
+    signin?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = signin.querySelector<HTMLElement>('[data-msg]')!;
+      const fd = new FormData(signin);
+      msg.textContent = '';
+      const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: fd.get('email'), password: fd.get('password') }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { msg.textContent = d.error ?? 'Could not sign in.'; return; }
+      done(d.user.role);
+    });
+
+    const signup = root.querySelector<HTMLFormElement>('[data-form="up"]');
+    if (!signup) return;
+    const box = signup.querySelector<HTMLElement>('[data-up-opts]')!;
+    const year = signup.querySelector<HTMLSelectElement>('[name=year]')!, spec = signup.querySelector<HTMLSelectElement>('[name=specialization]')!;
+    const renderOpts = () => {
+      if (!year.value || !spec.value) return;
+      const list = data.optional.filter((o) => has(o.years, year.value) && has(o.specializations, spec.value));
+      box.innerHTML = list.length
+        ? list.map((o) => `<label class="auth-opt"><input type="checkbox" name="modules" value="${esc(o.slug)}" /> <span>${esc(o.title)}${o.code ? ` <small>${esc(o.code)}</small>` : ''}</span></label>`).join('')
+        : '<p class="auth-fine">No optional modules for this year and specialization yet.</p>';
+    };
+    year.addEventListener('change', renderOpts);
+    spec.addEventListener('change', renderOpts);
+    signup.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = signup.querySelector<HTMLElement>('[data-msg]')!;
+      const fd = new FormData(signup);
+      const body = { name: fd.get('name'), studentId: fd.get('studentId'), email: fd.get('email'), password: fd.get('password'), year: fd.get('year'), specialization: fd.get('specialization'), modules: fd.getAll('modules') };
+      const r = await fetch('/api/auth/signup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { msg.textContent = d.error ?? 'Could not create the account.'; return; }
+      done('student');
+    });
+  });
+</script>

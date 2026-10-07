@@ -1,0 +1,28 @@
+---
+/** Lab canvas: Parts, Tasks, text, code, terminals, graded exercises, repo link and check-in, in order. */
+import Base from '@/layouts/Base.astro';
+import Canvas from '@/components/builder/Canvas.astro';
+import { access } from '@/lib/accounts/access';
+import { getPlatformStore } from '@/lib/platform/server';
+
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'no-store, max-age=0');
+const slug0 = Astro.params.module ?? '';
+if (!(await access(Astro.cookies)).can('module.build', slug0)) return Astro.redirect('/admin/builder', 303);
+
+const store = getPlatformStore();
+const moduleSlug = Astro.params.module ?? '';
+const [mod, lab] = store ? await Promise.all([store.getModule(moduleSlug), store.getLab(moduleSlug, Astro.params.lab ?? '')]) : [null, null];
+if (!mod || !lab) return Astro.redirect(`/admin/builder/${moduleSlug}`, 303);
+---
+<Base title={`Builder · ${lab.title}`} noindex>
+  <Canvas
+    heading={lab.title}
+    kicker={`${mod.title} · lab canvas · /m/${mod.slug}/${lab.slug}`}
+    back={{ href: `/admin/builder/${mod.slug}`, label: mod.title }}
+    config={{
+      kind: 'lab', flow: lab.flow, saveUrl: `/api/admin/platform/labs?module=${encodeURIComponent(mod.slug)}&slug=${encodeURIComponent(lab.slug)}`,
+      published: lab.published, previewHref: `/m/${mod.slug}/${lab.slug}?preview`,
+    }}
+  />
+</Base>

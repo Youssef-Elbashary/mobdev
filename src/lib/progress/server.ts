@@ -12,6 +12,7 @@ import { EXERCISES as LAB02_EXERCISES } from '@/lab/exercises/lab-02/meta';
 import { noStore } from '@/lib/attendance/server';
 import { exerciseStats, labStructure, scoreStudent, sessionState, type Identity, type LabStructure, type Valid } from './core';
 import { NeonStore, type ProgressStore } from './store';
+import { publishedLabSources } from '@/lib/platform/server';
 
 const env = (key: string) => getSecret(key) || undefined;
 const onVercel = () => Boolean(env('VERCEL'));
@@ -35,9 +36,30 @@ export const progressSetup = () => ({ database: Boolean(databaseUrl()) });
 /* ---------------------------------------------------------- lab structure */
 
 let structures: Promise<LabStructure[]> | null = null;
+let builderLabs: { at: number; labs: Promise<LabStructure[]> } | null = null;
+const BUILDER_TTL_MS = 30_000;
 
-/** Every lab's tasks and auto-checked exercises, read from the lab content. */
-export function getStructures(): Promise<LabStructure[]> {
+/**
+ * Every lab's tasks and auto-checked exercises: the file-based labs (src/content) followed by the
+ * published labs of builder modules (/admin/builder), so attendance, sessions and progress cover both.
+ */
+export async function getStructures(): Promise<LabStructure[]> {
+  if (!builderLabs || Date.now() - builderLabs.at > BUILDER_TTL_MS) {
+    builderLabs = {
+      at: Date.now(),
+      labs: publishedLabSources()
+        .then((sources) => sources.map((l) => labStructure(l.key, l.title, l.outline, (id) => {
+          const ex = l.exercises[id];
+          return ex ? { title: ex.title, checks: ex.checks.length } : null;
+        })))
+        .catch((error) => { console.error('[platform] could not load builder labs', error); builderLabs = null; return []; }),
+    };
+  }
+  const [files, built] = await Promise.all([fileStructures(), builderLabs.labs]);
+  return [...files, ...built];
+}
+
+function fileStructures(): Promise<LabStructure[]> {
   if (structures && onVercel()) return structures;
   structures = (async () => {
     const labs = (await getCollection('labs', (e) => !e.data.draft)).sort((a, b) => a.data.number - b.data.number);

@@ -24,6 +24,7 @@ import {
   type RedisLike,
 } from './core';
 import { SupabaseStore } from './supabase';
+import { viewer } from '@/lib/accounts/server';
 
 const env = (key: string) => getSecret(key) || undefined;
 
@@ -82,10 +83,24 @@ export function setupStatus() {
 
 export const ADMIN_COOKIE = 'att_admin';
 
-export function isAdmin(cookies: AstroCookies): boolean {
+/** The shared ADMIN_PASSWORD login (counts as a doctor). */
+export function masterAdmin(cookies: AstroCookies): boolean {
   const pw = env('ADMIN_PASSWORD');
   if (!pw) return false;
   return verifySession(cookies.get(ADMIN_COOKIE)?.value, sessionSecret(pw));
+}
+
+/** Staff: the master password, or a signed-in doctor or TA account (attendance, sessions, progress, submissions). */
+export function isAdmin(cookies: AstroCookies): boolean {
+  if (masterAdmin(cookies)) return true;
+  const r = viewer(cookies)?.r;
+  return r === 'super_admin' || r === 'doctor' || r === 'ta';
+}
+
+/** Doctors only: the master password or a doctor account (module builder, accounts, CMS). */
+export function isDoctor(cookies: AstroCookies): boolean {
+  const r = viewer(cookies)?.r;
+  return masterAdmin(cookies) || r === 'super_admin' || r === 'doctor';
 }
 
 export function passwordMatches(input: string): boolean {

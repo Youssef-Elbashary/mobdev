@@ -283,3 +283,5 @@
   .fx-box, .lp, .ex-card.just-solved, .fb, .ex-hint { transition: none !important; animation: none !important; }
   .demo-k::first-letter { animation: none; }
 }
+.ls .ls-acct { grid-column: 1 / -1; font-size: 13px; color: var(--accent-text); }
+.ls input[readonly] { opacity: .8; cursor: not-allowed; }

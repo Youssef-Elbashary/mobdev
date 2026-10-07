@@ -1,0 +1,219 @@
+---
+/**
+ * A lab built in /admin/builder. It renders with the same components and client runtime as the
+ * file-based labs, so the session gate, Done ticks, graded exercises, repo submission, check-in,
+ * attendance and the admin progress dashboards all work the same way. Its tracking id is
+ * "<module>--<lab>" (see labKey in lib/platform/core).
+ */
+import Base from '@/layouts/Base.astro';
+import EmptyState from '@/components/EmptyState.astro';
+import ReadProgress from '@/components/ReadProgress.astro';
+import LabStart from '@/components/lab/interactive/LabStart.astro';
+import LabRuntime from '@/components/lab/LabRuntime.astro';
+import LabBlock from '@/components/platform/LabBlock.astro';
+import { isAdmin } from '@/lib/attendance/server';
+import Locked from '@/components/platform/Locked.astro';
+import { moduleAccess } from '@/lib/accounts/enrolment';
+import { labKey } from '@/lib/platform/core';
+import { renderBlocks } from '@/lib/platform/render';
+import { loadModule } from '@/lib/platform/server';
+import { minutes } from '@/lib/lab';
+import '@/styles/lab.css';
+
+export const prerender = false;
+const preview = isAdmin(Astro.cookies) && Astro.url.searchParams.has('preview');
+// invitation-only: depends on who is viewing, so never cached publicly
+Astro.response.headers.set('cache-control', 'private, no-store');
+
+const moduleSlug = Astro.params.module ?? '';
+const data = await loadModule(moduleSlug, { drafts: preview }).catch(() => null);
+const gate = data ? await moduleAccess(Astro.cookies, data.module.slug) : { ok: false, signedIn: false };
+const idx = data ? data.items.findIndex((i) => i.lab.slug === Astro.params.lab) : -1;
+const item = idx >= 0 ? data!.items[idx] : null;
+if (!item) Astro.response.status = 404;
+
+const key = labKey(moduleSlug, Astro.params.lab ?? '');
+const c = item?.compiled;
+const blocks = c ? await renderBlocks(c.blocks) : [];
+const pad = (n: number) => String(n).padStart(2, '0');
+const label = item ? `Lab ${pad(item.n)}` : '';
+const parts = blocks.filter((b) => b.kind === 'part') as Extract<(typeof blocks)[number], { kind: 'part' }>[];
+const tasksOf = (n: string) => blocks.filter((b) => b.kind === 'task' && b.n.split('.')[0] === n) as Extract<(typeof blocks)[number], { kind: 'task' }>[];
+const taskCount = blocks.filter((b) => b.kind === 'task').length;
+const isMission = taskCount > 0;
+const totalMin = parts.reduce((a, p) => a + minutes(p.time), 0);
+const color = data?.meta.color || '#7cb1ff';
+const PART_COLORS = [color, '#7cb1ff', '#ffb547', '#ff8ad8', '#5ee0d2'];
+const prev = data && idx > 0 ? data.items[idx - 1] : null;
+const next = data && idx >= 0 ? data.items[idx + 1] : null;
+const q = preview ? '?preview' : '';
+---
+<Base title={item ? `${label} — ${c!.meta.title}` : 'Lab not found'} description={c?.meta.description} module={data ? { slug: moduleSlug, title: data.meta.title || data.module.title, color } : undefined}>
+  {data && !gate.ok ? (
+    <Locked title={data.meta.title || data.module.title} code={data.meta.code} color={color} description={data.meta.description} signedIn={gate.signedIn} next={Astro.url.pathname} />
+  ) : !item || !c ? (
+    <div class="container" style="padding-block: 160px 120px">
+      <EmptyState title="This lab isn't available." body="It may not be published yet." path={`m/${moduleSlug}/`} />
+    </div>
+  ) : (
+    <>
+      <ReadProgress />
+      <header class="page-head bl-head" style={`--c:${color}`}>
+        <div class="grid-bg" aria-hidden="true"></div>
+        <div class="container">
+          <nav class="crumbs" aria-label="Breadcrumb">
+            <a href="/">~</a><span aria-hidden="true">/</span><a href="/modules">modules</a><span aria-hidden="true">/</span>
+            <a href={`/m/${moduleSlug}${q}`}>{moduleSlug}</a><span aria-hidden="true">/</span><span aria-current="page">{item.lab.slug}</span>
+          </nav>
+          {preview && <p class="bl-prev mono">Admin preview{!item.lab.published ? ' · draft' : ''}</p>}
+          <div class="bl-grid">
+            <div>
+              <p class="bl-no mono">{data!.meta.code || data!.meta.title} · LAB<span>{pad(item.n)}</span></p>
+              <h1 class="h-1 bl-title">{c.meta.title}</h1>
+              {c.meta.description && <p class="lead mt-6">{c.meta.description}</p>}
+              <div class="bl-chips">
+                <span class={`badge badge-${c.meta.difficulty.toLowerCase()}`}><span class="dot"></span>{c.meta.difficulty}</span>
+                {c.meta.estimatedTime && <span class="badge">{c.meta.estimatedTime}</span>}
+              </div>
+            </div>
+            {isMission && (
+              <div class="dash" data-lab-dash>
+                <div class="ring" aria-hidden="true">
+                  <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" class="rb" /><circle cx="60" cy="60" r="52" class="rf" data-ring pathLength="100" /></svg>
+                  <div class="ring-c"><b data-pct>0</b><small>%</small></div>
+                </div>
+                <div>
+                  <p class="mono dash-k">Your progress</p>
+                  <p class="dash-v"><b data-done>0</b> / {taskCount} tasks</p>
+                  <p class="dash-s mono">{parts.length} parts{totalMin ? ` · ${totalMin} min` : ''}</p>
+                  <button class="dash-reset mono" data-lab-reset type="button">reset</button>
+                </div>
+              </div>
+            )}
+          </div>
+          {isMission && parts.length > 0 && (
+            <nav class="plan" aria-label="Lab plan">
+              <ol class="plan-bar">
+                {parts.map((p, i) => (
+                  <li style={`flex:${Math.max(minutes(p.time), 4)}; --pc:${PART_COLORS[i % PART_COLORS.length]}`}>
+                    <a href={`#part-${p.n}`} data-plan-part={p.n}>
+                      <span class="pb-fill" aria-hidden="true"></span>
+                      <span class="pb-n mono">PART {pad(Number(p.n))}</span>
+                      <span class="pb-t">{p.title}</span>
+                      <span class="pb-m mono">{[p.time, `${tasksOf(p.n).length} tasks`].filter(Boolean).join(' · ')}</span>
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          )}
+        </div>
+      </header>
+
+      <div class="container doc" data-lab={key} data-total={taskCount}>
+        <article class="doc-main">
+          {isMission && <LabStart id={key} lab={label} />}
+
+          {c.meta.objectives.length > 0 && (
+            <section class="bl-brief">
+              <p class="mono bl-brief-k">By the end you will</p>
+              <ul>{c.meta.objectives.map((o) => <li><span aria-hidden="true">✓</span>{o}</li>)}</ul>
+            </section>
+          )}
+
+          <section class="block prose lab-prose">
+            {blocks.map((b) => <LabBlock block={b} lab={key} label={label} />)}
+          </section>
+
+          {isMission && (
+            <section class="bl-done" data-lab-complete hidden>
+              <span aria-hidden="true">🎉</span>
+              <div><p class="bl-done-t">{label} complete</p><p class="muted">All {taskCount} tasks done. Nice work.</p></div>
+            </section>
+          )}
+
+          <nav class="pn" aria-label="Lab navigation">
+            {prev
+              ? <a href={`/m/${moduleSlug}/${prev.lab.slug}${q}`} class="pn-a"><span class="mono faint">← Lab {pad(prev.n)}</span><span>{prev.compiled.meta.title}</span></a>
+              : <a href={`/m/${moduleSlug}${q}`} class="pn-a"><span class="mono faint">← Module</span><span>{data!.meta.title}</span></a>}
+            {next
+              ? <a href={`/m/${moduleSlug}/${next.lab.slug}${q}`} class="pn-a next"><span class="mono faint">Lab {pad(next.n)} →</span><span>{next.compiled.meta.title}</span></a>
+              : <a href="/modules" class="pn-a next"><span class="mono faint">All modules →</span><span>Modules</span></a>}
+          </nav>
+        </article>
+
+        <aside class="doc-aside">
+          {isMission && (
+            <nav class="toc tracker" aria-label="Lab tracker">
+              <p class="toc-title">{label} tracker</p>
+              <div class="tr-bar" aria-hidden="true"><i data-track-bar></i></div>
+              <ol>
+                {parts.map((p) => (
+                  <li class="tr-part">
+                    <a href={`#part-${p.n}`} class="tr-p"><span class="mono">{pad(Number(p.n))}</span>{p.title}</a>
+                    <ol>{tasksOf(p.n).map((t) => <li><a href={`#task-${t.n.replace(/\./g, '-')}`} data-track={t.n}><span class="tr-dot" aria-hidden="true"></span><span class="tr-n mono">{t.n}</span>{t.title}</a></li>)}</ol>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          )}
+        </aside>
+      </div>
+      <LabRuntime />
+    </>
+  )}
+</Base>
+
+<style>
+  .bl-head { padding-bottom: 40px; }
+  .bl-prev { margin-top: 16px; display: inline-block; padding: 4px 10px; border-radius: 999px; background: var(--warn-soft); color: var(--warn); font-size: 11px; }
+  .bl-grid { display: grid; gap: 32px; align-items: end; margin-top: 20px; }
+  @media (min-width: 1024px) { .bl-grid { grid-template-columns: 1fr 340px; gap: 64px; } }
+  .bl-no { font-size: 12px; letter-spacing: 0.14em; color: var(--text-3); display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .bl-no span { font-family: var(--font-display); font-size: 64px; letter-spacing: -0.05em; font-weight: 650; color: var(--c); line-height: 0.9; }
+  :global(:root[data-theme='light']) .bl-no span { color: color-mix(in oklab, var(--c) 55%, var(--text)); }
+  .bl-title { margin-top: 18px; max-width: 18ch; font-size: clamp(2.3rem, 1.4rem + 3.4vw, 4.4rem); }
+  .bl-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+  .dash { display: flex; align-items: center; gap: 20px; padding: 20px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow-md); }
+  .ring { position: relative; width: 104px; height: 104px; flex: none; }
+  .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring .rb { fill: none; stroke: var(--line); stroke-width: 10; }
+  .ring .rf { fill: none; stroke: var(--accent); stroke-width: 10; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100; transition: stroke-dashoffset 900ms var(--ease-out); }
+  :global(:root[data-theme='light']) .ring .rf { stroke: var(--accent-text); }
+  .ring-c { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); }
+  .ring-c b { font-size: 28px; font-weight: 700; letter-spacing: -0.04em; }
+  .ring-c small { font-size: 13px; color: var(--text-3); margin-top: 8px; }
+  .dash-k { font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); }
+  .dash-v { font-size: 1.15rem; font-weight: 600; margin-top: 2px; }
+  .dash-v b { font-family: var(--font-display); font-size: 1.6rem; color: var(--accent-text); }
+  .dash-s { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+  .dash-reset { margin-top: 8px; font-size: 11px; color: var(--text-3); text-decoration: underline; text-underline-offset: 3px; }
+  .plan { margin-top: 36px; }
+  .plan-bar { list-style: none; padding: 0; display: flex; gap: 6px; }
+  @media (max-width: 760px) { .plan-bar { flex-direction: column; } }
+  .plan-bar a { position: relative; display: grid; gap: 2px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); overflow: hidden; min-width: 0; height: 100%; }
+  .pb-fill { position: absolute; inset: auto 0 0 0; height: 3px; background: var(--pc); transform-origin: left; transform: scaleX(var(--p, 0)); transition: transform 600ms var(--ease-out); }
+  .pb-n { font-size: 10px; letter-spacing: .1em; color: var(--text-3); }
+  .pb-t { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pb-m { font-size: 11px; color: var(--text-3); }
+  .bl-brief { margin-block: 28px; padding: 20px 22px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+  .bl-brief-k { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-text); }
+  .bl-brief ul { list-style: none; padding: 0; margin-top: 10px; display: grid; gap: 6px; }
+  .bl-brief li { display: flex; gap: 10px; }
+  .bl-brief li span { color: var(--ok); }
+  .bl-done { display: flex; gap: 16px; align-items: center; margin-block: 40px; padding: 22px; border-radius: var(--r-lg); background: var(--ok-soft); border: 1px solid color-mix(in oklab, var(--ok) 40%, var(--line)); font-size: 28px; }
+  .bl-done-t { font-size: 1.2rem; font-weight: 700; }
+  /* tracker (same as the file-based lab page) */
+  .tracker > ol { border-left: 0 !important; display: grid; gap: 10px; }
+  .tr-bar { height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; margin-bottom: 14px; }
+  .tr-bar i { display: block; height: 100%; background: var(--accent); transform-origin: left; transform: scaleX(var(--p, 0)); transition: transform 700ms var(--ease-out); }
+  .tr-part > ol { list-style: none; padding: 0; margin-top: 4px; border-left: 1px solid var(--line); }
+  .tracker a.tr-p { display: flex; gap: 8px; align-items: baseline; font-weight: 600; color: var(--text-2); padding: 4px 0; border: 0; margin: 0; }
+  .tracker a.tr-p .mono { font-size: 11px; color: var(--accent-text); }
+  .tracker .tr-part > ol a { display: grid; grid-template-columns: 12px auto 1fr; gap: 8px; align-items: center; font-size: 13px; padding: 4px 0 4px 12px; }
+  .tr-dot { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--line-2); transition: all 300ms var(--ease-out); }
+  .tr-n { font-size: 10.5px; color: var(--text-3); }
+  .tracker a.done { color: var(--text-3); }
+  .tracker a.done .tr-dot { background: var(--ok); border-color: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); }
+  .bl-done .muted { font-size: 14px; }
+</style>

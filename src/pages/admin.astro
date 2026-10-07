@@ -5,7 +5,7 @@
  * (2) the login form, or (3) the live table.
  */
 import Base from '@/layouts/Base.astro';
-import { isAdmin, setupStatus } from '@/lib/attendance/server';
+import { isAdmin, setupStatus, isDoctor } from '@/lib/attendance/server';
 
 export const prerender = false;
 Astro.response.headers.set('cache-control', 'no-store, max-age=0');
@@ -15,6 +15,7 @@ const ready = status.database && status.password;
 const admin = ready && isAdmin(Astro.cookies);
 const error = Astro.url.searchParams.get('e');
 
+const doctor = isDoctor(Astro.cookies);
 ---
 <Base title="Attendance admin" noindex>
   <section class="adm container">
@@ -52,6 +53,7 @@ const error = Astro.url.searchParams.get('e');
         {error === 'wrong' && <p class="form-e" role="alert">Wrong password. Try again.</p>}
         {error === 'wait' && <p class="form-e" role="alert">Too many tries. Wait 10 minutes and try again.</p>}
         <button class="btn btn-primary btn-lg" type="submit">Log in</button>
+        <p class="muted small">Doctor or TA with an account? <a class="inline-link" href="/login?next=/admin">Sign in with your email →</a></p>
       </form>
     ) : (
       <>
@@ -125,7 +127,10 @@ const error = Astro.url.searchParams.get('e');
               <span class="live mono" data-att-live>loading…</span>
               <button class="btn btn-primary btn-sm" type="button" data-open-sessions>Manage selected session</button>
               <a class="btn btn-ghost btn-sm" data-session-insights href="/admin/progress">Session insights →</a>
-            <a class="btn btn-ghost btn-sm" href="/admin/cms">CMS →</a>
+            {doctor && <a class="btn btn-ghost btn-sm" href="/admin/cms">CMS →</a>}
+            {doctor && <a class="btn btn-ghost btn-sm" href="/admin/builder">Builder →</a>}
+            {doctor && <a class="btn btn-ghost btn-sm" href="/admin/accounts">Accounts →</a>}
+            <a class="btn btn-ghost btn-sm" href="/admin/assessment/mobile-development">Assessment →</a>
             <a class="btn btn-ghost btn-sm" href="/admin/project">Submissions →</a>
             <form method="post" action="/api/admin/logout"><button class="btn btn-ghost btn-sm" type="submit">Log out</button></form>
           </div>

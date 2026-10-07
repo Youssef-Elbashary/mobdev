@@ -1,0 +1,164 @@
+---
+/** The node-builder workspace (toolbar · palette · canvas · inspector). Behaviour: src/scripts/builder/canvas.ts */
+import { nodeDefs } from '@/lib/platform/core';
+import type { CanvasConfig } from '@/scripts/builder/canvas';
+
+interface Props { config: CanvasConfig; heading: string; kicker: string; back: { href: string; label: string } }
+const { config, heading, kicker, back } = Astro.props;
+const defs = Object.entries(nodeDefs(config.kind)).filter(([, d]) => !d.root && !(config.kind === 'module' && d.label === 'Lab'));
+const json = JSON.stringify(config).replace(/</g, '\\u003c');
+---
+<section class="cv" data-cv>
+  <script type="application/json" data-cv-config set:html={json} />
+  <header class="cv-bar">
+    <a class="cv-back" href={back.href}>← {back.label}</a>
+    <div class="cv-title"><p class="mono">{kicker}</p><h1>{heading}</h1></div>
+    <span class="cv-status mono" data-cv-status>Loading…</span>
+    <div class="cv-tools">
+      <button type="button" class="cv-ic" data-cv-zoom-out title="Zoom out">−</button>
+      <span class="cv-zoom mono" data-cv-zoom>100%</span>
+      <button type="button" class="cv-ic" data-cv-zoom-in title="Zoom in">+</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-cv-fit>Fit</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-cv-layout>Auto-layout</button>
+      <a class="btn btn-ghost btn-sm" href={config.previewHref} target="_blank" rel="noopener" data-cv-preview>Preview ↗</a>
+      <button type="button" class="btn btn-ghost btn-sm" data-cv-save>Save <kbd>Ctrl S</kbd></button>
+      <button type="button" class="btn btn-sm" data-cv-publish>Publish</button>
+    </div>
+  </header>
+
+  <div class="cv-body">
+    <aside class="cv-palette" aria-label="Nodes">
+      <p class="cv-k mono">Nodes</p>
+      <p class="cv-help">Drag onto the canvas, or click to add after the selected node.</p>
+      <div class="cv-pals">
+        {defs.map(([type, d]) => (
+          <button type="button" class="cv-pal" draggable="true" data-palette={type} style={`--nc:${d.color}`}>
+            <span class="cv-glyph">{d.glyph}</span><span><b>{d.label}</b><small>{d.hint}</small></span>
+          </button>
+        ))}
+      </div>
+      {config.kind === 'module' && (
+        <>
+          <p class="cv-k mono cv-sp">Labs</p>
+          <form class="cv-newlab" data-cv-newlab>
+            <input class="input" placeholder="New lab title" maxlength="120" aria-label="New lab title" />
+            <button class="btn btn-primary btn-sm" type="submit">Add lab</button>
+            <p class="cv-help" data-newlab-msg></p>
+          </form>
+          <div class="cv-pals" data-cv-unplaced></div>
+        </>
+      )}
+    </aside>
+
+    <div class="cv-stage" data-cv-stage>
+      <div class="cv-world" data-cv-world>
+        <svg class="cv-edges" data-cv-edges width="1" height="1" aria-hidden="true"></svg>
+      </div>
+      <div class="cv-warn" data-cv-warnings hidden></div>
+      <p class="cv-hint mono">drag background to pan · wheel to zoom · drag from ● to connect · Del removes</p>
+    </div>
+
+    <aside class="cv-inspector" data-cv-inspector aria-label="Inspector"></aside>
+  </div>
+</section>
+
+<style is:global>
+  .cv { --cv-bg: #0d1014; --cv-dot: rgb(255 255 255 / 0.07); --cv-node: #161a21; --cv-edge: #4b5563;
+    position: fixed; inset: var(--nav-h) 0 0 0; z-index: 40; display: grid; grid-template-rows: auto 1fr; background: var(--bg); }
+  :root[data-theme='light'] .cv { --cv-bg: #f1f0ea; --cv-dot: rgb(0 0 0 / 0.09); --cv-node: #ffffff; --cv-edge: #a3a8b0; }
+  .cv-bar { display: flex; align-items: center; gap: 16px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--surface); flex-wrap: wrap; }
+  .cv-back { font-size: 13px; color: var(--text-3); white-space: nowrap; }
+  .cv-back:hover { color: var(--text); }
+  .cv-title p { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-text); }
+  .cv-title h1 { font-size: 18px; letter-spacing: -.02em; line-height: 1.2; }
+  .cv-status { margin-left: auto; font-size: 11.5px; color: var(--text-3); }
+  .cv-status[data-state='dirty'] { color: var(--warn); }
+  .cv-status[data-state='error'] { color: var(--danger); }
+  .cv-status[data-state='saved'] { color: var(--ok); }
+  .cv-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .cv-tools kbd { font-size: 10px; opacity: .6; margin-left: 4px; }
+  .cv-ic { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line-2); background: none; color: var(--text); cursor: pointer; font-size: 16px; }
+  .cv-zoom { font-size: 11px; color: var(--text-3); min-width: 40px; text-align: center; }
+  .cv-body { display: grid; grid-template-columns: 250px 1fr 340px; min-height: 0; }
+  @media (max-width: 1100px) { .cv-body { grid-template-columns: 210px 1fr 290px; } }
+  .cv-palette, .cv-inspector { overflow: auto; padding: 16px; background: var(--surface); }
+  .cv-palette { border-right: 1px solid var(--line); }
+  .cv-inspector { border-left: 1px solid var(--line); display: grid; align-content: start; gap: 10px; }
+  .cv-k { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); display: flex; gap: 8px; align-items: center; }
+  .cv-sp { margin-top: 22px; }
+  .cv-help { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+  .cv-pals { display: grid; gap: 6px; margin-top: 10px; }
+  .cv-pal { display: flex; gap: 10px; align-items: flex-start; text-align: left; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text); cursor: grab; transition: border-color var(--t-fast), transform var(--t-fast); }
+  .cv-pal:hover { border-color: var(--nc); transform: translateX(2px); }
+  .cv-pal b { display: block; font-size: 13px; }
+  .cv-pal small { display: block; font-size: 11.5px; color: var(--text-3); line-height: 1.35; }
+  .cv-glyph { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: color-mix(in oklab, var(--nc, var(--accent)) 22%, transparent); color: var(--nc, var(--accent)); font: 700 13px var(--font-mono); }
+  :root[data-theme='light'] .cv-glyph { color: color-mix(in oklab, var(--nc) 55%, #000); }
+  .cv-newlab { display: grid; grid-template-columns: 1fr auto; gap: 6px; margin-top: 10px; }
+  .cv-newlab .input { height: 34px; padding: 0 10px; font-size: 13px; }
+  .cv-newlab .cv-help { grid-column: 1 / -1; color: var(--danger); }
+
+  .cv-stage { position: relative; overflow: hidden; background-color: var(--cv-bg); background-image: radial-gradient(var(--cv-dot) 1.2px, transparent 1.2px); cursor: grab; touch-action: none; user-select: none; }
+  .cv-stage.is-panning { cursor: grabbing; }
+  .cv-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .cv-edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+  .cv-edge { pointer-events: auto; }
+  .cv-edge-hit { fill: none; stroke: transparent; stroke-width: 16; cursor: pointer; }
+  .cv-edge-line { fill: none; stroke: var(--cv-edge); stroke-width: 2.5; pointer-events: none; }
+  .cv-edge:hover .cv-edge-line { stroke: var(--accent-text); }
+  .cv-edge-line.temp { stroke: var(--accent-text); stroke-dasharray: 6 5; }
+  .cv-edge-cut { opacity: 0; cursor: pointer; transition: opacity var(--t-fast); }
+  .cv-edge:hover .cv-edge-cut { opacity: 1; }
+  .cv-edge-cut circle { fill: var(--surface); stroke: var(--danger); stroke-width: 1.5; }
+  .cv-edge-cut path { stroke: var(--danger); stroke-width: 1.8; stroke-linecap: round; }
+
+  .cv-node { position: absolute; left: 0; top: 0; width: 220px; border-radius: 14px; background: var(--cv-node); border: 1.5px solid var(--line-2); box-shadow: 0 10px 24px -14px rgb(0 0 0 / .5); cursor: pointer; transition: border-color var(--t-fast), box-shadow var(--t-fast); }
+  .cv-node::before { content: ''; position: absolute; inset: 0 0 auto; height: 4px; border-radius: 14px 14px 0 0; background: var(--nc); }
+  .cv-node:hover { border-color: color-mix(in oklab, var(--nc) 60%, var(--line-2)); }
+  .cv-node.is-selected { border-color: var(--nc); box-shadow: 0 0 0 4px color-mix(in oklab, var(--nc) 25%, transparent), 0 14px 30px -14px rgb(0 0 0 / .55); }
+  .cv-node.is-target { border-color: var(--accent-text); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .cv-node.is-draft { opacity: .62; border-style: dashed; }
+  .cv-node.is-root { width: 220px; }
+  .cv-node-head { display: flex; align-items: center; gap: 8px; padding: 12px 12px 4px; }
+  .cv-type { font: 600 11px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+  .cv-order { margin-left: auto; font-size: 10.5px; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); }
+  .cv-node.is-draft .cv-order { background: var(--warn-soft); color: var(--warn); }
+  .cv-node-title { padding: 2px 12px; font-weight: 650; font-size: 14px; line-height: 1.3; color: var(--text); overflow-wrap: anywhere; }
+  .cv-node-sum { padding: 2px 12px 12px; font-size: 11.5px; color: var(--text-3); line-height: 1.4; overflow-wrap: anywhere; }
+  .cv-port { position: absolute; top: 26px; width: 14px; height: 14px; border-radius: 50%; background: var(--cv-node); border: 2.5px solid var(--nc); }
+  .cv-port.in { left: -8px; }
+  .cv-port.out { right: -8px; cursor: crosshair; }
+  .cv-port.out:hover { background: var(--nc); transform: scale(1.25); }
+  .cv-warn { position: absolute; left: 14px; bottom: 40px; max-width: 420px; padding: 10px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line-2); font-size: 12.5px; color: var(--warn); display: grid; gap: 4px; }
+  .cv-warn .mono { color: var(--text-3); font-size: 11px; }
+  .cv-hint { position: absolute; left: 14px; bottom: 12px; font-size: 10.5px; color: var(--text-3); pointer-events: none; }
+
+  .cv-inspector h3 { font-size: 18px; letter-spacing: -.02em; overflow-wrap: anywhere; }
+  .cv-form { display: grid; gap: 12px; margin-top: 6px; }
+  .cv-field { display: grid; gap: 5px; }
+  .cv-field label { font-size: 12.5px; font-weight: 600; }
+  .cv-field .input { height: auto; min-height: 38px; padding: 8px 10px; font-size: 13px; }
+  .cv-field textarea.input { resize: vertical; line-height: 1.5; }
+  .cv-code { font-size: 12px !important; white-space: pre; tab-size: 2; }
+  .cv-color { display: flex; align-items: center; gap: 10px; }
+  .cv-color input { width: 44px; height: 32px; border: 0; background: none; padding: 0; cursor: pointer; }
+  .cv-check-msg { font-size: 12px; color: var(--ok); }
+  .cv-check-msg[data-ok='false'] { color: var(--danger); }
+  .cv-node-actions { display: flex; gap: 6px; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .cv-danger { color: var(--danger); }
+  .cv-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+  .cv-stats div { padding: 10px; border-radius: 10px; border: 1px solid var(--line); }
+  .cv-stats dt { font: 10px var(--font-mono); text-transform: uppercase; color: var(--text-3); }
+  .cv-stats dd { font: 600 22px var(--font-display); }
+  body:has(.cv) footer, body:has(.cv) [data-ann] { display: none !important; }
+</style>
+
+<script>
+  import { mountCanvas } from '@/scripts/builder/canvas';
+  document.addEventListener('astro:page-load', () => {
+    const root = document.querySelector<HTMLElement>('[data-cv]');
+    if (!root || root.dataset.wired) return;
+    root.dataset.wired = '1';
+    mountCanvas(root, JSON.parse(root.querySelector('[data-cv-config]')!.textContent!));
+  });
+</script>

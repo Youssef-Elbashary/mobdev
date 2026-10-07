@@ -4,12 +4,13 @@ import Nav from '@/components/Nav.astro';
 import Footer from '@/components/Footer.astro';
 import SearchPalette from '@/components/SearchPalette.astro';
 import Announce from '@/components/Announce.astro';
-import { course } from '@/site.config';
+import { platform } from '@/site.config';
 import '@/styles/global.css';
 
-interface Props { title?: string; description?: string; noindex?: boolean }
-const { title, description = course.tagline, noindex = false } = Astro.props;
-const fullTitle = title ? `${title} · ${course.name}` : `${course.name} — Course Workspace`;
+/** `module`: the builder module this page belongs to (its sections replace the course nav). */
+interface Props { title?: string; description?: string; noindex?: boolean; module?: { slug: string; title: string; color?: string } }
+const { title, description = platform.tagline, noindex = false, module } = Astro.props;
+const fullTitle = title ? `${title} · ${platform.name}` : `${platform.name} — ${platform.tagline}`;
 ---
 <!doctype html>
 <html lang="en" class="no-js">
@@ -48,7 +49,7 @@ const fullTitle = title ? `${title} · ${course.name}` : `${course.name} — Cou
   </head>
   <body>
     <a href="#main" class="skip-link">Skip to content</a>
-    <Nav />
+    <Nav module={module} />
     <main id="main" transition:name="main">
       <slot />
     </main>

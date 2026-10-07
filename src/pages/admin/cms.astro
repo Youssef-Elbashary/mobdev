@@ -1,11 +1,11 @@
 ---
 import Base from '@/layouts/Base.astro';
-import { isAdmin } from '@/lib/attendance/server';
+import { isDoctor } from '@/lib/attendance/server';
 import { cmsSetup, currentEditor, editors } from '@/lib/cms/server';
 
 export const prerender = false;
 Astro.response.headers.set('cache-control', 'no-store, max-age=0');
-if (!isAdmin(Astro.cookies)) return Astro.redirect('/admin', 303);
+if (!isDoctor(Astro.cookies)) return Astro.redirect('/admin', 303);
 
 const setup = cmsSetup();
 const available = setup.github || setup.local;

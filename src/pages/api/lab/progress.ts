@@ -6,7 +6,7 @@ import type { APIRoute } from 'astro';
 import { validateLabEvent } from '@/lib/lab/core';
 import { getLabBackend } from '@/lib/lab/server';
 import { sessionState } from '@/lib/progress/core';
-import { getProgressStore } from '@/lib/progress/server';
+import { getProgressStore, getStructures } from '@/lib/progress/server';
 import { noStore } from '@/lib/attendance/server';
 
 export const prerender = false;
@@ -21,7 +21,8 @@ export const POST: APIRoute = async ({ request }) => {
   if (!backend) return json({ ok: false, error: 'Progress tracking is not set up yet.' }, 503);
 
   const body = await request.json().catch(() => null);
-  const v = validateLabEvent(body);
+  const labs = await getStructures().catch(() => []);
+  const v = validateLabEvent(body, (lab) => labs.some((l) => l.lab === lab));
   if (!v.ok) return json({ ok: false, error: v.error }, 400);
 
   const progress = getProgressStore();

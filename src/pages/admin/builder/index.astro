@@ -1,0 +1,127 @@
+---
+/** Builder home: every module (built-in + builder) and a form to create one. */
+import Base from '@/layouts/Base.astro';
+import { access } from '@/lib/accounts/access';
+import { compileModule } from '@/lib/platform/core';
+import { BUILT_IN_MODULE, getPlatformStore } from '@/lib/platform/server';
+
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'no-store, max-age=0');
+const me = await access(Astro.cookies);
+const canCreate = me.can('modules.create');
+if (!canCreate && !me.can('module.build')) return Astro.redirect('/login?next=/admin/builder', 303);
+
+const store = getPlatformStore();
+const [allModules, labs] = store ? await Promise.all([store.listModules(), store.listLabs()]) : [[], []];
+// people who can't create modules see only the modules they may build
+const modules = allModules.filter((m) => me.can('module.build', m.slug));
+const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Cairo' });
+---
+<Base title="Module builder" noindex>
+  <section class="bh container">
+    <header class="bh-top">
+      <div>
+        <p class="bh-k mono">Admin workspace</p>
+        <h1>Module builder</h1>
+        <p class="muted">Create modules and build their labs on a drag-and-drop canvas. Published labs get the same session check-in, attendance and progress tracking as the course labs.</p>
+      </div>
+      <div class="bh-links">
+        <a class="btn btn-ghost btn-sm" href="/admin">Attendance</a>
+        <a class="btn btn-ghost btn-sm" href="/admin/accounts">Accounts</a>
+        <a class="btn btn-ghost btn-sm" href="/modules" target="_blank" rel="noopener">Modules page ↗</a>
+      </div>
+    </header>
+
+    {!store ? (
+      <div class="bh-card"><h2>Connect a database</h2><p class="muted">The builder stores modules in the progress database. Connect Neon in Vercel (DATABASE_URL), or set LOCAL_DATABASE_URL on a laptop.</p></div>
+    ) : (
+      <div class="bh-grid">
+        {canCreate ? <form class="bh-card bh-new" data-bh-new>
+          <h2>New module</h2>
+          <label><span>Title</span><input class="input" name="title" required maxlength="120" placeholder="e.g. Web Development" /></label>
+          <label><span>Address <small>(optional)</small></span><span class="bh-slug mono">/m/<input class="input mono" name="slug" maxlength="50" placeholder="web-development" /></span></label>
+          <p class="bh-msg" data-bh-msg role="status"></p>
+          <button class="btn btn-primary" type="submit">Create and open canvas →</button>
+        </form> : <div class="bh-card"><h2>Your modules</h2><p class="muted">You can build the modules you're on the teaching team for. Ask a doctor or the super admin to create a new module.</p></div>}
+
+        <div class="bh-list">
+          <article class="bh-mod" style="--c:#c8ff4d">
+            <div><p class="mono bh-code">{BUILT_IN_MODULE.code} · built-in</p><h3>{BUILT_IN_MODULE.title}</h3>
+              <p class="muted small">The course site. Its labs live in <code>src/content/labs</code> and the CMS.</p></div>
+            <div class="bh-act"><a class="btn btn-ghost btn-sm" href="/admin/assessment/mobile-development">Assessment</a><a class="btn btn-ghost btn-sm" href="/course" target="_blank" rel="noopener">Open ↗</a></div>
+          </article>
+          {modules.map((m) => {
+            const c = compileModule(m.flow);
+            const mine = labs.filter((l) => l.module === m.slug);
+            return (
+              <article class="bh-mod" style={`--c:${c.meta.color || '#7cb1ff'}`}>
+                <div>
+                  <p class="mono bh-code">{c.meta.code || 'MODULE'} · /m/{m.slug} · <span class:list={['bh-pub', { on: m.published }]}>{m.published ? 'published' : 'draft'}</span></p>
+                  <h3>{c.meta.title || m.title}</h3>
+                  <p class="muted small">{mine.length} lab{mine.length === 1 ? '' : 's'} ({mine.filter((l) => l.published).length} published) · updated {when(m.updated_at)}</p>
+                </div>
+                <div class="bh-act">
+                  <a class="btn btn-primary btn-sm" href={`/admin/builder/${m.slug}`}>Open canvas →</a>
+                  <a class="btn btn-ghost btn-sm" href={`/admin/assessment/${m.slug}`}>Assessment</a>
+                  <a class="btn btn-ghost btn-sm" href={`/m/${m.slug}?preview`} target="_blank" rel="noopener">Preview ↗</a>
+                  <button class="btn btn-ghost btn-sm bh-del" type="button" data-del={m.slug} data-title={c.meta.title || m.title}>Delete</button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </div>
+    )}
+  </section>
+</Base>
+
+<style is:global>
+  .bh { min-height: 85dvh; padding-top: calc(var(--nav-h) + 44px); padding-bottom: 100px; display: grid; gap: 22px; align-content: start; }
+  .bh-k { color: var(--accent-text); text-transform: uppercase; letter-spacing: .12em; font-size: 11px; }
+  .bh-top { display: flex; justify-content: space-between; align-items: end; gap: 20px; flex-wrap: wrap; }
+  .bh-top h1 { font-size: var(--fs-xl); letter-spacing: -.04em; margin-top: 3px; }
+  .bh-top .muted { max-width: 70ch; }
+  .bh-links { display: flex; gap: 8px; }
+  .bh-grid { display: grid; gap: 18px; }
+  @media (min-width: 960px) { .bh-grid { grid-template-columns: 360px 1fr; align-items: start; } }
+  .bh-card { border: 1px solid var(--line-2); background: var(--surface); border-radius: var(--r-lg); padding: 24px; display: grid; gap: 14px; }
+  .bh-card h2 { font-size: var(--fs-lg); }
+  .bh-new label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+  .bh-new small { color: var(--text-3); font-weight: 400; }
+  .bh-new .input { height: 42px; padding: 0 12px; }
+  .bh-slug { display: flex; align-items: center; gap: 4px; color: var(--text-3); font-size: 13px; }
+  .bh-msg { min-height: 18px; font-size: 13px; color: var(--danger); }
+  .bh-list { display: grid; gap: 10px; }
+  .bh-mod { display: grid; gap: 12px; padding: 18px 20px; border: 1px solid var(--line-2); border-left: 4px solid var(--c); border-radius: var(--r-lg); background: var(--surface); }
+  @media (min-width: 720px) { .bh-mod { grid-template-columns: 1fr auto; align-items: center; } }
+  .bh-code { font-size: 11px; color: var(--text-3); }
+  .bh-mod h3 { font-size: 1.2rem; margin-top: 2px; }
+  .bh-pub { color: var(--warn); }
+  .bh-pub.on { color: var(--ok); }
+  .bh-act { display: flex; gap: 6px; flex-wrap: wrap; }
+  .bh-del { color: var(--danger); }
+</style>
+
+<script>
+  document.addEventListener('astro:page-load', () => {
+    const form = document.querySelector<HTMLFormElement>('[data-bh-new]');
+    if (!form || form.dataset.wired) return;
+    form.dataset.wired = '1';
+    const msg = form.querySelector<HTMLElement>('[data-bh-msg]')!;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const res = await fetch('/api/admin/platform/modules', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: fd.get('title'), slug: fd.get('slug') || undefined }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { msg.textContent = data.error ?? 'Could not create the module.'; return; }
+      location.href = `/admin/builder/${data.module.slug}`;
+    });
+    document.querySelectorAll<HTMLButtonElement>('[data-del]').forEach((b) => b.addEventListener('click', async () => {
+      // two-step confirm instead of window.confirm()
+      if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'Delete module + labs?'; setTimeout(() => { b.dataset.armed = ''; b.textContent = 'Delete'; }, 4000); return; }
+      b.disabled = true;
+      const res = await fetch(`/api/admin/platform/modules?slug=${encodeURIComponent(b.dataset.del!)}`, { method: 'DELETE' });
+      if (res.ok) b.closest('article')?.remove();
+    }));
+  });
+</script>

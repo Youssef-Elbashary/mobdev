@@ -45,6 +45,7 @@ import GhPullRequest from '@/components/lab/mock/GhPullRequest.astro';
 import VsCode from '@/components/lab/mock/VsCode.astro';
 import CheckinCard from '@/components/lab/CheckinCard.astro';
 import RepoSubmit from '@/components/lab/RepoSubmit.astro';
+import LabRuntime from '@/components/lab/LabRuntime.astro';
 // interactive labs (Lab 02+): live exercises, demos and explanation visuals
 import Exercise from '@/components/lab/interactive/Exercise.astro';
 import Demo from '@/components/lab/interactive/Demo.astro';
@@ -294,6 +295,7 @@ const sections = [
       </div>
     </aside>
   </div>
+  <LabRuntime />
 </Base>
 
 <style>
@@ -397,81 +399,3 @@ const sections = [
   .challenge { display: grid; gap: 12px; justify-items: start; padding: 28px; border-radius: var(--r-lg); border: 1.5px dashed color-mix(in oklab, var(--info) 45%, var(--line)); background: var(--info-soft); color: var(--text-2); }
   .aside-card { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
 </style>
-
-<script>
-  import { ensureIdentity, initProgressUi, record } from '@/scripts/progress';
-
-  /* Task progress (saved per lab in this browser) + legend ↔ marker highlighting */
-  function init() {
-    const root = document.querySelector<HTMLElement>('[data-lab]');
-    if (!root) return;
-    legends();
-    // interactive labs track solved exercises themselves (src/lab/ui/progress.ts)
-    if (root.hasAttribute('data-lab-interactive')) return;
-    const key = `lab-progress:${root.dataset.lab}`;
-    const boxes = Array.from(document.querySelectorAll<HTMLInputElement>('[data-task-check]'));
-    const total = boxes.length;
-    let done = new Set<string>();
-    try { done = new Set(JSON.parse(localStorage.getItem(key) || '[]')); } catch {}
-    boxes.forEach((b) => (b.checked = done.has(b.value)));
-
-    const update = () => {
-      const n = boxes.filter((b) => b.checked).length;
-      const p = total ? n / total : 0;
-      boxes.forEach((b) => b.closest('.task')?.classList.toggle('is-done', b.checked));
-      document.querySelectorAll<HTMLAnchorElement>('[data-track]').forEach((a) => a.classList.toggle('done', done.has(a.dataset.track!)));
-      const ring = document.querySelector<SVGCircleElement>('[data-ring]');
-      if (ring) ring.style.strokeDashoffset = String(100 - p * 100);
-      const pct = document.querySelector('[data-pct]');
-      if (pct) pct.textContent = String(Math.round(p * 100));
-      const dn = document.querySelector('[data-done]');
-      if (dn) dn.textContent = String(n);
-      document.querySelector<HTMLElement>('[data-track-bar]')?.style.setProperty('--p', String(p));
-      // per-part fill in the session plan
-      document.querySelectorAll<HTMLAnchorElement>('[data-plan-part]').forEach((a) => {
-        const part = a.dataset.planPart!;
-        const inPart = boxes.filter((b) => b.value.split('.')[0] === part);
-        const pd = inPart.filter((b) => b.checked).length;
-        a.style.setProperty('--p', String(inPart.length ? pd / inPart.length : 0));
-      });
-      const banner = document.querySelector<HTMLElement>('[data-lab-complete]');
-      if (banner) banner.hidden = !(total && n === total);
-    };
-    boxes.forEach((b) =>
-      b.addEventListener('change', () => {
-        b.checked ? done.add(b.value) : done.delete(b.value);
-        try { localStorage.setItem(key, JSON.stringify([...done])); } catch {}
-        update();
-        // progress tracking: the TA sees Done ticks (asks for name + ID the first time)
-        ensureIdentity().then((me) => me && record.task({ lab: root.dataset.lab!, task: b.value, done: b.checked }));
-      }),
-    );
-    document.querySelector('[data-lab-reset]')?.addEventListener('click', () => {
-      boxes.filter((b) => b.checked).forEach((b) => record.task({ lab: root.dataset.lab!, task: b.value, done: false }));
-      done.clear();
-      boxes.forEach((b) => (b.checked = false));
-      try { localStorage.removeItem(key); } catch {}
-      update();
-    });
-    update();
-  }
-
-  /** hovering a legend item highlights the matching numbered marker (and vice versa) */
-  function legends() {
-    document.querySelectorAll<HTMLOListElement>('.mock-fig + ol, .legend-host + ol').forEach((ol) => {
-      const fig = ol.previousElementSibling;
-      if (!fig) return;
-      const marks = Array.from(fig.querySelectorAll<HTMLElement>('.mk'));
-      Array.from(ol.children).forEach((li, i) => {
-        const mk = marks.find((m) => m.textContent?.trim() === String(i + 1));
-        if (!mk) return;
-        const on = () => { mk.classList.add('hl'); li.classList.add('hl'); };
-        const off = () => { mk.classList.remove('hl'); li.classList.remove('hl'); };
-        li.addEventListener('mouseenter', on); li.addEventListener('mouseleave', off);
-        mk.addEventListener('mouseenter', on); mk.addEventListener('mouseleave', off);
-      });
-    });
-  }
-  document.addEventListener('astro:page-load', init);
-  document.addEventListener('astro:page-load', initProgressUi);
-</script>
