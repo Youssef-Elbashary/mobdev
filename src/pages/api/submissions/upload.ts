@@ -1,13 +1,14 @@
 /**
  * POST /api/submissions/upload — issues short-lived Vercel Blob tokens so a student's browser can upload
- * their PDF straight to Blob. Only for items accepting hand-ins; PDFs only, 4 MB max; rate-limited per IP.
+ * their file straight to Blob. Only while the item accepts hand-ins (open, before any cut-off), only its
+ * accepted file types and size limit; rate-limited per IP.
  * The browser sends clientPayload = JSON { fileId }.
  */
 import type { APIRoute } from 'astro';
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { clientIp } from '@/lib/attendance/server';
 import { getProgressStore, json } from '@/lib/progress/server';
-import { MAX_ENTRY_BYTES, canSubmit } from '@/lib/project-files/core';
+import { canSubmit, maxBytes, mimesFor, typeForName } from '@/lib/project-files/core';
 import { blobToken, entryFolder, getFilesStore } from '@/lib/project-files/server';
 
 export const prerender = false;
@@ -28,10 +29,11 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
         const fileId = String((JSON.parse(clientPayload ?? '{}') as { fileId?: unknown }).fileId ?? '');
         const file = fileId ? await store.get(fileId) : null;
         if (!file || !canSubmit(file)) throw new Error('This submission is closed.');
-        if (!pathname.startsWith(`${entryFolder(file.id)}/`) || !pathname.toLowerCase().endsWith('.pdf')) throw new Error('Invalid file path.');
+        if (!pathname.startsWith(`${entryFolder(file.id)}/`)) throw new Error('Invalid file path.');
+        if (!typeForName(pathname, file.accept_types)) throw new Error('That file type is not accepted here.');
         const tries = (await getProgressStore()?.hit(`submit-upload:${clientIp(request, clientAddress)}`, WINDOW_SEC).catch(() => 0)) ?? 0;
         if (tries > TOKENS_PER_WINDOW) throw new Error('Too many uploads. Wait a few minutes and try again.');
-        return { allowedContentTypes: ['application/pdf'], maximumSizeInBytes: MAX_ENTRY_BYTES, addRandomSuffix: true };
+        return { allowedContentTypes: mimesFor(file.accept_types), maximumSizeInBytes: maxBytes(file), addRandomSuffix: true };
       },
     });
     return json(result);

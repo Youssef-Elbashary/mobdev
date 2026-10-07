@@ -1,0 +1,224 @@
+---
+/**
+ * "Manage" panel on /admin/project/[id]: edit every setting of a published submission
+ * (title, type, instructions, due date, cut-off, open/closed, accepted file types, size limit, attachment).
+ * Saves through PATCH /api/admin/project/files?id=… ; dates are shown and entered in the admin's local time.
+ */
+import { DEFAULT_MAX_MB, FILE_TYPES, KINDS, KIND_LABEL, MAX_MB_LIMIT, TYPE_KEYS, type ProjectFile } from '@/lib/project-files/core';
+import { blobFolder, storageMode } from '@/lib/project-files/server';
+
+interface Props { file: ProjectFile; entries?: number }
+const { file } = Astro.props;
+const mode = storageMode();
+---
+<details class="ss" id="settings" data-ss data-id={file.id} data-mode={mode ?? ''} data-folder={blobFolder()}
+  data-ss-due={file.due_at ?? ''} data-ss-cutoff={file.cutoff_at ?? ''}>
+  <summary>
+    <span><b>Manage settings</b><small>Due date, cut-off, file types, size limit, open/closed, attachment</small></span>
+    <span class="ss-chev" aria-hidden="true">▾</span>
+  </summary>
+  <form class="ss-form" data-ss-form novalidate>
+    <div class="ss-grid">
+      <label class="ss-wide"><span>Title</span><input class="input" name="title" required maxlength="120" value={file.title} /></label>
+      <label><span>Type</span>
+        <select class="input" name="kind">{KINDS.map((k) => <option value={k} selected={k === file.kind}>{KIND_LABEL[k]}</option>)}</select>
+      </label>
+      <label class="ss-switch">
+        <input type="checkbox" name="accepting" checked={file.accepting} />
+        <span class="ss-track" aria-hidden="true"><i></i></span>
+        <span><b>Accepting hand-ins</b><small>Turn off to close submissions now.</small></span>
+      </label>
+      <label class="ss-wide"><span>Instructions</span><textarea class="input" name="description" rows="4" maxlength="2000">{file.description}</textarea></label>
+
+      <label><span>Due date <small>(late after this)</small></span><input class="input" type="datetime-local" name="dueAt" /></label>
+      <label><span>Cut-off <small>(no hand-ins after this)</small></span><input class="input" type="datetime-local" name="cutoffAt" /></label>
+      <p class="ss-hint ss-wide" data-ss-dates></p>
+
+      <fieldset class="ss-wide">
+        <legend>Accepted file types</legend>
+        <div class="ss-types">
+          {TYPE_KEYS.map((t) => (
+            <label class="ss-type"><input type="checkbox" name="acceptTypes" value={t} checked={file.accept_types.includes(t)} />
+              <span><b>{FILE_TYPES[t].label}</b><small>{Object.keys(FILE_TYPES[t].exts).map((e) => `.${e}`).join(' ')}</small></span></label>
+          ))}
+        </div>
+      </fieldset>
+
+      <label><span>Max file size</span>
+        <span class="ss-size"><input class="input" type="number" name="maxMb" min="1" max={MAX_MB_LIMIT} step="1" value={file.max_mb ?? DEFAULT_MAX_MB} /> MB</span>
+      </label>
+      <p class="ss-hint" data-ss-storage></p>
+
+      <fieldset class="ss-wide">
+        <legend>Attached PDF</legend>
+        {file.url ? (
+          <p class="ss-attach"><a href={file.url} target="_blank" rel="noopener">Current PDF{file.size ? ` · ${Math.max(1, Math.round(file.size / 1024))} KB` : ''} ↗</a>
+            <label class="ss-inline"><input type="checkbox" name="removeAttachment" /> Remove it</label></p>
+        ) : <p class="ss-hint">No attachment.</p>}
+        <label><span>{file.url ? 'Replace with' : 'Attach'} a PDF <small>(optional, 20 MB max)</small></span><input class="input" type="file" name="file" accept="application/pdf,.pdf" /></label>
+      </fieldset>
+    </div>
+    <progress max="100" value="0" hidden data-ss-progress></progress>
+    <p class="ss-msg" role="status" data-ss-msg></p>
+    <div class="ss-actions">
+      <button class="btn btn-primary" type="submit" data-ss-save>Save changes</button>
+      <button class="btn btn-ghost" type="reset">Undo edits</button>
+    </div>
+  </form>
+</details>
+
+<style is:global>
+  .ss { border: 1px solid var(--line-2); background: var(--surface); border-radius: var(--r-lg); }
+  .ss > summary { list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px clamp(16px, 3vw, 24px); cursor: pointer; }
+  .ss > summary::-webkit-details-marker { display: none; }
+  .ss > summary b { display: block; font-size: var(--fs-lg); letter-spacing: -.02em; }
+  .ss > summary small { color: var(--text-3); font-size: 12.5px; }
+  .ss-chev { transition: transform var(--t-fast); color: var(--text-3); }
+  .ss[open] .ss-chev { transform: rotate(180deg); }
+  .ss-form { padding: 0 clamp(16px, 3vw, 24px) clamp(16px, 3vw, 24px); display: grid; gap: 14px; border-top: 1px solid var(--line); padding-top: 18px; }
+  .ss-grid { display: grid; gap: 14px; }
+  @media (min-width: 760px) { .ss-grid { grid-template-columns: 1fr 1fr; } .ss-wide { grid-column: 1 / -1; } }
+  .ss-form label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; align-content: start; }
+  .ss-form small { color: var(--text-3); font-weight: 400; }
+  .ss-form .input { padding: 0 14px; height: 44px; }
+  .ss-form textarea.input { height: auto; padding: 10px 14px; resize: vertical; }
+  .ss-form input[type="file"].input { padding: 9px 10px; }
+  .ss-form fieldset { border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px 14px 14px; display: grid; gap: 10px; }
+  .ss-form legend { padding: 0 6px; font-size: 13px; font-weight: 600; }
+  .ss-types { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+  .ss-form .ss-type { display: flex; gap: 10px; align-items: flex-start; padding: 10px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; font-weight: 400; }
+  .ss-type:has(input:checked) { border-color: var(--accent-text); background: var(--accent-soft); }
+  .ss-type input, .ss-inline input { margin-top: 2px; accent-color: var(--accent); width: 16px; height: 16px; }
+  .ss-type b { display: block; font-size: 13px; }
+  .ss-type small { font-family: var(--font-mono); font-size: 11px; }
+  .ss-size { display: flex; align-items: center; gap: 8px; font-weight: 400; }
+  .ss-size .input { width: 96px; }
+  .ss-hint { font-size: 12.5px; color: var(--text-3); align-self: end; }
+  .ss-hint.warn { color: var(--warn); }
+  .ss-attach { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; font-size: 14px; }
+  .ss-attach a { color: var(--accent-text); }
+  .ss-form .ss-inline { display: inline-flex; align-items: center; gap: 6px; font-weight: 400; }
+  .ss-form .ss-switch { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-md); cursor: pointer; align-self: end; }
+  .ss-switch input { position: absolute; opacity: 0; pointer-events: none; }
+  .ss-track { flex: none; position: relative; width: 40px; height: 22px; border-radius: 999px; background: var(--line-2); transition: background var(--t-fast); }
+  .ss-track i { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--text); transition: transform var(--t-fast); }
+  .ss-switch input:checked + .ss-track { background: var(--accent); }
+  .ss-switch input:checked + .ss-track i { transform: translateX(18px); background: var(--accent-ink); }
+  .ss-switch input:focus-visible + .ss-track { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+  .ss-switch b { display: block; }
+  .ss-form progress { width: 100%; accent-color: var(--accent); }
+  .ss-msg { min-height: 20px; font-size: 13px; }
+  .ss-msg.err { color: var(--danger); }
+  .ss-msg.ok { color: var(--accent-text); }
+  .ss-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+</style>
+
+<script>
+  import { upload } from '@vercel/blob/client';
+
+  const CLASS_SIZE = 200;
+  const FREE_MB = 1024;
+
+  /** ISO → value for <input type="datetime-local"> in this browser's time zone. */
+  const localInput = (iso: string) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  };
+  const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+
+  document.addEventListener('astro:page-load', () => {
+    const root = document.querySelector<HTMLElement>('[data-ss]');
+    if (!root || root.dataset.wired) return;
+    root.dataset.wired = '1';
+    if (location.hash === '#settings') { root.open = true; root.scrollIntoView({ block: 'start' }); }
+
+    const form = root.querySelector<HTMLFormElement>('[data-ss-form]')!;
+    const msg = root.querySelector<HTMLElement>('[data-ss-msg]')!;
+    const bar = root.querySelector<HTMLProgressElement>('[data-ss-progress]')!;
+    const save = root.querySelector<HTMLButtonElement>('[data-ss-save]')!;
+    const dates = root.querySelector<HTMLElement>('[data-ss-dates]')!;
+    const storage = root.querySelector<HTMLElement>('[data-ss-storage]')!;
+    const field = (n: string) => form.elements.namedItem(n) as HTMLInputElement;
+    const say = (text: string, kind: '' | 'ok' | 'err' = '') => { msg.textContent = text; msg.className = `ss-msg ${kind}`; };
+
+    const fill = () => {
+      field('dueAt').value = localInput(root.dataset.ssDue ?? '');
+      field('cutoffAt').value = localInput(root.dataset.ssCutoff ?? '');
+      hints();
+    };
+    const hints = () => {
+      const due = field('dueAt').value, cut = field('cutoffAt').value;
+      const now = Date.now();
+      const parts: string[] = [];
+      if (due && Date.parse(due) < now) parts.push('The due date has passed, so new hand-ins are marked late and the banner is hidden.');
+      if (cut && Date.parse(cut) < now) parts.push('The cut-off has passed, so students cannot hand in.');
+      if (due && cut && Date.parse(cut) < Date.parse(due)) parts.push('The cut-off must be at or after the due date.');
+      if (!parts.length) parts.push(cut ? 'Hand-ins after the due date are marked late, and none are accepted after the cut-off.' : 'No cut-off: late hand-ins are accepted (and flagged) until you close it.');
+      dates.textContent = parts.join(' ');
+      dates.classList.toggle('warn', parts.length > 0 && /passed|must/.test(parts[0]));
+      const mb = Number(field('maxMb').value) || 0;
+      const worst = mb * CLASS_SIZE;
+      storage.textContent = `${CLASS_SIZE} students × ${mb} MB = up to ${worst >= 1024 ? `${(worst / 1024).toFixed(1)} GB` : `${worst} MB`} (free plan: 1 GB in total).`;
+      storage.classList.toggle('warn', worst > FREE_MB);
+    };
+    fill();
+    form.addEventListener('input', hints);
+    form.addEventListener('reset', () => setTimeout(fill));
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const types = fd.getAll('acceptTypes').map(String);
+      if (!types.length) return say('Allow at least one file type.', 'err');
+      const due = String(fd.get('dueAt') ?? ''), cut = String(fd.get('cutoffAt') ?? '');
+      const toIso = (v: string) => (v ? new Date(v).toISOString() : '');
+      const settings: Record<string, unknown> = {
+        title: fd.get('title'), kind: fd.get('kind'), description: fd.get('description'),
+        dueAt: toIso(due), cutoffAt: toIso(cut), accepting: fd.get('accepting') === 'on',
+        acceptTypes: types, maxMb: Number(fd.get('maxMb')), removeAttachment: fd.get('removeAttachment') === 'on',
+      };
+      const pdf = fd.get('file') as File | null;
+      const hasPdf = Boolean(pdf?.size);
+      if (hasPdf && pdf!.type && pdf!.type !== 'application/pdf') return say('The attachment must be a PDF.', 'err');
+      if (hasPdf && pdf!.size > 20 * 1024 * 1024) return say('The PDF must be 20 MB or smaller.', 'err');
+
+      save.disabled = true;
+      say(hasPdf ? 'Uploading the PDF…' : 'Saving…');
+      bar.hidden = !hasPdf; bar.value = 0;
+      try {
+        let res: Response;
+        const url = `/api/admin/project/files?id=${encodeURIComponent(root.dataset.id!)}`;
+        if (hasPdf && root.dataset.mode === 'local') {
+          const body = new FormData();
+          for (const [k, v] of Object.entries(settings)) body.set(k, Array.isArray(v) ? v.join(',') : String(v));
+          body.set('file', pdf!);
+          res = await fetch(url, { method: 'PATCH', body });
+        } else {
+          if (hasPdf) {
+            const name = pdf!.name.replace(/[^\w.-]+/g, '-');
+            const blob = await upload(`${root.dataset.folder}/${name.toLowerCase().endsWith('.pdf') ? name : `${name}.pdf`}`, pdf!, {
+              access: 'public', contentType: 'application/pdf', handleUploadUrl: '/api/admin/project/upload',
+              onUploadProgress: ({ percentage }) => { bar.value = percentage; },
+            });
+            settings.attachmentUrl = blob.url;
+            say('Saving…');
+          }
+          res = await fetch(url, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(settings) });
+        }
+        if (res.status === 401) return location.reload();
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error ?? 'Could not save.');
+        const f = data.file;
+        say(`Saved. ${f.accepting ? 'Open' : 'Closed'}${f.due_at ? ` · due ${when(f.due_at)}` : ''}${f.cutoff_at ? ` · cut-off ${when(f.cutoff_at)}` : ''}. Reloading…`, 'ok');
+        sessionStorage.removeItem('ann:cache');
+        setTimeout(() => location.reload(), 900);
+      } catch (error) {
+        say(error instanceof Error ? error.message : 'Could not save.', 'err');
+        save.disabled = false;
+      } finally {
+        bar.hidden = true;
+      }
+    });
+  });
+</script>

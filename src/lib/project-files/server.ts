@@ -15,7 +15,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { del, head } from '@vercel/blob';
-import { looksLikePdf, type Entry, type EntryInput, type FileMeta, type ProjectFile } from './core';
+import { TYPE_KEYS, matchesSignature, mimesFor, typeForName, type Entry, type EntryInput, type FileType, type ProjectFile, type Settings } from './core';
 
 const env = (key: string) => getSecret(key) || undefined;
 const onVercel = () => Boolean(env('VERCEL'));
@@ -36,9 +36,12 @@ export const entryFolder = (fileId: string) => `${blobFolder()}/entries/${fileId
 
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : v == null ? null : String(v));
 const toFile = (r: any): ProjectFile => ({
-  id: r.id, title: r.title, description: r.description, kind: r.kind, due_at: iso(r.due_at),
+  id: r.id, title: r.title, description: r.description, kind: r.kind, due_at: iso(r.due_at), cutoff_at: iso(r.cutoff_at),
   url: r.url ?? null, pathname: r.pathname ?? null, size: r.size == null ? null : Number(r.size),
-  accepting: Boolean(r.accepting), published_by: r.published_by, created_at: iso(r.created_at)!,
+  accepting: Boolean(r.accepting),
+  accept_types: (Array.isArray(r.accept_types) && r.accept_types.length ? r.accept_types : ['pdf']).filter((t: string) => (TYPE_KEYS as string[]).includes(t)) as FileType[],
+  max_mb: r.max_mb == null ? 4 : Number(r.max_mb),
+  published_by: r.published_by, created_at: iso(r.created_at)!,
 });
 const toEntry = (r: any): Entry => ({ ...r, size: Number(r.size), created_at: iso(r.created_at)!, updated_at: iso(r.updated_at)! });
 
@@ -74,6 +77,10 @@ class FilesStore {
       `alter table ${this.files} alter column pathname drop not null`,
       `alter table ${this.files} alter column size drop not null`,
       `alter table ${this.files} add column if not exists accepting boolean not null default false`,
+      // v3: managed settings — hard cut-off, accepted file types, per-file size limit
+      `alter table ${this.files} add column if not exists cutoff_at timestamptz`,
+      `alter table ${this.files} add column if not exists accept_types text[] not null default '{pdf}'`,
+      `alter table ${this.files} add column if not exists max_mb int not null default 4`,
       `create table if not exists ${this.entries} (
         id text primary key, file_id text not null references ${this.files}(id) on delete cascade,
         student_id text not null, name text not null, group_name text not null, note text not null default '',
@@ -98,18 +105,34 @@ class FilesStore {
     return row ? toFile(row) : null;
   }
 
-  async add(meta: FileMeta, file: Stored | null, by: string): Promise<ProjectFile> {
+  async add(meta: Settings, file: Stored | null, by: string): Promise<ProjectFile> {
     const [row] = await this.q(
-      `insert into ${this.files} (id, title, description, kind, due_at, url, pathname, size, accepting, published_by)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) returning *`,
-      [randomUUID(), meta.title, meta.description, meta.kind, meta.dueAt, file?.url ?? null, file?.pathname ?? null, file?.size ?? null, meta.accepting, by],
+      `insert into ${this.files} (id, title, description, kind, due_at, cutoff_at, url, pathname, size, accepting, accept_types, max_mb, published_by)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) returning *`,
+      [randomUUID(), meta.title, meta.description, meta.kind, meta.dueAt, meta.cutoffAt, file?.url ?? null, file?.pathname ?? null, file?.size ?? null,
+        meta.accepting, meta.acceptTypes, meta.maxMb, by],
     );
     return toFile(row);
   }
 
-  async setAccepting(id: string, accepting: boolean): Promise<ProjectFile | null> {
-    const [row] = await this.q(`update ${this.files} set accepting = $2 where id = $1 returning *`, [id, accepting]);
-    return row ? toFile(row) : null;
+  /**
+   * Saves edited settings. `attachment`: undefined keeps the current PDF, null removes it, a value replaces it.
+   * Returns the updated item and the previous attachment if it was replaced or removed (to delete from storage).
+   */
+  async update(id: string, s: Settings, attachment?: Stored | null): Promise<{ file: ProjectFile; dropped: Stored | null } | null> {
+    const before = await this.get(id);
+    if (!before) return null;
+    const keep = attachment === undefined;
+    const [row] = await this.q(
+      `update ${this.files} set title = $2, description = $3, kind = $4, due_at = $5, cutoff_at = $6, accepting = $7,
+         accept_types = $8, max_mb = $9${keep ? '' : ', url = $10, pathname = $11, size = $12'}
+       where id = $1 returning *`,
+      [id, s.title, s.description, s.kind, s.dueAt, s.cutoffAt, s.accepting, s.acceptTypes, s.maxMb,
+        ...(keep ? [] : [attachment?.url ?? null, attachment?.pathname ?? null, attachment?.size ?? null])],
+    );
+    const dropped = !keep && before.url && before.pathname && before.pathname !== attachment?.pathname
+      ? { url: before.url, pathname: before.pathname, size: before.size ?? 0 } : null;
+    return { file: toFile(row), dropped };
   }
 
   /** Removes the item; its hand-ins go with it (cascade). Returns everything whose PDF must be deleted. */
@@ -179,24 +202,26 @@ export function getFilesStore(): FilesStore | null {
 /* ------------------------------------------------------------ blob checks */
 
 /**
- * Confirms a browser upload really landed in our store, inside `folder`, as a PDF no bigger than `maxBytes`.
- * head() only finds blobs in our own store, so links to anywhere else are rejected. A bad upload is deleted.
+ * Confirms a browser upload really landed in our store, inside `folder`, as one of `types` (extension, MIME type
+ * and file signature all agree) and no bigger than `maxBytes`. head() only finds blobs in our own store, so links
+ * to anywhere else are rejected. A bad upload is deleted.
  */
-export async function verifyUpload(url: string, folder: string, maxBytes: number): Promise<{ ok: true; file: Stored } | { ok: false; error: string }> {
+export async function verifyUpload(url: string, folder: string, maxBytes: number, types: readonly FileType[] = ['pdf']): Promise<{ ok: true; file: Stored } | { ok: false; error: string }> {
   const blob = await head(url, { token: blobToken() }).catch(() => null);
   if (!blob || !blob.pathname.startsWith(`${folder}/`)) return { ok: false, error: 'The uploaded file was not found.' };
   const bad = async (error: string) => { await deleteStored(blob); return { ok: false as const, error }; };
-  if (blob.contentType !== 'application/pdf') return bad('That file is not a PDF.');
-  if (blob.size > maxBytes) return bad(`The PDF must be ${Math.round(maxBytes / 1024 / 1024)} MB or smaller.`);
-  const start = await fetch(blob.url, { headers: { range: 'bytes=0-4' } }).then((r) => r.arrayBuffer()).catch(() => null);
-  if (!start || !looksLikePdf(new Uint8Array(start))) return bad('That file is not a PDF.');
+  const kind = typeForName(blob.pathname, types);
+  if (!kind || !mimesFor(types).includes(blob.contentType)) return bad('That file type is not accepted here.');
+  if (blob.size > maxBytes) return bad(`The file must be ${Math.round(maxBytes / 1024 / 1024)} MB or smaller.`);
+  const start = await fetch(blob.url, { headers: { range: 'bytes=0-7' } }).then((r) => r.arrayBuffer()).catch(() => null);
+  if (!start || !matchesSignature(kind.ext, new Uint8Array(start), types)) return bad(`That file isn't a real ${kind.ext.toUpperCase()} file.`);
   return { ok: true, file: { url: blob.url, pathname: blob.pathname, size: blob.size } };
 }
 
 /* ------------------------------------------------------------ local files */
 
 const LOCAL_DIR = path.resolve('.uploads', 'project-files');
-const LOCAL_NAME = /^[0-9a-f-]{36}-[a-z0-9-]+\.pdf$/;
+const LOCAL_NAME = /^[0-9a-f-]{36}-[a-z0-9-]+\.(pdf|docx|pptx|zip|png|jpe?g)$/;
 
 export async function saveLocal(name: string, bytes: Uint8Array) {
   const file = `${randomUUID()}-${name}`;
@@ -205,9 +230,10 @@ export async function saveLocal(name: string, bytes: Uint8Array) {
   return { url: `/api/project/files/${file}`, pathname: `local/${file}` };
 }
 
-export async function readLocal(name: string): Promise<Buffer | null> {
+export async function readLocal(name: string): Promise<{ bytes: Buffer; type: string } | null> {
   if (!LOCAL_NAME.test(name)) return null;
-  return readFile(path.join(LOCAL_DIR, name)).catch(() => null);
+  const bytes = await readFile(path.join(LOCAL_DIR, name)).catch(() => null);
+  return bytes ? { bytes, type: typeForName(name, TYPE_KEYS)?.mime ?? 'application/octet-stream' } : null;
 }
 
 /** Removes a stored PDF. Failures are logged, not thrown: the listing is already gone. */

@@ -198,9 +198,18 @@ For the hosted CMS, add these Vercel environment variables and redeploy:
 
 The teaching team publishes submissions, such as the **project proposal**, and students hand in a PDF on the site.
 
-- **Publish:** open `/admin/project` (or **Submissions →** on `/admin`). Enter a title, type, optional instructions and due date, and **optionally** attach a PDF (20 MB max, e.g. a brief or form). Leave **Accept student submissions** ticked to collect hand-ins. **Close** / **Open** toggles hand-ins at any time, and **Delete** removes the item together with every hand-in and stored PDF.
+- **Publish:** open `/admin/project` (or **Submissions →** on `/admin`). Enter a title, type, optional instructions and due date, and **optionally** attach a PDF (20 MB max, e.g. a brief or form). Leave **Accept student submissions** ticked to collect hand-ins. A due date must be in the future. **Close** / **Open** toggles hand-ins at any time, and **Delete** removes the item together with every hand-in and stored file.
+- **Manage:** **Manage** (or the panel at the top of `/admin/project/<id>`) edits every setting of a published item:
+  - title, type and instructions, and open/closed
+  - **due date**: hand-ins after it are marked late
+  - **cut-off**: optional; no hand-ins after it, and without one, late hand-ins are accepted until you close the item
+  - **accepted file types**: PDF, Word `.docx`, PowerPoint `.pptx`, ZIP, PNG/JPG
+  - **max file size**: 1–10 MB, with a 200-student storage estimate
+  - **attached PDF**: replace or remove it
+
+  Dates are entered in your local time. A changed due date or cut-off must be in the future, the cut-off can't be before the due date, and untouched dates are kept even if they've passed. Each list row shows whether its banner is live and, if not, why (past due, cut-off passed, ended). Opening a student page while signed in as admin doesn't hide the banner from you.
 - **Announcement:** an open item published in the last 14 days and not yet past due shows a dismissible promo bar at the bottom of every page, plus a **NEW** badge on the Project nav link. Both clear for a student once they open its submit page. It also appears under **Submissions** on `/project`.
-- **Students:** `/submit/<id>` shows the instructions, any attached PDF and a due-date countdown, plus a form for name, student ID, group and one PDF (4 MB max) with an optional note. There's one hand-in per student ID, and it can be replaced only from the browser that first handed it in, so nobody can overwrite another student's work. Hand-ins after the due time are accepted and marked **late** until the item is closed.
+- **Students:** `/submit/<id>` shows the instructions, any attached PDF and a due-date countdown, plus a form for name, student ID, group and one file (the item's accepted types and size limit, 4 MB PDF by default) with an optional note. Every file's extension, MIME type and signature must agree, so a renamed file is rejected. There's one hand-in per student ID, and it can be replaced only from the browser that first handed it in, so nobody can overwrite another student's work. Hand-ins after the due time are accepted and marked **late** until the cut-off or until the item is closed.
 - **Insights:** `/admin/project/<id>` shows totals, on-time vs late, storage used against the free 1 GB, per-group counts, a timeline, and every hand-in, auto-refreshing. Search by name, ID, group or note (the URL keeps `?q=`), and filter All / On time / Late. Open or delete single PDFs, or **Export CSV**.
 - **Batch download:** **Download all (ZIP)**, or tick rows (select-all respects the current filter) and **Download selected**. The ZIP is built in your browser from the Blob URLs, so it uses no server time, and Chrome/Edge stream it straight to disk. It contains `G1/23CS0042 - Sara Ali.pdf`-style paths plus `index.csv`. PDFs that can't be fetched become `… - MISSING.txt` notes.
 - **Find one student:** the **Find a submission** box on `/admin/project` searches every item at once. **In list →** opens that item's insights filtered to the student.

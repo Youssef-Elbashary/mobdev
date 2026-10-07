@@ -1,8 +1,9 @@
 ---
 import Base from '@/layouts/Base.astro';
 import EmptyState from '@/components/EmptyState.astro';
-import { KIND_LABEL, MAX_ENTRY_BYTES, canSubmit } from '@/lib/project-files/core';
+import { FILE_TYPES, KIND_LABEL, acceptAttr, canSubmit, describeTypes, maxBytes, pastCutoff } from '@/lib/project-files/core';
 import { entryFolder, getFilesStore, storageMode } from '@/lib/project-files/server';
+import { isAdmin } from '@/lib/attendance/server';
 
 export const prerender = false;
 Astro.response.headers.set('cache-control', 'no-store, max-age=0');
@@ -11,6 +12,12 @@ const store = getFilesStore();
 const file = store ? await store.get(Astro.params.id ?? '').catch(() => null) : null;
 if (!file) Astro.response.status = 404;
 const open = file ? canSubmit(file) : false;
+const cutoffPassed = file ? pastCutoff(file, Date.now()) : false;
+const types = file?.accept_types ?? ['pdf'];
+const typeText = describeTypes(types);
+/** ext → MIME for the browser's checks and the upload's content type. */
+const extMap = Object.fromEntries(types.flatMap((t) => Object.entries(FILE_TYPES[t].exts)));
+const iconText = types.length === 1 ? Object.keys(FILE_TYPES[types[0]].exts)[0].toUpperCase() : 'FILE';
 const mode = storageMode();
 const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 'full', timeStyle: 'short', timeZone: 'Africa/Cairo' });
 ---
@@ -26,7 +33,7 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
         <div class="container sbh-inner">
           <nav class="crumbs" aria-label="Breadcrumb"><a href="/">~</a><span aria-hidden="true">/</span><a href="/project#files">project</a><span aria-hidden="true">/</span><span aria-current="page">submit</span></nav>
           <p class="sbh-k mono">
-            <span class:list={['sbh-state', { open }]}><span class="dot"></span>{open ? 'Open for submissions' : file.accepting ? 'Open' : 'Closed'}</span>
+            <span class:list={['sbh-state', { open }]}><span class="dot"></span>{open ? 'Open for submissions' : cutoffPassed ? 'Cut-off passed' : 'Closed'}</span>
             <span>{KIND_LABEL[file.kind]}</span>
           </p>
           <h1 class="sbh-title">{file.title}</h1>
@@ -35,6 +42,13 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
               <span class="mono">Due</span>
               <b>{fmt(file.due_at)}</b>
               <span class="sbh-left mono" data-left></span>
+            </div>
+          )}
+          {file.cutoff_at && (
+            <div class="sbh-due sbh-cut">
+              <span class="mono">Final cut-off</span>
+              <b>{fmt(file.cutoff_at)}</b>
+              <span class="mono">no hand-ins after this</span>
             </div>
           )}
         </div>
@@ -51,24 +65,25 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
             </a>
           )}
           <ul class="sb-rules">
-            <li>One PDF, up to <b>{MAX_ENTRY_BYTES / 1024 / 1024} MB</b>.</li>
+            <li>One file: <b>{typeText}</b>, up to <b>{file.max_mb} MB</b>.</li>
             <li>Use your real name and student ID. Your TA sees exactly what you type.</li>
-            <li>You can hand in again from <b>this browser</b> before it closes. The new PDF replaces the old one.</li>
-            {file.due_at && <li>Anything handed in after the due time is marked <b>late</b>.</li>}
+            <li>You can hand in again from <b>this browser</b> before it closes. The new file replaces the old one.</li>
+            {file.due_at && <li>Anything handed in after the due time is marked <b>late</b>{file.cutoff_at ? ', and nothing is accepted after the cut-off' : ''}.</li>}
+            {!file.due_at && file.cutoff_at && <li>Nothing is accepted after the cut-off.</li>}
           </ul>
         </section>
 
-        <section class="sb-card" data-submit data-id={file.id} data-mode={mode ?? ''} data-folder={entryFolder(file.id)} data-max={MAX_ENTRY_BYTES} data-open={open ? '1' : ''}>
+        <section class="sb-card" data-submit data-id={file.id} data-mode={mode ?? ''} data-folder={entryFolder(file.id)} data-max={maxBytes(file)} data-types={JSON.stringify(extMap)} data-type-text={typeText} data-open={open ? '1' : ''} data-admin={isAdmin(Astro.cookies) ? '1' : undefined}>
           {!open ? (
             <div class="sb-closed">
-              <h2>Submissions are closed</h2>
-              <p class="muted">Your TA isn't accepting hand-ins for this right now. If you think that's a mistake, contact them.</p>
+              <h2>{cutoffPassed ? 'The cut-off has passed' : 'Submissions are closed'}</h2>
+              <p class="muted">{cutoffPassed ? 'Hand-ins closed at the final cut-off.' : "Your TA isn't accepting hand-ins for this right now."} If you think that's a mistake, contact them.</p>
             </div>
           ) : !mode ? (
             <div class="sb-closed"><h2>Not available yet</h2><p class="muted">File storage isn't set up on this site yet. Please tell your TA.</p></div>
           ) : (
             <form class="sb-form" data-sb-form novalidate>
-              <h2>Hand in your PDF</h2>
+              <h2>Hand in your file</h2>
               <label><span>Full name</span><input class="input" name="name" autocomplete="name" required maxlength="60" /></label>
               <div class="sb-row">
                 <label><span>Student ID</span><input class="input" name="studentId" required maxlength="20" autocapitalize="characters" spellcheck="false" /></label>
@@ -76,9 +91,9 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
               </div>
               <label><span>Note for your TA <small>(optional)</small></span><textarea class="input" name="note" rows="2" maxlength="500"></textarea></label>
               <label class="sb-drop" data-sb-drop>
-                <input type="file" name="file" accept="application/pdf,.pdf" required />
-                <span class="sb-drop-icon mono" aria-hidden="true">PDF</span>
-                <span data-sb-filename><b>Choose your PDF</b> or drop it here</span>
+                <input type="file" name="file" accept={acceptAttr(types)} required />
+                <span class="sb-drop-icon mono" aria-hidden="true">{iconText}</span>
+                <span data-sb-filename><b>Choose your file</b> or drop it here <small>({typeText}, {file.max_mb} MB max)</small></span>
               </label>
               <p class="sb-status" data-sb-status role="status"></p>
               <progress max="100" value="0" hidden data-sb-progress></progress>
@@ -89,7 +104,7 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
             <span class="sb-check" aria-hidden="true">✓</span>
             <h2>Submitted</h2>
             <p data-sb-done-text></p>
-            <button class="btn btn-ghost btn-sm" type="button" data-sb-again>Replace my PDF</button>
+            <button class="btn btn-ghost btn-sm" type="button" data-sb-again>Replace my file</button>
           </div>
         </section>
       </div>
@@ -111,6 +126,8 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
   .sbh-due { margin-top: 28px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
   .sbh-due .mono { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #8a93a1; }
   .sbh-due b { font-weight: 600; color: #ffb547; }
+  .sbh-cut { margin-top: 10px; }
+  .sbh-cut b { color: #ff8a7a; }
   .sbh-left { color: #c8ff4d !important; }
 
   .sb-body { display: grid; gap: 28px; padding-block: 48px 120px; }
@@ -189,7 +206,8 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
     const card = document.querySelector<HTMLElement>('[data-submit]');
     if (!card) return;
     const id = card.dataset.id!;
-    store.set(`submit:seen:${id}`, '1'); // clears the NEW badge for this item
+    // Clears the banner and NEW badge for this student; an admin previewing the page keeps seeing them.
+    if (!card.dataset.admin) store.set(`submit:seen:${id}`, '1');
     const form = card.querySelector<HTMLFormElement>('[data-sb-form]');
     if (!form || form.dataset.wired) return;
     form.dataset.wired = '1';
@@ -202,6 +220,8 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
     const fileName = card.querySelector<HTMLElement>('[data-sb-filename]')!;
     const done = card.querySelector<HTMLElement>('[data-sb-done]')!;
     const max = Number(card.dataset.max);
+    const exts: Record<string, string> = JSON.parse(card.dataset.types ?? '{"pdf":"application/pdf"}');
+    const typeText = card.dataset.typeText ?? 'PDF';
     const say = (text: string, kind: '' | 'ok' | 'err' | 'warn' = '') => { status.textContent = text; status.className = `sb-status ${kind}`; };
     const field = (n: string) => form.elements.namedItem(n) as HTMLInputElement;
 
@@ -215,9 +235,9 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
       form.hidden = true;
       done.hidden = false;
       done.querySelector('[data-sb-done-text]')!.textContent =
-        `${replaced ? 'Your PDF was replaced' : 'Your PDF was received'} on ${when(at)}${late ? ' (late)' : ''}. Your TA can see it now.`;
+        `${replaced ? 'Your file was replaced' : 'Your file was received'} on ${when(at)}${late ? ' (late)' : ''}. Your TA can see it now.`;
     };
-    done.querySelector('[data-sb-again]')!.addEventListener('click', () => { done.hidden = true; form.hidden = false; say('Choose the new PDF. It will replace the one you handed in.', 'warn'); });
+    done.querySelector('[data-sb-again]')!.addEventListener('click', () => { done.hidden = true; form.hidden = false; say('Choose the new file. It will replace the one you handed in.', 'warn'); });
 
     let checked = '';
     const check = async () => {
@@ -236,8 +256,8 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
       drop.classList.toggle('has-file', Boolean(f));
       fileName.innerHTML = '';
       const b = document.createElement('b');
-      b.textContent = f ? f.name : 'Choose your PDF';
-      fileName.append(b, f ? ` · ${Math.max(1, Math.round(f.size / 1024))} KB` : ' or drop it here');
+      b.textContent = f ? f.name : 'Choose your file';
+      fileName.append(b, f ? ` · ${Math.max(1, Math.round(f.size / 1024))} KB` : ` or drop it here (${typeText}, ${max / 1024 / 1024} MB max)`);
     };
     fileIn.addEventListener('change', () => pick(fileIn.files?.[0] ?? null));
     for (const ev of ['dragenter', 'dragover']) drop.addEventListener(ev, () => drop.classList.add('over'));
@@ -253,9 +273,11 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
       if (name.length < 2) return say('Please type your full name.', 'err'), field('name').focus();
       if (!/^[A-Za-z0-9-]{3,20}$/.test(studentId)) return say('Your student ID should be 3–20 letters or numbers.', 'err'), field('studentId').focus();
       if (!group) return say('Enter your group or team (for example, G1).', 'err'), field('group').focus();
-      if (!file) return say('Choose your PDF.', 'err');
-      if (file.type && file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) return say('That file is not a PDF.', 'err');
-      if (file.size > max) return say(`The PDF must be ${max / 1024 / 1024} MB or smaller. Compress it and try again.`, 'err');
+      if (!file) return say('Choose your file.', 'err');
+      const ext = (/\.([a-z0-9]+)$/i.exec(file.name)?.[1] ?? '').toLowerCase();
+      const mime = exts[ext];
+      if (!mime) return say(`Hand in a ${typeText} file.`, 'err');
+      if (file.size > max) return say(`The file must be ${max / 1024 / 1024} MB or smaller. Compress it and try again.`, 'err');
 
       const who = { name, studentId, group, note, deviceKey: deviceKey() };
       submit.disabled = true;
@@ -264,9 +286,9 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
       try {
         let res: Response;
         if (card.dataset.mode === 'blob') {
-          const blob = await upload(`${card.dataset.folder}/${studentId.toLowerCase()}.pdf`, file, {
+          const blob = await upload(`${card.dataset.folder}/${studentId.toLowerCase()}.${ext}`, file, {
             access: 'public',
-            contentType: 'application/pdf',
+            contentType: mime,
             handleUploadUrl: '/api/submissions/upload',
             clientPayload: JSON.stringify({ fileId: id }),
             onUploadProgress: ({ percentage }) => { bar.value = percentage; },

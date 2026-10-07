@@ -236,9 +236,11 @@ const nav = d ? [
 </style>
 
 <script>
-  type ProjectFile = { id: string; title: string; description: string; kind: string; due_at: string | null; url: string | null; size: number | null; accepting: boolean; created_at: string };
+  type ProjectFile = { id: string; title: string; description: string; kind: string; due_at: string | null; cutoff_at: string | null; url: string | null; size: number | null; accepting: boolean; created_at: string };
   const NEW_FOR_MS = 14 * 24 * 60 * 60 * 1000; // keep in sync with lib/project-files/core.ts
-  const isNew = (f: ProjectFile) => f.accepting && Date.now() - Date.parse(f.created_at) < NEW_FOR_MS && !(f.due_at && Date.parse(f.due_at) < Date.now());
+  // Mirror canSubmit / isNew in lib/project-files/core.ts.
+  const canSubmit = (f: ProjectFile) => f.accepting && !(f.cutoff_at && Date.parse(f.cutoff_at) < Date.now());
+  const isNew = (f: ProjectFile) => canSubmit(f) && Date.now() - Date.parse(f.created_at) < NEW_FOR_MS && !(f.due_at && Date.parse(f.due_at) < Date.now());
   const kb = (n: number) => (n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`);
   const KIND: Record<string, string> = { proposal: 'Proposal submission', brief: 'Brief', template: 'Template', other: 'Document' };
   const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -257,17 +259,18 @@ const nav = d ? [
     list.innerHTML = files.map((f) => {
       const submit = `/submit/${encodeURIComponent(f.id)}`;
       const title = f.accepting ? `<a href="${submit}">${esc(f.title)}</a>` : esc(f.title);
+      const closed = (f.accepting || f.kind === 'proposal') && !canSubmit(f);
       const meta = [esc(KIND[f.kind] ?? 'Document'), f.url && f.size ? `PDF · ${kb(f.size)}` : '', f.due_at ? `<span class="pjf-due">due ${day(f.due_at)}</span>` : ''].filter(Boolean).join(' · ');
       return `
       <article class="pjf${isNew(f) ? ' is-new' : ''}">
         <div>
-          <h3 class="pjf-t">${title}${isNew(f) ? '<span class="pjf-new">NEW</span>' : ''}${!f.accepting && f.kind === 'proposal' ? '<span class="pjf-closed">Closed</span>' : ''}</h3>
+          <h3 class="pjf-t">${title}${isNew(f) ? '<span class="pjf-new">NEW</span>' : ''}${closed ? '<span class="pjf-closed">Closed</span>' : ''}</h3>
           ${f.description ? `<p class="pjf-d">${esc(f.description)}</p>` : ''}
           <small class="mono">${meta}</small>
         </div>
         <div class="pjf-act">
           ${f.url ? `<a class="btn btn-ghost btn-sm" href="${esc(f.url)}" target="_blank" rel="noopener">Download PDF ↓</a>` : ''}
-          ${f.accepting ? `<a class="btn btn-primary btn-sm" href="${submit}">Submit →</a>` : ''}
+          ${canSubmit(f) ? `<a class="btn btn-primary btn-sm" href="${submit}">Submit →</a>` : ''}
         </div>
       </article>`;
     }).join('');

@@ -3,6 +3,7 @@ import Base from '@/layouts/Base.astro';
 import { isAdmin } from '@/lib/attendance/server';
 import { KIND_LABEL } from '@/lib/project-files/core';
 import { getFilesStore } from '@/lib/project-files/server';
+import SubmissionSettings from '@/components/admin/SubmissionSettings.astro';
 
 export const prerender = false;
 Astro.response.headers.set('cache-control', 'no-store, max-age=0');
@@ -18,7 +19,7 @@ if (!file) return Astro.redirect('/admin/project', 303);
       <div>
         <p class="si-k mono"><a href="/admin/project">← Project submissions</a> · {KIND_LABEL[file.kind]}</p>
         <h1>{file.title}</h1>
-        <p class="muted" data-si-sub>{file.due_at ? 'Due ' : 'No due date'}<span data-due={file.due_at ?? ''}></span></p>
+        <p class="muted" data-si-sub>{file.due_at ? 'Due ' : 'No due date'}<span data-due={file.due_at ?? ''}></span>{file.cutoff_at && <> · cut-off <span data-due={file.cutoff_at}></span></>} · {file.accept_types.length} file type{file.accept_types.length === 1 ? '' : 's'}, {file.max_mb} MB max</p>
       </div>
       <div class="si-links">
         <span class="live mono" data-si-live>loading…</span>
@@ -27,6 +28,8 @@ if (!file) return Astro.redirect('/admin/project', 303);
         <button class="btn btn-primary btn-sm" type="button" data-si-zip-all>Download all (ZIP)</button>
       </div>
     </header>
+
+    <SubmissionSettings file={file} />
 
     <div class="si-kpis" data-si-kpis></div>
 
@@ -140,8 +143,9 @@ if (!file) return Astro.redirect('/admin/project', 303);
     const live = root.querySelector<HTMLElement>('[data-si-live]')!;
     const search = root.querySelector<HTMLInputElement>('[data-si-search]')!;
     const msg = root.querySelector<HTMLElement>('[data-si-msg]')!;
-    const due = root.querySelector<HTMLElement>('[data-due]')!;
-    if (due.dataset.due) due.textContent = new Date(due.dataset.due).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' });
+    root.querySelectorAll<HTMLElement>('[data-si-sub] [data-due]').forEach((el) => {
+      if (el.dataset.due) el.textContent = new Date(el.dataset.due).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' });
+    });
     let entries: Entry[] = [];
     let filter: 'all' | 'ontime' | 'late' = 'all';
     const selected = new Set<string>();
@@ -195,7 +199,7 @@ if (!file) return Astro.redirect('/admin/project', 303);
           <td class="mono">${when(e.updated_at)}${e.updated_at !== e.created_at ? '<br><small class="faint">resubmitted</small>' : ''}</td>
           <td><span class="si-tag ${e.late ? 'late' : 'ok'}">${e.late ? 'late' : 'on time'}</span></td>
           <td class="mono">${kb(e.size)}</td>
-          <td><div class="si-row-act"><a class="btn btn-ghost btn-sm" href="${esc(e.url)}" target="_blank" rel="noopener">Open PDF</a><button class="btn btn-ghost btn-sm si-del" type="button" data-del="${esc(e.id)}" data-name="${esc(e.name)}">Delete</button></div></td>
+          <td><div class="si-row-act"><a class="btn btn-ghost btn-sm" href="${esc(e.url)}" target="_blank" rel="noopener">Open file</a><button class="btn btn-ghost btn-sm si-del" type="button" data-del="${esc(e.id)}" data-name="${esc(e.name)}">Delete</button></div></td>
         </tr>`).join('') : `<tr><td colspan="8" class="muted">${entries.length ? 'No matches.' : 'No submissions yet. Share the student page link with your class.'}</td></tr>`;
       syncSelection();
     };

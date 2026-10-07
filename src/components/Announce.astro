@@ -48,7 +48,7 @@
 </style>
 
 <script>
-  type Item = { id: string; title: string; kind: string; due_at: string | null; accepting: boolean; created_at: string };
+  type Item = { id: string; title: string; kind: string; due_at: string | null; cutoff_at: string | null; accepting: boolean; created_at: string };
   const NEW_FOR_MS = 14 * 24 * 60 * 60 * 1000; // keep in sync with lib/project-files/core.ts
   const CACHE_MS = 60_000;
 
@@ -68,7 +68,9 @@
     return files;
   }
 
-  const isNew = (f: Item, now: number) => f.accepting && now - Date.parse(f.created_at) < NEW_FOR_MS && !(f.due_at && Date.parse(f.due_at) < now);
+  // Mirrors isNew in lib/project-files/core.ts.
+  const isNew = (f: Item, now: number) => f.accepting && !(f.cutoff_at && Date.parse(f.cutoff_at) < now) &&
+    now - Date.parse(f.created_at) < NEW_FOR_MS && !(f.due_at && Date.parse(f.due_at) < now);
   const left = (iso: string) => {
     const ms = Date.parse(iso) - Date.now();
     const d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24;
