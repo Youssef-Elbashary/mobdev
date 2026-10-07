@@ -7,6 +7,7 @@
  */
 ---
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   import { ensureIdentity, initProgressUi, record } from '@/scripts/progress';
 
   /* Task progress (saved per lab in this browser) + legend ↔ marker highlighting */
@@ -80,6 +81,6 @@
       });
     });
   }
-  document.addEventListener('astro:page-load', init);
-  document.addEventListener('astro:page-load', initProgressUi);
+  onPageLoad( init);
+  onPageLoad( initProgressUi);
 </script>

@@ -236,6 +236,7 @@ const nav = d ? [
 </style>
 
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   type ProjectFile = { id: string; title: string; description: string; kind: string; due_at: string | null; cutoff_at: string | null; url: string | null; size: number | null; accepting: boolean; created_at: string };
   const NEW_FOR_MS = 14 * 24 * 60 * 60 * 1000; // keep in sync with lib/project-files/core.ts
   // Mirror canSubmit / isNew in lib/project-files/core.ts.
@@ -278,7 +279,7 @@ const nav = d ? [
     if (link) link.hidden = false;
   }
 
-  document.addEventListener('astro:page-load', () => {
+  onPageLoad( () => {
     loadFiles();
     const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-sub]'));
     if (!links.length) return;

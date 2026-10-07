@@ -83,11 +83,12 @@ import AdminShell from '@/components/admin/AdminShell.astro';
 </style>
 
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   type Item = { label: string; weight: number; detail: string };
   const COLORS = ['var(--mc)', '#7cb1ff', '#ffb547', '#ff8ad8', '#5ee0d2', '#b69cff', '#c8ff4d', '#ff7a6b'];
   const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-  document.addEventListener('astro:page-load', () => {
+  onPageLoad( () => {
     const root = document.querySelector<HTMLElement>('[data-as]');
     if (!root || root.dataset.wired) return;
     root.dataset.wired = '1';

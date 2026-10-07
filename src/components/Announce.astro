@@ -48,6 +48,7 @@
 </style>
 
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   type Item = { id: string; title: string; kind: string; due_at: string | null; cutoff_at: string | null; accepting: boolean; created_at: string };
   const NEW_FOR_MS = 14 * 24 * 60 * 60 * 1000; // keep in sync with lib/project-files/core.ts
   const CACHE_MS = 60_000;
@@ -110,5 +111,5 @@
     bar.classList.add('out');
     setTimeout(() => (bar.hidden = true), 250);
   });
-  document.addEventListener('astro:page-load', () => void announce());
+  onPageLoad( () => void announce());
 </script>

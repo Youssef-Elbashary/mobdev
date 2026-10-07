@@ -86,7 +86,8 @@ const levels = ['Beginner', 'Intermediate', 'Advanced'].filter((d) => labs.some(
 </style>
 
 <script>
-  document.addEventListener('astro:page-load', () => {
+  import { onPageLoad } from '@/scripts/page-load';
+  onPageLoad( () => {
     const btns = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-lf]'));
     btns.forEach((b) =>
       b.addEventListener('click', () => {

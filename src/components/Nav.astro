@@ -161,6 +161,7 @@ const isActive = (href: string) => path === href.replace(/#.*$/, '') || (href !=
 </style>
 
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   /** Sign in → "Name · role" once signed in (doctors and TAs go to /admin, students to their modules). */
   async function account() {
     const a = document.querySelector<HTMLAnchorElement>('[data-nav-account]');
@@ -177,5 +178,5 @@ const isActive = (href: string) => path === href.replace(/#.*$/, '') || (href !=
     a.href = '/account';
     a.classList.add('in');
   }
-  document.addEventListener('astro:page-load', () => void account());
+  onPageLoad( () => void account());
 </script>

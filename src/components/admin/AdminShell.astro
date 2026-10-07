@@ -5,6 +5,7 @@
  * reached from the workspace home.
  */
 import { access } from '@/lib/accounts/access';
+import { hubData } from '@/lib/accounts/hub';
 import { ROLE_NAMES } from '@/lib/accounts/permissions';
 import { platform } from '@/site.config';
 
@@ -12,6 +13,9 @@ interface Props { active?: string }
 const { active = '' } = Astro.props;
 const a = await access(Astro.cookies);
 const modules = Object.keys(a.who.modules);
+const teachingModules = (await hubData()).cards
+  .filter((module) => modules.includes(module.slug))
+  .map((module) => ({ slug: module.slug, title: module.title, code: module.code, color: module.color, role: ROLE_NAMES[a.who.modules[module.slug]] }));
 const any = (p: Parameters<typeof a.can>[0]) => a.can(p) || modules.some((m) => a.can(p, m));
 const groups = [
   { title: 'Workspace', items: [{ key: 'home', label: 'Home', href: '/admin', icon: '◎', show: true }] },
@@ -44,7 +48,21 @@ const initials = who.split(/\s+/).map((p) => p[0]).slice(0, 2).join('');
     <nav class="ash-nav">
       {groups.map((g) => (
         <div class="ash-group">
-          <p class="ash-gt mono">{g.title}</p>
+          {g.title === 'Teaching' && teachingModules.length ? (
+            <>
+              <button class="ash-gt ash-toggle mono" type="button" data-ash-teaching aria-expanded="false" aria-controls="ash-teaching-modules">
+                <span>Teaching</span><span class="ash-chevron" aria-hidden="true">⌄</span>
+              </button>
+              <div class="ash-module-menu" id="ash-teaching-modules" data-ash-teaching-modules hidden>
+                {teachingModules.map((module) => (
+                  <a href={`/admin#module-${module.slug}`} style={`--mc:${module.color}`}>
+                    <span class="ash-module-dot" aria-hidden="true"></span>
+                    <span><b>{module.title}</b><small>{module.code || 'Module'} · {module.role}</small></span>
+                  </a>
+                ))}
+              </div>
+            </>
+          ) : <p class="ash-gt mono">{g.title}</p>}
           {g.items.map((i) => <a class:list={['ash-link', { on: i.key === active }]} href={i.href} aria-current={i.key === active ? 'page' : undefined}><span class="ash-ic" aria-hidden="true">{i.icon}</span>{i.label}</a>)}
         </div>
       ))}
@@ -77,6 +95,18 @@ const initials = who.split(/\s+/).map((p) => p[0]).slice(0, 2).join('');
   .ash-av { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; background: color-mix(in oklab, var(--accent) 25%, var(--surface-2)); color: var(--text); font: 700 12px var(--font-mono); flex: none; }
   .ash-group { display: grid; gap: 2px; margin-bottom: 10px; }
   .ash-gt { padding: 4px 10px; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
+  .ash-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; border: 0; background: none; cursor: pointer; text-align: left; }
+  .ash-toggle:hover { color: var(--text); }
+  .ash-chevron { font-size: 15px; transition: transform var(--t-fast); }
+  .ash-toggle[aria-expanded='true'] .ash-chevron { transform: rotate(180deg); }
+  .ash-module-menu { display: grid; gap: 3px; padding: 4px 0 7px; }
+  .ash-module-menu[hidden] { display: none; }
+  .ash-module-menu a { display: grid; grid-template-columns: 8px 1fr; gap: 9px; align-items: center; padding: 8px 10px; border-radius: 10px; color: var(--text-2); background: color-mix(in oklab, var(--surface-2) 65%, transparent); }
+  .ash-module-menu a:hover { color: var(--text); background: var(--surface-2); }
+  .ash-module-menu b, .ash-module-menu small { display: block; }
+  .ash-module-menu b { font-size: 12.5px; }
+  .ash-module-menu small { margin-top: 2px; color: var(--text-3); font: 10px var(--font-mono); }
+  .ash-module-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mc); box-shadow: 0 0 9px var(--mc); }
   .ash-link { position: relative; display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; font-size: 13.5px; color: var(--text-2); transition: background var(--t-fast), color var(--t-fast); }
   .ash-link:hover { background: var(--surface-2); color: var(--text); }
   .ash-link.on { color: var(--text); background: linear-gradient(90deg, color-mix(in oklab, var(--accent) 18%, transparent), transparent); }
@@ -99,7 +129,18 @@ const initials = who.split(/\s+/).map((p) => p[0]).slice(0, 2).join('');
 </style>
 
 <script>
-  document.addEventListener('astro:page-load', () => {
+  import { onPageLoad } from '@/scripts/page-load';
+  onPageLoad( () => {
+    const teaching = document.querySelector<HTMLButtonElement>('[data-ash-teaching]');
+    const teachingModules = document.querySelector<HTMLElement>('[data-ash-teaching-modules]');
+    if (teaching && teachingModules && !teaching.dataset.wired) {
+      teaching.dataset.wired = '1';
+      teaching.addEventListener('click', () => {
+        const open = teaching.getAttribute('aria-expanded') !== 'true';
+        teaching.setAttribute('aria-expanded', String(open));
+        teachingModules.hidden = !open;
+      });
+    }
     document.querySelector('[data-ash-out]')?.addEventListener('click', async () => {
       await fetch('/api/auth/logout', { method: 'POST' });
       try { sessionStorage.removeItem('mdx:me'); } catch { /* ignore */ }

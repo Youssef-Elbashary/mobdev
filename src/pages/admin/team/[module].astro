@@ -125,6 +125,7 @@ import AdminShell from '@/components/admin/AdminShell.astro';
 </style>
 
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   type Staff = { email: string; role: string; name: string | null; hasAccount: boolean; platformRole: string | null; added_by: string };
   type Student = { email: string; name: string | null; student_id: string | null; source: string; created_at: string };
   type Inv = { token: string; email: string; name: string; platform_role: string; module_role: string | null; invited_by: string; expires_at: string };
@@ -133,7 +134,7 @@ import AdminShell from '@/components/admin/AdminShell.astro';
   const genPw = () => { const a = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ', d = '23456789'; const r = (s: string) => s[crypto.getRandomValues(new Uint32Array(1))[0] % s.length]; return Array.from({ length: 10 }, () => r(a)).join('') + r(d) + r(d); };
   const initials = (s: string) => s.split(/[\s.@]+/).filter(Boolean).map((p) => p[0].toUpperCase()).slice(0, 2).join('');
 
-  document.addEventListener('astro:page-load', () => {
+  onPageLoad( () => {
     const root = document.querySelector<HTMLElement>('[data-tm]');
     if (!root || root.dataset.wired) return;
     root.dataset.wired = '1';

@@ -26,7 +26,8 @@ const { id, lab = 'this lab' } = Astro.props;
 </section>
 
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   import { mountStart } from '@/lab/ui/start';
   const init = () => document.querySelectorAll<HTMLElement>('[data-lab-start]').forEach((node) => mountStart(node.dataset.labId!));
-  document.addEventListener('astro:page-load', init);
+  onPageLoad( init);
 </script>

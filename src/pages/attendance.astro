@@ -96,6 +96,7 @@ import { course } from '@/site.config';
 </style>
 
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   const LS_DEVICE = 'att-device';
   const LS_ENTRY = 'att-entry';
   type Entry = { n: number; name: string; id: string; at: string };
@@ -199,5 +200,5 @@ import { course } from '@/site.config';
       }
     });
   }
-  document.addEventListener('astro:page-load', init);
+  onPageLoad( init);
 </script>

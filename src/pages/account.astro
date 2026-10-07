@@ -130,7 +130,8 @@ const optionalCards = cards.filter((c) => optional.includes(c.slug));
 </style>
 
 <script>
-  document.addEventListener('astro:page-load', () => {
+  import { onPageLoad } from '@/scripts/page-load';
+  onPageLoad( () => {
     document.querySelectorAll<HTMLFormElement>('[data-pr-form]').forEach((form) => {
       if (form.dataset.wired) return;
       form.dataset.wired = '1';

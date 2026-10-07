@@ -264,6 +264,7 @@ const quick = [
 </style>
 
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   // Pointer + scroll parallax on [data-depth] layers. Transform-only, rAF-throttled.
   function init() {
     const hero = document.querySelector<HTMLElement>('[data-hero]');
@@ -290,5 +291,5 @@ const quick = [
     window.addEventListener('scroll', onScroll, { passive: true });
     document.addEventListener('astro:before-swap', () => window.removeEventListener('scroll', onScroll), { once: true });
   }
-  document.addEventListener('astro:page-load', init);
+  onPageLoad( init);
 </script>

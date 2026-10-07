@@ -61,7 +61,8 @@ const groups = [...groupBy(items, (i) => i.data.category)];
   :global(.ts-main .acc-item[hidden]) { display: none; }
 </style>
 <script>
-  document.addEventListener('astro:page-load', () => {
+  import { onPageLoad } from '@/scripts/page-load';
+  onPageLoad( () => {
     const q = document.querySelector<HTMLInputElement>('[data-ts-q]');
     if (!q) return;
     const groups = Array.from(document.querySelectorAll<HTMLElement>('[data-ts-group]'));

@@ -128,12 +128,13 @@ if (!(await access(Astro.cookies)).can('platform.settings')) return Astro.redire
 </style>
 
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   type Cat = { name: string; kind: 'core' | 'elective' };
   type Aud = { category: string; years: string[]; semester: string; specializations: string[]; open: boolean };
   type Mod = { slug: string; title: string; code: string; color: string; builtIn: boolean; published: boolean; audience: Aud };
   const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-  document.addEventListener('astro:page-load', async () => {
+  onPageLoad( async () => {
     const root = document.querySelector<HTMLElement>('[data-cat]');
     if (!root || root.dataset.wired) return;
     root.dataset.wired = '1';

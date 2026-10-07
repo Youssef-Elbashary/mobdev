@@ -66,6 +66,7 @@ const C = 2 * Math.PI * 34;
 </style>
 
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   const KEY = 'setup-checklist';
   function init() {
     const root = document.querySelector<HTMLElement>('[data-checklist]');
@@ -91,5 +92,5 @@ const C = 2 * Math.PI * 34;
     root.querySelector('[data-cl-reset]')?.addEventListener('click', () => { boxes.forEach((b) => (b.checked = false)); update(); });
     update(false);
   }
-  document.addEventListener('astro:page-load', init);
+  onPageLoad( init);
 </script>

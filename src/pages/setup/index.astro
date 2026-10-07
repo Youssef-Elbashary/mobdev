@@ -91,7 +91,8 @@ const guides = await getSetup();
 </style>
 
 <script>
-  document.addEventListener('astro:page-load', () => {
+  import { onPageLoad } from '@/scripts/page-load';
+  onPageLoad( () => {
     const pick = document.querySelector<HTMLElement>('[data-os-pick]');
     if (!pick) return;
     const btns = Array.from(pick.querySelectorAll<HTMLButtonElement>('[data-pick]'));

@@ -102,7 +102,7 @@ if (staff) {
           ) : (
             <div class="ah-mods">
               {view.modules.map((m, i) => (
-                <article class="ah-mod" style={`--c:${m.color}; --i:${i}`}>
+                <article class="ah-mod" id={`module-${m.slug}`} style={`--c:${m.color}; --i:${i}`}>
                   <span class="ah-glow" aria-hidden="true"></span>
                   <div class="ah-mtop mono"><span>{m.code || 'Module'}</span><span class="ah-role">{m.myRole}</span></div>
                   <h3><a href={m.href} target="_blank" rel="noopener">{m.title}</a></h3>

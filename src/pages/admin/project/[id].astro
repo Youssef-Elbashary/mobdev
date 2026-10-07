@@ -126,6 +126,7 @@ import AdminShell from '@/components/admin/AdminShell.astro';
 </style>
 
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   import { downloadSubmissions } from '@/scripts/submissions-zip';
 
   type Entry = { id: string; student_id: string; name: string; group_name: string; note: string; url: string; size: number; created_at: string; updated_at: string; late: boolean };
@@ -135,7 +136,7 @@ import AdminShell from '@/components/admin/AdminShell.astro';
   const kb = (n: number) => (n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`);
   const when = (s: string) => new Date(s).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
-  document.addEventListener('astro:page-load', () => {
+  onPageLoad( () => {
     const root = document.querySelector<HTMLElement>('[data-si]');
     if (!root || root.dataset.wired) return;
     root.dataset.wired = '1';

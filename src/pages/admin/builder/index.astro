@@ -106,7 +106,8 @@ import AdminShell from '@/components/admin/AdminShell.astro';
 </style>
 
 <script>
-  document.addEventListener('astro:page-load', () => {
+  import { onPageLoad } from '@/scripts/page-load';
+  onPageLoad( () => {
     const form = document.querySelector<HTMLFormElement>('[data-bh-new]');
     if (!form || form.dataset.wired) return;
     form.dataset.wired = '1';

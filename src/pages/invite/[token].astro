@@ -72,7 +72,8 @@ const role = invite ? (invite.module_role ? ROLE_NAMES[invite.module_role] : ROL
 </style>
 
 <script>
-  document.addEventListener('astro:page-load', () => {
+  import { onPageLoad } from '@/scripts/page-load';
+  onPageLoad( () => {
     const form = document.querySelector<HTMLFormElement>('[data-iv]');
     if (!form || form.dataset.wired) return;
     form.dataset.wired = '1';

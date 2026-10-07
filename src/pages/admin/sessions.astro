@@ -270,6 +270,7 @@ import AdminShell from '@/components/admin/AdminShell.astro';
 </style>
 
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   /* Dynamic attendance + progress summary. Detailed controls live at /admin/progress. */
   type Session = { id: string; ta_name: string; time_slot: string; opens_at: string; closes_at: string | null; duration_minutes: number | null; open: boolean; closesAt?: string | null };
   type LabStats = {
@@ -523,7 +524,7 @@ import AdminShell from '@/components/admin/AdminShell.astro';
     }
   }
 
-  document.addEventListener('astro:page-load', initTabs);
+  onPageLoad( initTabs);
   document.addEventListener('astro:before-swap', () => {
     clearInterval(timer);
     timer = undefined;

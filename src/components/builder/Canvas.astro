@@ -155,8 +155,9 @@ const json = JSON.stringify(config).replace(/</g, '\\u003c');
 </style>
 
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   import { mountCanvas } from '@/scripts/builder/canvas';
-  document.addEventListener('astro:page-load', () => {
+  onPageLoad( () => {
     const root = document.querySelector<HTMLElement>('[data-cv]');
     if (!root || root.dataset.wired) return;
     root.dataset.wired = '1';

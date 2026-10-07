@@ -19,9 +19,10 @@ import '@/styles/lab-interactive.css';
 </div>
 
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   import { mountLab } from '@/lab/ui/mount';
   let cleanup: (() => void) | undefined;
-  document.addEventListener('astro:page-load', () => {
+  onPageLoad( () => {
     cleanup?.();
     cleanup = mountLab();
   });

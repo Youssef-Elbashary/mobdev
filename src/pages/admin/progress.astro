@@ -237,6 +237,7 @@ import AdminShell from '@/components/admin/AdminShell.astro';
 </style>
 
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   type Cell = { passed: number; total: number; attempts: number };
   type Student = { key: string; id: string; name: string; group: string; lastSeen: string; locked: boolean; percent: number; solved: number; tasksDone: number; submission: { url: string; reviewed: boolean; note: string } | null; cells: Record<string, Cell>; attended: string | null; seen: number; activeSec: number };
   type Session = { id: string; lab: string; ta_name: string; time_slot: string; opens_at: string; closes_at: string | null; open: boolean; closesAt: string | null };
@@ -588,5 +589,5 @@ import AdminShell from '@/components/admin/AdminShell.astro';
 
     load().then(schedule);
   }
-  document.addEventListener('astro:page-load', init);
+  onPageLoad( init);
 </script>

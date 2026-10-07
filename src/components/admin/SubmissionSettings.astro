@@ -114,6 +114,7 @@ const mode = storageMode();
 </style>
 
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   import { upload } from '@vercel/blob/client';
 
   const CLASS_SIZE = 200;
@@ -127,7 +128,7 @@ const mode = storageMode();
   };
   const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
-  document.addEventListener('astro:page-load', () => {
+  onPageLoad( () => {
     const root = document.querySelector<HTMLElement>('[data-ss]');
     if (!root || root.dataset.wired) return;
     root.dataset.wired = '1';

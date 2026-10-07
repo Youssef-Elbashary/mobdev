@@ -104,7 +104,8 @@ const specFromLabel = `${settings.specFrom.year} · ${settings.specFrom.semester
 </style>
 
 <script>
-  document.addEventListener('astro:page-load', async () => {
+  import { onPageLoad } from '@/scripts/page-load';
+  onPageLoad( async () => {
     const root = document.querySelector<HTMLElement>('[data-md]');
     if (!root || root.dataset.wired) return;
     root.dataset.wired = '1';

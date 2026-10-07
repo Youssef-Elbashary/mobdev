@@ -167,6 +167,7 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
 </style>
 
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   import { upload } from '@vercel/blob/client';
 
   type Status = { submitted: boolean; locked?: boolean; at?: string; late?: boolean };
@@ -316,5 +317,5 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
     });
   }
 
-  document.addEventListener('astro:page-load', wire);
+  onPageLoad( wire);
 </script>

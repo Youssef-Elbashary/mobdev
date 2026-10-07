@@ -554,6 +554,7 @@ const resGroups = [...groupBy(resources, (r) => r.data.category)];
 </style>
 
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   function init() {
     // tabs in commands demo
     document.querySelectorAll<HTMLElement>('[data-tabs]').forEach((root) => {
@@ -587,5 +588,5 @@ const resGroups = [...groupBy(resources, (r) => r.data.category)];
       mini.querySelector<HTMLElement>('[data-mini-bar]')!.style.setProperty('--p', String(n / total));
     }
   }
-  document.addEventListener('astro:page-load', init);
+  onPageLoad( init);
 </script>

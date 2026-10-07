@@ -206,6 +206,7 @@ import AdminShell from '@/components/admin/AdminShell.astro';
 </style>
 
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   type U = { id: string; role: string; name: string; email: string; studentId: string | null; profile: { year: string; specialization: string; modules: string[] }; active: boolean; last_login: string | null };
   type Inv = { token: string; email: string; name: string; platform_role: string; module: string | null; module_role: string | null; invited_by: string; expires_at: string };
   const RC: Record<string, string> = { super_admin: '#ff8ad8', doctor: '#c8ff4d', ta: '#7cb1ff', student: '#ffb547' };
@@ -214,7 +215,7 @@ import AdminShell from '@/components/admin/AdminShell.astro';
   const when = (s: string | null) => (s ? new Date(s).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'never');
   const genPw = () => { const a = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ', d = '23456789'; const r = (s: string) => s[crypto.getRandomValues(new Uint32Array(1))[0] % s.length]; return Array.from({ length: 10 }, () => r(a)).join('') + r(d) + r(d); };
 
-  document.addEventListener('astro:page-load', () => {
+  onPageLoad( () => {
     const root = document.querySelector<HTMLElement>('[data-ac]');
     if (!root || root.dataset.wired) return;
     root.dataset.wired = '1';

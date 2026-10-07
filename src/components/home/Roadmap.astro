@@ -82,6 +82,7 @@ const labs = await getLabs();
 </style>
 
 <script>
+  import { onPageLoad } from '@/scripts/page-load';
   function init() {
     const root = document.querySelector<HTMLElement>('[data-roadmap]');
     if (!root) return;
@@ -111,5 +112,5 @@ const labs = await getLabs();
     addEventListener('scroll', onScroll, { passive: true });
     document.addEventListener('astro:before-swap', () => removeEventListener('scroll', onScroll), { once: true });
   }
-  document.addEventListener('astro:page-load', init);
+  onPageLoad( init);
 </script>
