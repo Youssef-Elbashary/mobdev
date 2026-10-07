@@ -368,5 +368,8 @@ const json = JSON.stringify({ years: settings.years, specializations: settings.s
     if (profile) showMine(profile);
     else ob.hidden = false;
   }
-  document.addEventListener('astro:page-load', () => void init());
+  const initPage = () => void init();
+  document.addEventListener('astro:page-load', initPage);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initPage, { once: true });
+  else initPage();
 </script>

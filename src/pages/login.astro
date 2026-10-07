@@ -9,6 +9,17 @@ import { getAccountStore } from '@/lib/accounts/server';
 
 export const prerender = false;
 Astro.response.headers.set('cache-control', 'no-store, max-age=0');
+
+// Older/broken clients could submit the forms as GET requests before the client script was
+// wired, placing credentials in the address bar. Strip those values immediately and keep only
+// unrelated navigation parameters (for example `next`).
+if (Astro.url.searchParams.has('email') || Astro.url.searchParams.has('password')) {
+  const clean = new URL(Astro.url);
+  clean.searchParams.delete('email');
+  clean.searchParams.delete('password');
+  return Astro.redirect(`${clean.pathname}${clean.search}`, 303);
+}
+
 const enabled = Boolean(getAccountStore());
 const { settings, cards } = await hubData();
 const optional = cards.filter((c) => c.kind === 'elective' && c.open).map((c) => ({ slug: c.slug, title: c.title, code: c.code, color: c.color, years: c.years, specializations: c.specializations }));
@@ -44,14 +55,14 @@ const json = JSON.stringify({ optional, next: safeNext }).replace(/</g, '\\u003c
             </div>
             {ended && <p class="auth-note">Your session ended (the account was changed or disabled). Please sign in again.</p>}
 
-            <form class="auth-form" data-form="in" novalidate>
+            <form class="auth-form" data-form="in" method="post" action={`/api/auth/login${safeNext ? `?next=${encodeURIComponent(safeNext)}` : ''}`} data-astro-reload novalidate>
               <label><span>BUE email or username</span><input class="input" name="email" autocomplete="username" placeholder="name.surname@bue.edu.eg" required /></label>
               <label><span>Password</span><input class="input" type="password" name="password" autocomplete="current-password" required /></label>
               <p class="auth-msg" data-msg role="alert"></p>
               <button class="btn btn-primary btn-lg" type="submit">Sign in →</button>
               <p class="auth-fine">Staff accounts come from an invitation or from the super admin in <b>Admin → Accounts</b>.</p>
             </form>
-            <form class="auth-form" data-form="up" hidden novalidate>
+            <form class="auth-form" data-form="up" method="post" action="/api/auth/signup" data-astro-reload hidden novalidate>
               <div class="auth-row">
                 <label><span>Full name</span><input class="input" name="name" autocomplete="name" required maxlength="60" /></label>
                 <label><span>Student ID</span><input class="input mono" name="studentId" required maxlength="20" /></label>
@@ -119,7 +130,7 @@ const json = JSON.stringify({ optional, next: safeNext }).replace(/</g, '\\u003c
   const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
   const has = (list: string[], v: string) => !list.length || list.some((x) => x.toLowerCase() === v.toLowerCase());
 
-  document.addEventListener('astro:page-load', () => {
+  const init = () => {
     const root = document.querySelector<HTMLElement>('[data-auth]');
     if (!root || root.dataset.wired) return;
     root.dataset.wired = '1';
@@ -172,5 +183,11 @@ const json = JSON.stringify({ optional, next: safeNext }).replace(/</g, '\\u003c
       if (!r.ok) { msg.textContent = d.error ?? 'Could not create the account.'; return; }
       done('student');
     });
-  });
+  };
+
+  // Page scripts may be evaluated after Astro's initial `astro:page-load` event. Initialise
+  // immediately when the DOM already exists, while retaining the event for client navigation.
+  document.addEventListener('astro:page-load', init);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
+  else init();
 </script>
