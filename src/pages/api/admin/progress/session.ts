@@ -4,6 +4,8 @@
  */
 import type { APIRoute } from 'astro';
 import { isAdmin } from '@/lib/attendance/server';
+import { access } from '@/lib/accounts/access';
+import { canOnLab, canSeeLab } from '@/lib/accounts/labscope';
 import { sessionState } from '@/lib/progress/core';
 import { sessionDetails } from '@/lib/progress/session-input';
 import { getProgressStore, getStructures, json } from '@/lib/progress/server';
@@ -18,6 +20,7 @@ export const POST: APIRoute = async ({ cookies, request }) => {
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   const lab = String(body?.lab ?? '');
   if (!(await getStructures()).some((l) => l.lab === lab)) return json({ error: 'bad-request' }, 400);
+  if (!canOnLab(await access(cookies), 'module.sessions', lab)) return json({ error: 'forbidden', message: 'You do not run sessions for this module.' }, 403);
   try {
     const action = String(body?.action ?? '');
     const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';

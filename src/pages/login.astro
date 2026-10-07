@@ -11,7 +11,7 @@ export const prerender = false;
 Astro.response.headers.set('cache-control', 'no-store, max-age=0');
 const enabled = Boolean(getAccountStore());
 const { settings, cards } = await hubData();
-const optional = cards.filter((c) => c.category === 'Optional').map((c) => ({ slug: c.slug, title: c.title, code: c.code, color: c.color, years: c.years, specializations: c.specializations }));
+const optional = cards.filter((c) => c.kind === 'elective' && c.open).map((c) => ({ slug: c.slug, title: c.title, code: c.code, color: c.color, years: c.years, specializations: c.specializations }));
 const next = Astro.url.searchParams.get('next');
 const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : '';
 const ended = Astro.url.searchParams.has('ended');

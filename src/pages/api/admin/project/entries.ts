@@ -6,6 +6,7 @@
  *   DELETE ?id=…                 removes one hand-in and its PDF (the student can then hand in again)
  */
 import type { APIRoute } from 'astro';
+import { canManageSubmissions } from '@/lib/accounts/labscope';
 import { isAdmin, noStore } from '@/lib/attendance/server';
 import { json } from '@/lib/progress/server';
 import { entriesCsv, isLate } from '@/lib/project-files/core';
@@ -14,7 +15,7 @@ import { deleteStored, getFilesStore } from '@/lib/project-files/server';
 export const prerender = false;
 
 export const GET: APIRoute = async ({ url, cookies }) => {
-  if (!isAdmin(cookies)) return json({ error: 'Unauthorized' }, 401);
+  if (!(await canManageSubmissions(cookies))) return json({ error: 'Unauthorized' }, 401);
   const store = getFilesStore();
   if (!store) return json({ error: 'No database is connected.' }, 503);
   try {
@@ -41,7 +42,7 @@ export const GET: APIRoute = async ({ url, cookies }) => {
 };
 
 export const DELETE: APIRoute = async ({ url, cookies }) => {
-  if (!isAdmin(cookies)) return json({ error: 'Unauthorized' }, 401);
+  if (!(await canManageSubmissions(cookies))) return json({ error: 'Unauthorized' }, 401);
   const store = getFilesStore();
   if (!store) return json({ error: 'No database is connected.' }, 503);
   try {

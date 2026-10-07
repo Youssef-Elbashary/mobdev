@@ -8,6 +8,7 @@
  *   DELETE ?id=…                                            removes the item, its hand-ins and every stored PDF
  */
 import type { APIRoute } from 'astro';
+import { canManageSubmissions } from '@/lib/accounts/labscope';
 import { isAdmin } from '@/lib/attendance/server';
 import { currentEditor } from '@/lib/cms/server';
 import { json } from '@/lib/progress/server';
@@ -17,7 +18,7 @@ import { blobFolder, blobToken, deleteStored, getFilesStore, saveLocal, storageM
 export const prerender = false;
 
 export const GET: APIRoute = async ({ cookies }) => {
-  if (!isAdmin(cookies)) return json({ error: 'Unauthorized' }, 401);
+  if (!(await canManageSubmissions(cookies))) return json({ error: 'Unauthorized' }, 401);
   const store = getFilesStore();
   if (!store) return json({ error: 'No database is connected.' }, 503);
   try {
@@ -30,7 +31,7 @@ export const GET: APIRoute = async ({ cookies }) => {
 };
 
 export const POST: APIRoute = async ({ request, cookies }) => {
-  if (!isAdmin(cookies)) return json({ error: 'Unauthorized' }, 401);
+  if (!(await canManageSubmissions(cookies))) return json({ error: 'Unauthorized' }, 401);
   const store = getFilesStore();
   if (!store) return json({ error: 'No database is connected.' }, 503);
   const by = currentEditor(cookies) ?? '';
@@ -67,7 +68,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 };
 
 export const PATCH: APIRoute = async ({ url, request, cookies }) => {
-  if (!isAdmin(cookies)) return json({ error: 'Unauthorized' }, 401);
+  if (!(await canManageSubmissions(cookies))) return json({ error: 'Unauthorized' }, 401);
   const store = getFilesStore();
   if (!store) return json({ error: 'No database is connected.' }, 503);
   try {
@@ -118,7 +119,7 @@ export const PATCH: APIRoute = async ({ url, request, cookies }) => {
 };
 
 export const DELETE: APIRoute = async ({ url, cookies }) => {
-  if (!isAdmin(cookies)) return json({ error: 'Unauthorized' }, 401);
+  if (!(await canManageSubmissions(cookies))) return json({ error: 'Unauthorized' }, 401);
   const store = getFilesStore();
   if (!store) return json({ error: 'No database is connected.' }, 503);
   try {

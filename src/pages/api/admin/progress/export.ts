@@ -1,6 +1,8 @@
 /** GET /api/admin/progress/export?lab=lab-02 — the students table as CSV (for grading). */
 import type { APIRoute } from 'astro';
 import { isAdmin, noStore } from '@/lib/attendance/server';
+import { access } from '@/lib/accounts/access';
+import { canOnLab, canSeeLab } from '@/lib/accounts/labscope';
 import { toCsv } from '@/lib/progress/core';
 import { buildDashboard } from '@/lib/progress/server';
 
@@ -8,7 +10,8 @@ export const prerender = false;
 
 export const GET: APIRoute = async ({ cookies, url }) => {
   if (!isAdmin(cookies)) return new Response('Unauthorised', { status: 401 });
-  const d = await buildDashboard(url.searchParams.get('lab'), url.searchParams.get('session'));
+  const a = await access(cookies);
+  const d = await buildDashboard(url.searchParams.get('lab'), url.searchParams.get('session'), (lab) => canOnLab(a, 'module.progress', lab));
   if (!d) return new Response('No data', { status: 404 });
   const ex = d.structure.exercises;
   const rows: (string | number)[][] = [

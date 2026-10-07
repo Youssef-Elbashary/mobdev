@@ -5,14 +5,14 @@
  *   POST   { action: 'invite', email, name, role }             platform invite link     (accounts.staff)
  *   PATCH  ?id=… { active?, role?, name?, password? }           manage an account        (accounts.manage)
  *   DELETE ?id=…  |  ?invite=…                                  delete account / revoke  (accounts.manage / accounts.staff)
- *   PUT    { years, specializations, builtIn }                  platform settings        (platform.settings)
+ *   (platform settings moved to /api/admin/catalogue)
  *   PUT    { matrix }                                           roles & permissions      (platform.roles, super admin)
  * Super admin accounts are made and unmade only by a super admin. Changing a password, role or disabling an
  * account signs it out everywhere.
  */
 import type { APIRoute } from 'astro';
 import { json } from '@/lib/progress/server';
-import { ROLES, checkPasswordRules, normalEmail, parseAccount, parseSettings, type Role } from '@/lib/accounts/core';
+import { ROLES, checkPasswordRules, normalEmail, parseAccount, type Role } from '@/lib/accounts/core';
 import { PERMISSION_KEYS, parseMatrix } from '@/lib/accounts/permissions';
 import { access } from '@/lib/accounts/access';
 import { getAccountStore, publicUser } from '@/lib/accounts/server';
@@ -153,19 +153,8 @@ export const PUT: APIRoute = async ({ cookies, request }) => {
       await store.setMatrix(m);
       return json({ matrix: m });
     }
-    if (!a.can('platform.settings')) return deny();
-    const s = parseSettings(body);
-    if (!s.ok) return json({ error: s.error }, 400);
-    const b = (body.builtIn && typeof body.builtIn === 'object' ? body.builtIn : {}) as Record<string, unknown>;
-    const builtIn = {
-      category: b.category === 'Core' ? 'Core' : 'Optional', years: String(b.years ?? '').slice(0, 200), specializations: String(b.specializations ?? '').slice(0, 600),
-      semester: ['Both', 'Semester 1', 'Semester 2'].includes(String(b.semester)) ? String(b.semester) : 'Semester 1',
-    };
-    await Promise.all([
-      store.setSetting('years', s.value.years), store.setSetting('specializations', s.value.specializations), store.setSetting('builtIn', builtIn),
-      store.setSetting('activeSemester', s.value.activeSemester), store.setSetting('specFrom', s.value.specFrom),
-    ]);
-    return json({ settings: { ...s.value, builtIn } });
+    // years, specializations, categories and the active semester are managed in the Catalogue now
+    return json({ error: 'Platform settings moved to Admin → Catalogue (/api/admin/catalogue).' }, 400);
   } catch (error) {
     console.error('[accounts] settings failed', error);
     return json({ error: 'Could not save settings.' }, 500);

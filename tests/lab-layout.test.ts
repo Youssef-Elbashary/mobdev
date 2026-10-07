@@ -5,7 +5,7 @@ import fs from 'node:fs';
 const page = fs.readFileSync(new URL('../src/pages/labs/[id].astro', import.meta.url), 'utf8');
 const lab02 = fs.readFileSync(new URL('../src/content/labs/lab-02.mdx', import.meta.url), 'utf8');
 const interactiveCss = fs.readFileSync(new URL('../src/styles/lab-interactive.css', import.meta.url), 'utf8');
-const admin = fs.readFileSync(new URL('../src/pages/admin.astro', import.meta.url), 'utf8');
+const admin = fs.readFileSync(new URL('../src/pages/admin/sessions.astro', import.meta.url), 'utf8');
 const labStart = fs.readFileSync(new URL('../src/lab/ui/start.ts', import.meta.url), 'utf8');
 
 test('every mission lab asks for identity but keeps lesson content visible in read-only mode', () => {

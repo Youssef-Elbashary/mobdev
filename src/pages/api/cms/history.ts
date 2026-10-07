@@ -5,7 +5,7 @@ import { errorResponse, guard, json } from '@/lib/cms/server';
 export const prerender = false;
 
 export const GET: APIRoute = async ({ cookies }) => {
-  const g = guard(cookies);
+  const g = await guard(cookies);
   if (g instanceof Response) return g;
   try {
     return json({ items: await g.repo.history(30) });

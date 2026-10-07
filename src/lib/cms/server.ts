@@ -9,7 +9,8 @@
  */
 import type { AstroCookies } from 'astro';
 import { getSecret } from 'astro:env/server';
-import { isDoctor, noStore } from '@/lib/attendance/server';
+import { noStore } from '@/lib/attendance/server';
+import { access } from '@/lib/accounts/access';
 import { team } from '@/site.config';
 import * as schemas from '@/content/schemas';
 import { GitHubRepo, LocalRepo, RepoError, type ContentRepo } from './repo';
@@ -35,9 +36,42 @@ export const cmsSetup = () => ({ github: Boolean(env('GITHUB_TOKEN') && env('GIT
 export const EDITOR_COOKIE = 'cms_editor';
 export const editors = () => team.map((t) => ({ name: t.name, role: t.role }));
 
+export type DirectoryPerson = { name: string; email: string; role: string };
+export type DirectoryModule = { slug: string; title: string; code: string; years: string[]; doctors: DirectoryPerson[]; tas: DirectoryPerson[] };
+
+/**
+ * Every module's teaching staff, split into doctors and TAs (module teams + accounts; the built-in course falls
+ * back to site.yaml), for choosing who is editing when someone uses the shared admin password.
+ */
+export async function editorDirectory(): Promise<{ years: string[]; modules: DirectoryModule[] }> {
+  const { hubData } = await import('@/lib/accounts/hub');
+  const { getAccountStore } = await import('@/lib/accounts/server');
+  const { ROLE_NAMES } = await import('@/lib/accounts/permissions');
+  const { cards, settings } = await hubData();
+  const store = getAccountStore();
+  const [staff, users] = store ? await Promise.all([store.listStaff().catch(() => []), store.list().catch(() => [])]) : [[], []];
+  const byEmail = new Map(users.map((u) => [u.email, u]));
+  const modules = cards.map((c) => {
+    const people = staff.filter((s) => s.module === c.slug).map((s) => {
+      const u = byEmail.get(s.email);
+      const listed = team.find((t) => (t.email ?? '').toLowerCase() === s.email);
+      // the published teaching team says who is a doctor; otherwise module leaders and doctor accounts are
+      const doctor = listed ? /leader|doctor|lecturer|professor/i.test(listed.role) || /^dr\.?\s/i.test(listed.name) : s.role === 'leader' || u?.role === 'doctor';
+      return { name: u?.name ?? listed?.name ?? s.email.split('@')[0], email: s.email, role: listed?.role ?? ROLE_NAMES[s.role], doctor };
+    });
+    if (c.builtIn && !people.length) {
+      for (const t of team) people.push({ name: t.name, email: t.email ?? '', role: t.role, doctor: /leader/i.test(t.role) || /^dr\.?\s/i.test(t.name) });
+    }
+    const strip = ({ doctor, ...p }: (typeof people)[number]) => p;
+    return { slug: c.slug, title: c.title, code: c.code, years: c.years, doctors: people.filter((p) => p.doctor).map(strip), tas: people.filter((p) => !p.doctor).map(strip) };
+  });
+  return { years: settings.years, modules };
+}
+
+/** The editor chosen in this browser (set only through /api/cms/editor, which checks the directory). */
 export function currentEditor(cookies: AstroCookies): string | null {
-  const name = cookies.get(EDITOR_COOKIE)?.value;
-  return name && team.some((t) => t.name === name) ? name : null;
+  const name = cookies.get(EDITOR_COOKIE)?.value?.trim();
+  return name && name.length <= 80 ? name : null;
 }
 
 export function setEditor(cookies: AstroCookies, name: string, secure: boolean) {
@@ -48,11 +82,13 @@ export const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json', ...noStore } });
 
 /** Admin + chosen editor + a configured repo, or the response explaining what is missing. */
-export function guard(cookies: AstroCookies): { editor: string; repo: ContentRepo } | Response {
-  if (!isDoctor(cookies)) return json({ error: 'unauthorised' }, 401);
+export async function guard(cookies: AstroCookies): Promise<{ editor: string; repo: ContentRepo } | Response> {
+  const a = await access(cookies);
+  if (!a.can('cms.edit')) return json({ error: 'unauthorised' }, 401);
   const r = getRepo();
   if (!r) return json({ error: 'setup', message: 'Add GITHUB_TOKEN and GITHUB_REPO in Vercel to enable the CMS.' }, 503);
-  const editor = currentEditor(cookies);
+  // signed-in staff edit as themselves; the shared admin password chooses a teacher
+  const editor = a.user?.name ?? currentEditor(cookies);
   if (!editor) return json({ error: 'editor', message: 'Choose who is editing first.' }, 403);
   return { editor, repo: r };
 }

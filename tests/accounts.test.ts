@@ -101,3 +101,18 @@ test('settings: active semester and where specializations start', () => {
   assert.deepEqual(r.ok && [r.value.activeSemester, r.value.specFrom], ['Semester 2', { year: 'Year 3', semester: 'Semester 2' }]);
   assert.equal(parseSettings({ years: 'Year 1', specializations: 'General' }).ok, false, '"General" is reserved');
 });
+
+import { kindOf, optionalFor } from '../src/lib/accounts/core.ts';
+test('catalogue categories: admin-defined, core vs elective; only open electives can be self-chosen', () => {
+  const cats = [{ name: 'Core', kind: 'core' as const }, { name: 'University requirement', kind: 'core' as const }, { name: 'Elective', kind: 'elective' as const }];
+  assert.equal(kindOf(cats, 'university requirement'), 'core');
+  assert.equal(kindOf(cats, 'Unknown'), 'elective', 'unknown categories never reach students unasked');
+  const ok = parseSettings({ years: ['Year 1'], specializations: ['SE'], categories: [{ name: ' Elective ', kind: 'elective' }, { name: 'Core', kind: 'core' }] });
+  assert.deepEqual(ok.ok && ok.value.categories, [{ name: 'Elective', kind: 'elective' }, { name: 'Core', kind: 'core' }]);
+  assert.equal(parseSettings({ years: ['Year 1'], specializations: ['SE'], categories: [{ name: 'A', kind: 'core' }, { name: 'a', kind: 'core' }] }).ok, false, 'duplicates');
+  const mods = [
+    { slug: 'mobile', category: 'Optional', kind: 'elective' as const, open: true, years: [], specializations: [], semester: 'Semester 1' as const },
+    { slug: 'web', category: 'Elective', kind: 'elective' as const, open: false, years: [], specializations: [], semester: 'Both' as const },
+  ];
+  assert.deepEqual(optionalFor(mods, { year: 'Year 3', specialization: GENERAL }).map((m) => m.slug), ['mobile']);
+});

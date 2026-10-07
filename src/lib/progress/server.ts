@@ -151,8 +151,9 @@ export type DashboardStudent = {
 };
 
 /** Everything /admin/progress shows for one lab. */
-export async function buildDashboard(labParam: string | null, sessionParam?: string | null) {
-  const labs = await getStructures();
+/** `allow` limits which labs the dashboard offers (lab dashboards follow the permission matrix). */
+export async function buildDashboard(labParam: string | null, sessionParam?: string | null, allow: (lab: string) => boolean = () => true) {
+  const labs = (await getStructures()).filter((l) => allow(l.lab));
   const structure = labs.find((l) => l.lab === labParam) ?? labs.find((l) => l.exercises.length) ?? labs[0];
   const s = getProgressStore();
   if (!structure || !s) return null;

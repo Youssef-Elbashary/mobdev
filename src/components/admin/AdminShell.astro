@@ -1,0 +1,109 @@
+---
+/**
+ * The admin workspace frame: a role-aware sidebar (each item appears only with its permission; the super admin
+ * and the master password see everything) around the page. Generic across modules — module-specific tools are
+ * reached from the workspace home.
+ */
+import { access } from '@/lib/accounts/access';
+import { ROLE_NAMES } from '@/lib/accounts/permissions';
+import { platform } from '@/site.config';
+
+interface Props { active?: string }
+const { active = '' } = Astro.props;
+const a = await access(Astro.cookies);
+const modules = Object.keys(a.who.modules);
+const any = (p: Parameters<typeof a.can>[0]) => a.can(p) || modules.some((m) => a.can(p, m));
+const groups = [
+  { title: 'Workspace', items: [{ key: 'home', label: 'Home', href: '/admin', icon: '◎', show: true }] },
+  { title: 'Teaching', items: [
+    { key: 'sessions', label: 'Sessions & attendance', href: '/admin/sessions', icon: '◷', show: any('module.sessions') || any('module.progress') },
+    { key: 'progress', label: 'Lab progress', href: '/admin/progress', icon: '▤', show: any('module.progress') },
+    { key: 'submissions', label: 'Project submissions', href: '/admin/project', icon: '⇪', show: a.can('module.submissions', 'mobile-development') },
+  ] },
+  { title: 'Modules', items: [
+    { key: 'builder', label: 'Module builder', href: '/admin/builder', icon: '⬡', show: a.can('modules.create') || any('module.build') },
+    { key: 'teams', label: 'Teams & invitations', href: '/admin#modules', icon: '✉', show: any('module.invite') },
+  ] },
+  { title: 'Platform', items: [
+    { key: 'catalogue', label: 'Catalogue', href: '/admin/catalogue', icon: '▦', show: a.can('platform.settings') },
+    { key: 'accounts', label: 'Accounts & roles', href: '/admin/accounts', icon: '⚿', show: a.can('accounts.manage') || a.can('accounts.staff') || a.can('platform.roles') },
+    { key: 'cms', label: 'Course content (CMS)', href: '/admin/cms', icon: '✎', show: a.can('cms.edit') },
+  ] },
+].map((g) => ({ ...g, items: g.items.filter((i) => i.show) })).filter((g) => g.items.length);
+const who = a.user?.name ?? (a.master ? 'Admin password' : 'Staff');
+const role = a.who.platformRole ? ROLE_NAMES[a.who.platformRole] : a.master ? 'Full access' : '';
+const initials = who.split(/\s+/).map((p) => p[0]).slice(0, 2).join('');
+---
+<div class="ash">
+  <aside class="ash-side" aria-label="Admin">
+    <a class="ash-brand" href="/admin"><span class="ash-logo" aria-hidden="true">◆</span><span><b>{platform.name}</b><small class="mono">admin workspace</small></span></a>
+    <div class="ash-me">
+      <span class="ash-av" aria-hidden="true">{initials}</span>
+      <span><b>{who}</b><small class="mono">{role}{modules.length ? ` · ${modules.length} module${modules.length === 1 ? '' : 's'}` : ''}</small></span>
+    </div>
+    <nav class="ash-nav">
+      {groups.map((g) => (
+        <div class="ash-group">
+          <p class="ash-gt mono">{g.title}</p>
+          {g.items.map((i) => <a class:list={['ash-link', { on: i.key === active }]} href={i.href} aria-current={i.key === active ? 'page' : undefined}><span class="ash-ic" aria-hidden="true">{i.icon}</span>{i.label}</a>)}
+        </div>
+      ))}
+    </nav>
+    <div class="ash-foot">
+      <a href="/account">My profile</a>
+      <a href="/" target="_blank" rel="noopener">View site ↗</a>
+      <button type="button" data-ash-out>Sign out</button>
+    </div>
+  </aside>
+  <div class="ash-main"><slot /></div>
+</div>
+
+<style is:global>
+  .ash { --side: 264px; display: grid; min-height: 100dvh; background:
+    radial-gradient(circle at 100% 0%, color-mix(in oklab, var(--accent) 10%, transparent), transparent 40%),
+    radial-gradient(circle at 0% 100%, color-mix(in oklab, #7cb1ff 10%, transparent), transparent 40%), var(--bg); }
+  @media (min-width: 1100px) { .ash { grid-template-columns: var(--side) minmax(0, 1fr); } }
+  .ash-side { display: grid; align-content: start; gap: 18px; padding: calc(var(--nav-h) + 22px) 16px 22px; border-right: 1px solid var(--line); background: color-mix(in oklab, var(--surface) 70%, transparent); backdrop-filter: blur(16px); }
+  @media (min-width: 1100px) { .ash-side { position: sticky; top: 0; height: 100dvh; overflow: auto; } }
+  @media (max-width: 1099px) { .ash-side { padding-bottom: 12px; border-right: 0; border-bottom: 1px solid var(--line); }
+    .ash-nav { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; } .ash-group { display: contents; } .ash-gt, .ash-foot, .ash-brand { display: none !important; }
+    .ash-link { white-space: nowrap; } }
+  .ash-brand { display: flex; align-items: center; gap: 10px; }
+  .ash-logo { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, var(--accent), #7cb1ff); color: #0b0d10; font-size: 15px; box-shadow: 0 10px 24px -12px var(--accent); }
+  .ash-brand b { display: block; font-family: var(--font-display); letter-spacing: -.02em; }
+  .ash-brand small, .ash-me small { display: block; font-size: 10.5px; color: var(--text-3); letter-spacing: .06em; }
+  .ash-me { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 14px; border: 1px solid var(--line-2); background: var(--surface); }
+  .ash-me b { display: block; font-size: 13.5px; }
+  .ash-av { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; background: color-mix(in oklab, var(--accent) 25%, var(--surface-2)); color: var(--text); font: 700 12px var(--font-mono); flex: none; }
+  .ash-group { display: grid; gap: 2px; margin-bottom: 10px; }
+  .ash-gt { padding: 4px 10px; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
+  .ash-link { position: relative; display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; font-size: 13.5px; color: var(--text-2); transition: background var(--t-fast), color var(--t-fast); }
+  .ash-link:hover { background: var(--surface-2); color: var(--text); }
+  .ash-link.on { color: var(--text); background: linear-gradient(90deg, color-mix(in oklab, var(--accent) 18%, transparent), transparent); }
+  .ash-link.on::before { content: ''; position: absolute; left: -16px; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+  .ash-ic { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; background: var(--surface-2); font-size: 12px; color: var(--accent-text); flex: none; }
+  .ash-link.on .ash-ic { background: var(--accent); color: var(--accent-ink); }
+  .ash-foot { display: grid; gap: 4px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 12.5px; }
+  .ash-foot a, .ash-foot button { padding: 6px 10px; border-radius: 8px; color: var(--text-3); text-align: left; background: none; border: 0; cursor: pointer; font: inherit; }
+  .ash-foot a:hover, .ash-foot button:hover { color: var(--text); background: var(--surface-2); }
+  .ash-main { min-width: 0; }
+  body:has(.ash) .footer { display: none; }
+  /* pages inside the shell: no extra top gap on desktop beside the sidebar */
+  .ash-main > :first-child { padding-left: clamp(16px, 3vw, 40px) !important; padding-right: clamp(16px, 3vw, 40px) !important; max-width: 1400px; margin-inline: 0; }
+  /* shared admin look: frosted cards with a soft gradient rim */
+  .ash-main :is(.adm-card, .ac-card, .bh-card, .tm-card, .pf-card, .si-card, .as-card, .ss, .bh-mod, .cat-card) {
+    background: linear-gradient(180deg, color-mix(in oklab, var(--surface) 92%, transparent), color-mix(in oklab, var(--surface) 80%, transparent));
+    border-color: color-mix(in oklab, var(--line-2) 80%, transparent); box-shadow: 0 1px 0 color-mix(in oklab, var(--text) 5%, transparent) inset, 0 20px 50px -34px rgb(0 0 0 / .45);
+    backdrop-filter: blur(10px); }
+  .ash-main :is(h1) { background: linear-gradient(100deg, var(--text) 40%, color-mix(in oklab, var(--accent-text) 80%, var(--text))); -webkit-background-clip: text; background-clip: text; color: transparent; }
+</style>
+
+<script>
+  document.addEventListener('astro:page-load', () => {
+    document.querySelector('[data-ash-out]')?.addEventListener('click', async () => {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      try { sessionStorage.removeItem('mdx:me'); } catch { /* ignore */ }
+      location.href = '/login';
+    });
+  });
+</script>

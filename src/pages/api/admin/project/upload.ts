@@ -3,6 +3,7 @@
  * upload a PDF straight to Blob (see @vercel/blob/client `upload`). Admin only; PDFs only, 20 MB max.
  */
 import type { APIRoute } from 'astro';
+import { canManageSubmissions } from '@/lib/accounts/labscope';
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { isAdmin } from '@/lib/attendance/server';
 import { json } from '@/lib/progress/server';
@@ -12,7 +13,7 @@ import { blobFolder, blobToken } from '@/lib/project-files/server';
 export const prerender = false;
 
 export const POST: APIRoute = async ({ request, cookies }) => {
-  if (!isAdmin(cookies)) return json({ error: 'Unauthorized' }, 401);
+  if (!(await canManageSubmissions(cookies))) return json({ error: 'Unauthorized' }, 401);
   if (!blobToken()) return json({ error: 'Vercel Blob is not connected.' }, 503);
   try {
     const body = (await request.json()) as HandleUploadBody;

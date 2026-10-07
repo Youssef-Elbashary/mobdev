@@ -17,8 +17,10 @@ if (!a.can('module.invite', slug)) return Astro.redirect('/login?next=' + encode
 const mod = slug === BUILT_IN_MODULE.slug ? null : await getPlatformStore()?.getModule(slug);
 if (slug !== BUILT_IN_MODULE.slug && !mod) return Astro.redirect('/admin', 303);
 const meta = mod ? compileModule(mod.flow).meta : { title: BUILT_IN_MODULE.title, code: BUILT_IN_MODULE.code, color: BUILT_IN_MODULE.color };
+import AdminShell from '@/components/admin/AdminShell.astro';
 ---
 <Base title={`Team · ${meta.title}`} noindex>
+<AdminShell active="teams">
   <section class="tm container" data-tm data-module={slug} style={`--mc:${meta.color || '#7cb1ff'}`}>
     <header class="tm-top">
       <div>
@@ -29,7 +31,7 @@ const meta = mod ? compileModule(mod.flow).meta : { title: BUILT_IN_MODULE.title
       <div class="tm-links">
         <a class="btn btn-ghost btn-sm" href={`/admin/assessment/${slug}`}>Assessment</a>
         {mod && <a class="btn btn-ghost btn-sm" href={`/admin/builder/${slug}`}>Module canvas</a>}
-        <a class="btn btn-ghost btn-sm" href="/admin">Attendance</a>
+        <a class="btn btn-ghost btn-sm" href="/admin/sessions">Sessions</a>
       </div>
     </header>
 
@@ -71,6 +73,7 @@ const meta = mod ? compileModule(mod.flow).meta : { title: BUILT_IN_MODULE.title
       </div>
     </div>
   </section>
+</AdminShell>
 </Base>
 
 <style is:global>

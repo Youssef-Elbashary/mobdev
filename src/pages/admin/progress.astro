@@ -12,8 +12,10 @@ Astro.response.headers.set('cache-control', 'no-store, max-age=0');
 if (!isAdmin(Astro.cookies)) return Astro.redirect('/admin', 303);
 const setup = progressSetup();
 const lab = Astro.url.searchParams.get('lab') ?? '';
+import AdminShell from '@/components/admin/AdminShell.astro';
 ---
 <Base title="Progress admin" noindex>
+<AdminShell active="progress">
   <section class="pa container" data-pa data-lab={lab}>
     {!setup.database ? (
       <div class="pa-card pa-setup">
@@ -29,7 +31,7 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
       <>
         <header class="pa-head" data-reveal>
           <div>
-            <p class="pa-k mono">Progress · <a href="/admin">Attendance</a> · <a href="/admin/cms">CMS</a></p>
+            <p class="pa-k mono">Progress · <a href="/admin/sessions">Sessions</a> · <a href="/admin/cms">CMS</a></p>
             <h1 class="pa-h">Lab progress</h1>
           </div>
           <div class="pa-tools">
@@ -88,6 +90,7 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
       </>
     )}
   </section>
+</AdminShell>
 </Base>
 
 <style>

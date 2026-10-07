@@ -19,8 +19,10 @@ const [current, perm] = await Promise.all([moduleAssessment(slug), canSetAssessm
 const view = builtIn ? '/course#assessment' : `/m/${slug}#assessment`;
 const json = JSON.stringify({ items: current.items }).replace(/</g, '\\u003c');
 const when = current.updated_at ? new Date(current.updated_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Cairo' }) : '';
+import AdminShell from '@/components/admin/AdminShell.astro';
 ---
 <Base title={`Assessment · ${meta.title}`} noindex>
+<AdminShell active="home">
   <section class="as container" data-as data-module={slug} data-edit={perm.ok ? '1' : ''} style={`--mc:${meta.color || '#7cb1ff'}`}>
     <script type="application/json" data-as-data set:html={json} />
     <header class="as-top">
@@ -50,6 +52,7 @@ const when = current.updated_at ? new Date(current.updated_at).toLocaleString('e
     <p class="as-msg" data-as-msg role="status"></p>
     {perm.ok && <button class="btn btn-primary" type="button" data-as-save>Save assessment</button>}
   </section>
+</AdminShell>
 </Base>
 
 <style is:global>

@@ -262,6 +262,11 @@ class AccountStore {
     return r ? toInvite(r) : null;
   }
 
+  /** a year or specialization was renamed in the catalogue: update student profiles */
+  async renameProfiles(field: 'year' | 'specialization', from: string, to: string) {
+    await this.q(`update ${this.users} set ${field === 'year' ? 'year' : 'specialization'} = $2 where ${field === 'year' ? 'year' : 'specialization'} = $1`, [from, to]);
+  }
+
   /* ---------------------------------------------------- permissions */
 
   async getMatrix(): Promise<StoredMatrix> {
@@ -272,18 +277,19 @@ class AccountStore {
     await this.q(`insert into ${this.settings} (key, value) values ('matrix', $1) on conflict (key) do update set value = excluded.value, updated_at = now()`, [JSON.stringify(m)]);
   }
 
-  async getSettings(): Promise<Settings & { builtIn: { category: string; years: string; specializations: string; semester: string } }> {
+  async getSettings(): Promise<Settings & { builtIn: { category: string; years: string; specializations: string; semester: string; open: boolean } }> {
     const rows = await this.q(`select key, value from ${this.settings}`);
     const get = (k: string) => rows.find((r) => r.key === k)?.value;
     return {
       years: get('years') ?? DEFAULT_SETTINGS.years,
       specializations: get('specializations') ?? DEFAULT_SETTINGS.specializations,
       activeSemester: get('activeSemester') ?? DEFAULT_SETTINGS.activeSemester,
+      categories: get('categories') ?? DEFAULT_SETTINGS.categories,
       specFrom: get('specFrom') ?? DEFAULT_SETTINGS.specFrom,
       builtIn: { ...BUILT_IN_AUDIENCE, ...(get('builtIn') ?? {}) },
     };
   }
-  async setSetting(key: 'years' | 'specializations' | 'builtIn' | 'activeSemester' | 'specFrom', value: unknown) {
+  async setSetting(key: 'years' | 'specializations' | 'builtIn' | 'activeSemester' | 'specFrom' | 'categories', value: unknown) {
     await this.q(`insert into ${this.settings} (key, value) values ($1, $2) on conflict (key) do update set value = excluded.value, updated_at = now()`, [key, JSON.stringify(value)]);
   }
 }

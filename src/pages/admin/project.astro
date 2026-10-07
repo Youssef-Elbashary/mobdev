@@ -1,17 +1,20 @@
 ---
 import Base from '@/layouts/Base.astro';
+import { canManageSubmissions } from '@/lib/accounts/labscope';
 import { isAdmin } from '@/lib/attendance/server';
 import { KINDS, KIND_LABEL } from '@/lib/project-files/core';
 import { blobFolder, projectFilesSetup } from '@/lib/project-files/server';
 
 export const prerender = false;
 Astro.response.headers.set('cache-control', 'no-store, max-age=0');
-if (!isAdmin(Astro.cookies)) return Astro.redirect('/admin', 303);
+if (!(await canManageSubmissions(Astro.cookies))) return Astro.redirect('/admin', 303);
 
 const setup = projectFilesSetup();
 const ready = setup.database && setup.storage;
+import AdminShell from '@/components/admin/AdminShell.astro';
 ---
 <Base title="Project submissions" noindex>
+<AdminShell active="submissions">
   <section class="pf-shell container">
     <header class="pf-top">
       <div>
@@ -20,7 +23,7 @@ const ready = setup.database && setup.storage;
         <p class="muted">Publish a submission (with or without a PDF). It's announced site-wide and students hand in on its own page.</p>
       </div>
       <div class="pf-links">
-        <a class="btn btn-ghost btn-sm" href="/admin">Attendance</a>
+        <a class="btn btn-ghost btn-sm" href="/admin/sessions">Sessions</a>
         <a class="btn btn-ghost btn-sm" href="/admin/cms">CMS</a>
       </div>
     </header>
@@ -66,6 +69,7 @@ const ready = setup.database && setup.storage;
       </div>
     )}
   </section>
+</AdminShell>
 </Base>
 
 <style is:global>

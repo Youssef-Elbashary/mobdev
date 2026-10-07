@@ -16,8 +16,10 @@ const [allModules, labs] = store ? await Promise.all([store.listModules(), store
 // people who can't create modules see only the modules they may build
 const modules = allModules.filter((m) => me.can('module.build', m.slug));
 const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Cairo' });
+import AdminShell from '@/components/admin/AdminShell.astro';
 ---
 <Base title="Module builder" noindex>
+<AdminShell active="builder">
   <section class="bh container">
     <header class="bh-top">
       <div>
@@ -26,7 +28,7 @@ const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle:
         <p class="muted">Create modules and build their labs on a drag-and-drop canvas. Published labs get the same session check-in, attendance and progress tracking as the course labs.</p>
       </div>
       <div class="bh-links">
-        <a class="btn btn-ghost btn-sm" href="/admin">Attendance</a>
+        <a class="btn btn-ghost btn-sm" href="/admin/sessions">Sessions</a>
         <a class="btn btn-ghost btn-sm" href="/admin/accounts">Accounts</a>
         <a class="btn btn-ghost btn-sm" href="/modules" target="_blank" rel="noopener">Modules page ↗</a>
       </div>
@@ -73,6 +75,7 @@ const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle:
       </div>
     )}
   </section>
+</AdminShell>
 </Base>
 
 <style is:global>

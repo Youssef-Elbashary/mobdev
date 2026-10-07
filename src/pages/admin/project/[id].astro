@@ -1,5 +1,6 @@
 ---
 import Base from '@/layouts/Base.astro';
+import { canManageSubmissions } from '@/lib/accounts/labscope';
 import { isAdmin } from '@/lib/attendance/server';
 import { KIND_LABEL } from '@/lib/project-files/core';
 import { getFilesStore } from '@/lib/project-files/server';
@@ -7,13 +8,15 @@ import SubmissionSettings from '@/components/admin/SubmissionSettings.astro';
 
 export const prerender = false;
 Astro.response.headers.set('cache-control', 'no-store, max-age=0');
-if (!isAdmin(Astro.cookies)) return Astro.redirect('/admin', 303);
+if (!(await canManageSubmissions(Astro.cookies))) return Astro.redirect('/admin', 303);
 
 const store = getFilesStore();
 const file = store ? await store.get(Astro.params.id ?? '').catch(() => null) : null;
 if (!file) return Astro.redirect('/admin/project', 303);
+import AdminShell from '@/components/admin/AdminShell.astro';
 ---
 <Base title={`Submissions · ${file.title}`} noindex>
+<AdminShell active="submissions">
   <section class="si-shell container" data-si data-id={file.id} data-title={file.title} data-due-at={file.due_at ?? ''}>
     <header class="si-top">
       <div>
@@ -67,6 +70,7 @@ if (!file) return Astro.redirect('/admin/project', 303);
     </div>
     <p class="si-msg" role="status" data-si-msg></p>
   </section>
+</AdminShell>
 </Base>
 
 <style is:global>

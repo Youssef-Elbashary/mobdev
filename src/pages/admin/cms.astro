@@ -1,18 +1,24 @@
 ---
 import Base from '@/layouts/Base.astro';
+import { access } from '@/lib/accounts/access';
 import { isDoctor } from '@/lib/attendance/server';
-import { cmsSetup, currentEditor, editors } from '@/lib/cms/server';
+import { cmsSetup, currentEditor, editorDirectory } from '@/lib/cms/server';
 
 export const prerender = false;
 Astro.response.headers.set('cache-control', 'no-store, max-age=0');
-if (!isDoctor(Astro.cookies)) return Astro.redirect('/admin', 303);
+if (!(await access(Astro.cookies)).can('cms.edit')) return Astro.redirect('/admin', 303);
 
 const setup = cmsSetup();
 const available = setup.github || setup.local;
-const editor = currentEditor(Astro.cookies);
-const people = editors();
+// signed-in staff edit as themselves; with the shared admin password, choose a teacher by year → module → doctor/TA
+const me = await access(Astro.cookies);
+const editor = me.user?.name ?? currentEditor(Astro.cookies);
+const directory = editor ? null : await editorDirectory();
+const dirJson = JSON.stringify(directory ?? {}).replace(/</g, '\\u003c');
+import AdminShell from '@/components/admin/AdminShell.astro';
 ---
 <Base title="Content manager" noindex>
+<AdminShell active="cms">
   <section class="cms-shell container">
     {!available ? (
       <div class="cms-gate cms-card">
@@ -24,24 +30,24 @@ const people = editors();
           <li>Add <code>GITHUB_TOKEN</code> and <code>GITHUB_REPO</code> (for example <code>Youssef-Elbashary/mobdev</code>) in Vercel.</li>
           <li>Redeploy the project, then return here.</li>
         </ol>
-        <a class="btn btn-ghost" href="/admin">← Attendance admin</a>
+        <a class="btn btn-ghost" href="/admin">← Admin workspace</a>
       </div>
     ) : !editor ? (
       <div class="cms-gate cms-card" data-cms-picker>
         <p class="cms-k mono">Content manager</p>
         <h1>Who’s editing?</h1>
-        <p class="muted">Your name is included in every saved change.</p>
-        <div class="cms-people">
-          {people.map((person) => (
-            <button type="button" class="cms-person" data-editor={person.name}>
-              <span class="cms-avatar" aria-hidden="true">{person.name.split(/\s+/).map((part) => part[0]).slice(0, 2).join('')}</span>
-              <span><b>{person.name}</b><small>{person.role}</small></span>
-              <span aria-hidden="true">→</span>
-            </button>
-          ))}
+        <p class="muted">You're using the shared admin password, so choose who is editing. Their name goes into every saved change. (Signed-in staff edit as themselves.)</p>
+        <script type="application/json" data-dir set:html={dirJson} />
+        <div class="cms-pick">
+          <label><span>Year</span><select class="input" data-pick-year><option value="">All years</option>{directory?.years.map((y) => <option>{y}</option>)}</select></label>
+          <label><span>Module</span><select class="input" data-pick-module></select></label>
+        </div>
+        <div class="cms-cols">
+          <section><p class="cms-colh mono">Doctors</p><div class="cms-people" data-people="doctors"></div></section>
+          <section><p class="cms-colh mono">Teaching assistants</p><div class="cms-people" data-people="tas"></div></section>
         </div>
         <p class="cms-pick-error" role="alert" data-picker-error></p>
-        <a class="cms-back" href="/admin">← Attendance admin</a>
+        <a class="cms-back" href="/admin">← Admin workspace</a>
       </div>
     ) : (
       <div class="cms-app" data-cms-app>
@@ -51,7 +57,7 @@ const people = editors();
             <h1>Content manager</h1>
           </div>
           <div class="cms-top-links">
-            <a class="btn btn-ghost btn-sm" href="/admin">Attendance</a>
+            <a class="btn btn-ghost btn-sm" href="/admin/sessions">Sessions</a>
             <a class="btn btn-ghost btn-sm" href="/admin/progress">Lab progress</a>
             <a class="btn btn-ghost btn-sm" href="/admin/project">Submissions</a>
           </div>
@@ -98,6 +104,7 @@ const people = editors();
       </div>
     )}
   </section>
+</AdminShell>
 </Base>
 
 <style is:global>
@@ -110,6 +117,13 @@ const people = editors();
   .cms-gate ol { display: grid; gap: 12px; padding-left: 22px; color: var(--text-2); line-height: 1.65; }
   .cms-gate > .btn { justify-self: start; }
   .cms-people { display: grid; gap: 10px; margin-top: 6px; }
+  .cms-pick { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; }
+  .cms-pick label { display: grid; gap: 6px; font-size: 12.5px; font-weight: 600; }
+  .cms-pick .input { height: 42px; padding: 0 12px; }
+  .cms-cols { display: grid; gap: 16px; }
+  @media (min-width: 640px) { .cms-cols { grid-template-columns: 1fr 1fr; } }
+  .cms-colh { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent-text); }
+  .cms-empty { font-size: 12.5px; color: var(--text-3); padding: 10px 0; }
   .cms-person { width: 100%; border: 1px solid var(--line); border-radius: 14px; padding: 13px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 13px; text-align: left; color: var(--text); background: var(--bg); cursor: pointer; transition: border-color var(--t-fast), transform var(--t-fast); }
   .cms-person:hover { border-color: var(--accent-text); transform: translateY(-1px); }
   .cms-person span:nth-child(2) { display: grid; gap: 3px; }
@@ -248,10 +262,39 @@ const people = editors();
 
 {available && !editor && (
   <script>
-    const picker = document.querySelector('[data-cms-picker]');
+    type Person = { name: string; email: string; role: string };
+    type Mod = { slug: string; title: string; code: string; years: string[]; doctors: Person[]; tas: Person[] };
+    const picker = document.querySelector<HTMLElement>('[data-cms-picker]');
     if (picker && picker.getAttribute('data-ready') !== 'true') {
       picker.setAttribute('data-ready', 'true');
-      picker.querySelectorAll<HTMLButtonElement>('[data-editor]').forEach((button) => button.addEventListener('click', async () => {
+      const dir = JSON.parse(picker.querySelector('[data-dir]')!.textContent!) as { years: string[]; modules: Mod[] };
+      const yearSel = picker.querySelector<HTMLSelectElement>('[data-pick-year]')!;
+      const modSel = picker.querySelector<HTMLSelectElement>('[data-pick-module]')!;
+      const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+      const initials = (n: string) => n.replace(/^Dr\.?\s*/i, '').split(/\s+/).map((p) => p[0]).slice(0, 2).join('');
+      const renderModules = () => {
+        const list = dir.modules.filter((m) => !yearSel.value || !m.years.length || m.years.includes(yearSel.value));
+        const prev = modSel.value;
+        modSel.replaceChildren(...list.map((m) => new Option(`${m.title}${m.code ? ` · ${m.code}` : ''}`, m.slug)));
+        if (list.some((m) => m.slug === prev)) modSel.value = prev;
+        renderPeople();
+      };
+      const renderPeople = () => {
+        const m = dir.modules.find((x) => x.slug === modSel.value);
+        for (const key of ['doctors', 'tas'] as const) {
+          const box = picker.querySelector<HTMLElement>(`[data-people="${key}"]`)!;
+          const people = m?.[key] ?? [];
+          box.innerHTML = people.length ? people.map((p) => `<button type="button" class="cms-person" data-editor="${esc(p.name)}">
+            <span class="cms-avatar" aria-hidden="true">${esc(initials(p.name))}</span><span><b>${esc(p.name)}</b><small>${esc(p.role)}</small></span><span aria-hidden="true">→</span></button>`).join('')
+            : `<p class="cms-empty">No ${key === 'doctors' ? 'doctors' : 'TAs'} on this module's team yet.</p>`;
+        }
+      };
+      yearSel.addEventListener('change', renderModules);
+      modSel.addEventListener('change', renderPeople);
+      renderModules();
+      picker.addEventListener('click', async (e) => {
+        const button = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-editor]');
+        if (!button) return;
         picker.querySelectorAll('button').forEach((node) => ((node as HTMLButtonElement).disabled = true));
         const response = await fetch('/api/cms/editor', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: button.dataset.editor }) });
         if (response.ok) location.reload();
@@ -261,7 +304,7 @@ const people = editors();
           if (message) message.textContent = data.message ?? 'Could not choose that editor.';
           picker.querySelectorAll('button').forEach((node) => ((node as HTMLButtonElement).disabled = false));
         }
-      }));
+      });
     }
   </script>
 )}

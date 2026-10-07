@@ -9,7 +9,7 @@ import { neon } from '@neondatabase/serverless';
 import { Pool } from 'pg';
 import { course } from '@/site.config';
 import { compileLab, compileModule, emptyFlow, labKey, type AssessmentItem, type CompiledLab, type Flow } from './core';
-import { listOf, type Audience } from '@/lib/accounts/core';
+import { DEFAULT_SETTINGS, kindOf, listOf, type Audience, type Category } from '@/lib/accounts/core';
 
 const env = (key: string) => getSecret(key) || undefined;
 const onVercel = () => Boolean(env('VERCEL'));
@@ -197,13 +197,14 @@ export type ModuleCard = Audience & { code: string; title: string; term: string;
  * (category, years, specializations) for onboarding and "my modules". The built-in module's audience is set
  * in /admin/accounts → Platform settings.
  */
-export async function moduleCards(builtInAudience: { category: string; years: string; specializations: string; semester?: string }, builtInLabs: number): Promise<ModuleCard[]> {
+export async function moduleCards(builtInAudience: { category: string; years: string; specializations: string; semester?: string; open?: boolean }, builtInLabs: number, categories: Category[] = DEFAULT_SETTINGS.categories): Promise<ModuleCard[]> {
   const s = getPlatformStore();
   const [rows, labs] = s ? await Promise.all([s.listModules().catch(() => []), s.listLabs().catch(() => [])]) : [[], []];
-  const cat = (v: string | undefined) => (v === 'Optional' ? 'Optional' : 'Core') as Audience['category'];
+  const cat = (v: string | undefined) => (v || 'Core').trim();
   const sem = (v: string | undefined) => (v === 'Semester 2' || v === 'Both' ? v : 'Semester 1') as Audience['semester'];
   return [
-    { ...BUILT_IN_MODULE, labs: builtInLabs, builtIn: true, category: cat(builtInAudience.category), years: listOf(builtInAudience.years), specializations: listOf(builtInAudience.specializations), semester: sem(builtInAudience.semester) },
+    { ...BUILT_IN_MODULE, labs: builtInLabs, builtIn: true, category: cat(builtInAudience.category), kind: kindOf(categories, cat(builtInAudience.category)), open: builtInAudience.open !== false,
+      years: listOf(builtInAudience.years), specializations: listOf(builtInAudience.specializations), semester: sem(builtInAudience.semester) },
     ...rows.filter((m) => m.published).map((m) => {
       const c = compileModule(m.flow);
       const published = new Set(labs.filter((l) => l.module === m.slug && l.published).map((l) => l.slug));
@@ -211,7 +212,8 @@ export async function moduleCards(builtInAudience: { category: string; years: st
         slug: m.slug, code: c.meta.code ?? '', title: c.meta.title || m.title, term: c.meta.term ?? '', description: c.meta.description ?? '',
         color: c.meta.color || '#7cb1ff', href: `/m/${m.slug}`, builtIn: false,
         labs: c.items.filter((i) => i.kind === 'lab' && published.has(i.slug)).length,
-        category: cat(c.meta.category), years: listOf(c.meta.years), specializations: listOf(c.meta.specializations), semester: sem(c.meta.semester),
+        category: cat(c.meta.category), kind: kindOf(categories, cat(c.meta.category)), open: c.meta.open === 'Yes',
+        years: listOf(c.meta.years), specializations: listOf(c.meta.specializations), semester: sem(c.meta.semester),
       };
     }),
   ];

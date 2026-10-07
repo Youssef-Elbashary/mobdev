@@ -42,10 +42,10 @@ const specFromLabel = `${settings.specFrom.year} · ${settings.specFrom.semester
           <h2 class="md-gh"><span>{g.year}</span><small class="mono" data-count></small></h2>
           <div class="md-grid">
             {g.cards.map((m, i) => (
-              <a href={m.href} class="mcard" style={`--c:${m.color}; --i:${i}`} data-card data-slug={m.slug} data-builtin={m.builtIn ? '1' : ''} data-cat={m.category}
+              <a href={m.href} class="mcard" style={`--c:${m.color}; --i:${i}`} data-card data-slug={m.slug} data-open-flag={m.open && m.kind === 'elective' ? '1' : ''} data-cat={m.category}
                 data-sem={m.semester} data-years={m.years.join('|')} data-specs={m.specializations.join('|')}
                 data-text={`${m.title} ${m.code} ${m.description} ${m.term} ${m.specializations.join(' ')}`.toLowerCase()}>
-                <span class="mcard-top"><span>{m.code || 'Module'}</span><span class="mcard-tag">{m.builtIn && m.category === 'Optional' ? 'Optional · open' : m.category === 'Optional' ? 'Optional · invite' : 'Core · invite'}</span></span>
+                <span class="mcard-top"><span>{m.code || 'Module'}</span><span class="mcard-tag">{m.category} · {m.open ? 'open' : 'by invitation'}</span></span>
                 <h3>{m.title}</h3>
                 <span class="md-chips mono">
                   <span class:list={['md-chip', { on: m.semester === settings.activeSemester || m.semester === 'Both' }]}>{m.semester === 'Both' ? 'Both semesters' : m.semester}</span>
@@ -119,7 +119,7 @@ const specFromLabel = `${settings.specFrom.year} · ${settings.specFrom.semester
     let chosen: string[] = me?.user?.profile?.modules ?? [];
     if (!me?.user) { try { chosen = JSON.parse(localStorage.getItem('mdx:profile') ?? 'null')?.modules ?? []; } catch { /* ignore */ } }
     // self-chosen modules only count where students may choose (the open, built-in optional module)
-    const openSlugs = new Set(cards.filter((c) => c.dataset.builtin && c.dataset.cat === 'Optional').map((c) => c.dataset.slug!));
+    const openSlugs = new Set(cards.filter((c) => c.dataset.openFlag).map((c) => c.dataset.slug!));
     chosen = chosen.filter((s) => openSlugs.has(s));
     const mine = new Set<string>([...chosen, ...(me?.enrolled ?? []), ...Object.keys(me?.staffModules ?? {})]);
     for (const c of cards) {

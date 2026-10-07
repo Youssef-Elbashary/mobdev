@@ -21,8 +21,10 @@ if (!Object.values(can).some(Boolean) && !teamModules.length) return Astro.redir
 const enabled = Boolean(getAccountStore());
 const titles = new Map([[BUILT_IN_MODULE.slug, BUILT_IN_MODULE.title], ...(((await getPlatformStore()?.listModules().catch(() => [])) ?? []).map((m) => [m.slug, m.title] as [string, string]))]);
 const roleLabel = a.who.platformRole ? ROLE_NAMES[a.who.platformRole] : a.master ? 'Admin password' : '';
+import AdminShell from '@/components/admin/AdminShell.astro';
 ---
 <Base title="Accounts & roles" noindex>
+<AdminShell active="accounts">
   <section class="ac container" data-ac data-perms={JSON.stringify(can)}>
     <header class="ac-top">
       <div>
@@ -30,7 +32,7 @@ const roleLabel = a.who.platformRole ? ROLE_NAMES[a.who.platformRole] : a.master
         <h1>Accounts &amp; roles</h1>
         <p class="muted">Super admins control roles and permissions. Module leaders build their teams and invite students. Students sign in optionally, or type their name and ID in each lab.</p>
       </div>
-      <div class="ac-links"><a class="btn btn-ghost btn-sm" href="/admin">Attendance</a><a class="btn btn-ghost btn-sm" href="/admin/builder">Builder</a><a class="btn btn-ghost btn-sm" href="/account">My profile</a></div>
+      <div class="ac-links"><a class="btn btn-ghost btn-sm" href="/admin/sessions">Sessions</a><a class="btn btn-ghost btn-sm" href="/admin/builder">Builder</a><a class="btn btn-ghost btn-sm" href="/account">My profile</a></div>
     </header>
 
     {!enabled ? (
@@ -99,33 +101,10 @@ const roleLabel = a.who.platformRole ? ROLE_NAMES[a.who.platformRole] : a.master
             )}
 
             {can['platform.settings'] && (
-              <form class="ac-card ac-form" data-ac-settings>
-                <h2>Platform settings</h2>
-                <fieldset class="ac-fs ac-sem">
-                  <legend>Active semester</legend>
-                  <div class="ac-semsw" role="radiogroup" aria-label="Active semester">
-                    <label><input type="radio" name="activeSemester" value="Semester 1" /><span>Semester 1</span></label>
-                    <label><input type="radio" name="activeSemester" value="Semester 2" /><span>Semester 2</span></label>
-                  </div>
-                  <small>Students see this semester's modules first; the rest move to "other semesters".</small>
-                </fieldset>
-                <label><span>Years <small>(one per line, in order)</small></span><textarea class="input" name="years" rows="4"></textarea></label>
-                <label><span>Specializations <small>(one per line)</small></span><textarea class="input" name="specializations" rows="5"></textarea></label>
-                <div class="ac-two">
-                  <label><span>Specializations start in</span><select class="input" name="specFromYear"></select></label>
-                  <label><span>from</span><select class="input" name="specFromSemester"><option>Semester 1</option><option>Semester 2</option></select></label>
-                </div>
-                <small class="ac-fine">Before this, students are “General” and aren't asked for a specialization.</small>
-                <fieldset class="ac-fs">
-                  <legend>Mobile Development (built-in course): who may choose it</legend>
-                  <label><span>Category</span><select class="input" name="bcategory"><option>Optional</option><option>Core</option></select></label>
-                  <label><span>Years <small>(comma-separated; empty = all)</small></span><input class="input" name="byears" /></label>
-                  <label><span>Specializations <small>(comma-separated; empty = all)</small></span><input class="input" name="bspecs" /></label>
-                  <label><span>Semester</span><select class="input" name="bsemester"><option>Semester 1</option><option>Semester 2</option><option>Both</option></select></label>
-                </fieldset>
-                <p class="ac-msg" data-settings-msg role="status"></p>
-                <button class="btn btn-primary" type="submit">Save settings</button>
-              </form>
+              <a class="ac-card ac-catlink" href="/admin/catalogue">
+                <h2>Catalogue →</h2>
+                <p class="muted small">Years, specializations, categories, the active semester and every module's audience are managed in the Catalogue.</p>
+              </a>
             )}
           </div>
 
@@ -150,6 +129,7 @@ const roleLabel = a.who.platformRole ? ROLE_NAMES[a.who.platformRole] : a.master
       </>
     )}
   </section>
+</AdminShell>
 </Base>
 
 <style is:global>
@@ -190,6 +170,8 @@ const roleLabel = a.who.platformRole ? ROLE_NAMES[a.who.platformRole] : a.master
   .ac-roles input:checked + span { border-color: var(--accent-text); background: var(--accent-soft); color: var(--accent-text); }
   .ac-create { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 10px; }
   .ac-create summary { cursor: pointer; font-size: 13px; color: var(--text-2); }
+  .ac-catlink { transition: border-color var(--t-fast); }
+  .ac-catlink:hover { border-color: var(--accent-text); }
   .ac-fs { border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px; display: grid; gap: 10px; }
   .ac-fs legend { padding: 0 6px; font-size: 13px; font-weight: 600; }
   .ac-sem { border-color: color-mix(in oklab, var(--accent-text) 40%, var(--line)); background: var(--accent-soft); }

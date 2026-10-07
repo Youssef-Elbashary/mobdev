@@ -13,7 +13,7 @@ export const prerender = false;
 const listOf = (name: string | undefined) => (name && name in LISTS ? (name as ListName) : null);
 
 export const GET: APIRoute = async ({ cookies, params }) => {
-  const g = guard(cookies);
+  const g = await guard(cookies);
   if (g instanceof Response) return g;
   const name = listOf(params.name);
   if (!name) return json({ error: 'not-found' }, 404);
@@ -29,7 +29,7 @@ export const GET: APIRoute = async ({ cookies, params }) => {
 type Body = { op?: string; id?: string; value?: Record<string, unknown>; afterId?: string; toIndex?: number; baseSha?: string; dryRun?: boolean };
 
 export const POST: APIRoute = async ({ cookies, params, request }) => {
-  const g = guard(cookies);
+  const g = await guard(cookies);
   if (g instanceof Response) return g;
   const name = listOf(params.name);
   if (!name) return json({ error: 'not-found' }, 404);

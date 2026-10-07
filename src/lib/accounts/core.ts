@@ -19,7 +19,11 @@ export type Semester = (typeof SEMESTERS)[number];
 /** "General" = no specialization yet (before the specialization starts). */
 export const GENERAL = 'General';
 
+/** A module category, created by the admin. Core modules go to every matching student; electives only to those who pick or are enrolled. */
+export type Category = { name: string; kind: 'core' | 'elective' };
+
 export const DEFAULT_SETTINGS = {
+  categories: [{ name: 'Core', kind: 'core' }, { name: 'Optional', kind: 'elective' }] as Category[],
   years: ['Year 1', 'Year 2', 'Year 3', 'Year 4'],
   /** the semester the platform is running now (the admin switches it) */
   activeSemester: 'Semester 1' as Semester,
@@ -27,7 +31,7 @@ export const DEFAULT_SETTINGS = {
   specFrom: { year: 'Year 3', semester: 'Semester 2' as Semester },
   specializations: ['Computer Science', 'Software Engineering', 'Artificial Intelligence', 'Cyber Security', 'Information Systems'],
 };
-export type Settings = { years: string[]; specializations: string[]; activeSemester: Semester; specFrom: { year: string; semester: Semester } };
+export type Settings = { categories: Category[]; years: string[]; specializations: string[]; activeSemester: Semester; specFrom: { year: string; semester: Semester } };
 
 /** Does a student in this year (during this semester) have a specialization? From specFrom (Year 3 · Semester 2) on. */
 export function hasSpecialization(s: Pick<Settings, 'years' | 'specFrom'>, year: string, semester: Semester): boolean {
@@ -36,7 +40,7 @@ export function hasSpecialization(s: Pick<Settings, 'years' | 'specFrom'>, year:
   return y > from || (y === from && SEMESTERS.indexOf(semester) >= SEMESTERS.indexOf(s.specFrom.semester));
 }
 /** Audience of the built-in course (Mobile Development): an optional module open to every specialization. */
-export const BUILT_IN_AUDIENCE = { category: 'Optional', years: '', specializations: '', semester: 'Semester 1' };
+export const BUILT_IN_AUDIENCE = { category: 'Optional', years: '', specializations: '', semester: 'Semester 1', open: true };
 
 export const NAME_RE = /^[\p{L}\p{M}][\p{L}\p{M}'’. -]*[\p{L}\p{M}.]$/u;
 export const STUDENT_ID_RE = /^[A-Za-z0-9-]{3,20}$/;
@@ -93,7 +97,13 @@ export const listOf = (v: string | undefined) => (v ?? '').split(',').map((s) =>
 const has = (list: string[], v: string) => !list.length || list.some((x) => x.toLowerCase() === v.toLowerCase());
 
 /** Who a module is for: its category, years, semester and specializations (empty list = everyone). */
-export type Audience = { slug: string; category: 'Core' | 'Optional'; years: string[]; specializations: string[]; semester: 'Both' | Semester };
+export type Audience = {
+  slug: string; category: string; kind: Category['kind']; years: string[]; specializations: string[]; semester: 'Both' | Semester;
+  /** students may add it themselves (otherwise only by invitation or enrolment) */
+  open: boolean;
+};
+/** The kind of a category name (unknown names count as electives, so they never reach students unasked). */
+export const kindOf = (categories: Category[], name: string): Category['kind'] => categories.find((c) => c.name.toLowerCase() === name.toLowerCase())?.kind ?? 'elective';
 
 /** Runs in this semester? */
 export const inSemester = (m: Pick<Audience, 'semester'>, semester: Semester) => m.semester === 'Both' || m.semester === semester;
@@ -103,12 +113,12 @@ export const fitsStudent = (m: Pick<Audience, 'years' | 'specializations'>, p: P
 
 /** Is this module for this student? Core: their year/specialization. Optional: only if they chose it. */
 export function isForStudent(m: Audience, p: Profile): boolean {
-  if (m.category === 'Optional') return p.modules.includes(m.slug);
+  if (m.kind === 'elective') return p.modules.includes(m.slug);
   return fitsStudent(m, p);
 }
 
 /** Optional modules a student may pick during onboarding (open to their year and specialization). */
-export const optionalFor = (all: Audience[], p: Pick<Profile, 'year' | 'specialization'>) => all.filter((m) => m.category === 'Optional' && fitsStudent(m, p));
+export const optionalFor = (all: Audience[], p: Pick<Profile, 'year' | 'specialization'>) => all.filter((m) => m.kind === 'elective' && m.open && fitsStudent(m, p));
 
 export function parseSettings(input: Record<string, unknown>): Result<Settings> {
   const clean = (v: unknown) => (Array.isArray(v) ? v : typeof v === 'string' ? v.split('\n') : []).map((s) => String(s).trim()).filter(Boolean);
@@ -118,8 +128,17 @@ export function parseSettings(input: Record<string, unknown>): Result<Settings> 
   if (!specializations.length) return { ok: false, error: 'Add at least one specialization.' };
   if ([...years, ...specializations].some((s) => s.length > 60 || s.includes(','))) return { ok: false, error: 'Keep each item under 60 characters, without commas.' };
   if (specializations.includes(GENERAL)) return { ok: false, error: '“General” is reserved for students before their specialization.' };
+  const rawCats = Array.isArray(input.categories) ? (input.categories as { name?: unknown; kind?: unknown }[]) : DEFAULT_SETTINGS.categories;
+  const categories: Category[] = [];
+  for (const c of rawCats) {
+    const name = String(c?.name ?? '').trim().replace(/\s+/g, ' ');
+    if (!name || name.length > 40 || name.includes(',')) return { ok: false, error: 'Each category needs a name (up to 40 characters, no commas).' };
+    if (categories.some((x) => x.name.toLowerCase() === name.toLowerCase())) return { ok: false, error: `“${name}” is listed twice.` };
+    categories.push({ name, kind: c?.kind === 'core' ? 'core' : 'elective' });
+  }
+  if (!categories.length || categories.length > 12) return { ok: false, error: 'Keep 1–12 categories.' };
   const sem = (v: unknown, fallback: Semester) => ((SEMESTERS as readonly string[]).includes(String(v)) ? (String(v) as Semester) : fallback);
   const activeSemester = sem(input.activeSemester, DEFAULT_SETTINGS.activeSemester);
   const fromYear = years.includes(String(input.specFromYear)) ? String(input.specFromYear) : years[Math.min(2, years.length - 1)];
-  return { ok: true, value: { years, specializations, activeSemester, specFrom: { year: fromYear, semester: sem(input.specFromSemester, 'Semester 2') } } };
+  return { ok: true, value: { categories, years, specializations, activeSemester, specFrom: { year: fromYear, semester: sem(input.specFromSemester, 'Semester 2') } } };
 }

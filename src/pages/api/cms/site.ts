@@ -13,7 +13,7 @@ import { SITE_PATH, commitMessage, errorResponse, fieldErrors, guard, json } fro
 export const prerender = false;
 
 export const GET: APIRoute = async ({ cookies }) => {
-  const g = guard(cookies);
+  const g = await guard(cookies);
   if (g instanceof Response) return g;
   try {
     const file = await g.repo.read(SITE_PATH);
@@ -25,7 +25,7 @@ export const GET: APIRoute = async ({ cookies }) => {
 };
 
 export const POST: APIRoute = async ({ cookies, request }) => {
-  const g = guard(cookies);
+  const g = await guard(cookies);
   if (g instanceof Response) return g;
   const body = (await request.json().catch(() => null)) as { value?: unknown; baseSha?: string; dryRun?: boolean } | null;
   const check = siteSchema.safeParse(body?.value);

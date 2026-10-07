@@ -1,0 +1,300 @@
+---
+/**
+ * Catalogue (permission `platform.settings`): create, rename, reorder and delete years, specializations and
+ * categories; switch the active semester and where specializations start; and categorize every module
+ * (category, years, semester, specializations, whether students may add it themselves).
+ */
+import Base from '@/layouts/Base.astro';
+import AdminShell from '@/components/admin/AdminShell.astro';
+import { access } from '@/lib/accounts/access';
+
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'no-store, max-age=0');
+if (!(await access(Astro.cookies)).can('platform.settings')) return Astro.redirect('/admin', 303);
+---
+<Base title="Catalogue" noindex>
+  <AdminShell active="catalogue">
+    <section class="cat" data-cat>
+      <header class="cat-top">
+        <p class="cat-k mono">Platform · catalogue</p>
+        <h1>Catalogue</h1>
+        <p class="muted">Build the structure students browse: years, specializations and categories, the active semester, and where each module belongs.</p>
+      </header>
+
+      <div class="cat-grid">
+        <section class="cat-card cat-sem">
+          <h2>Active semester</h2>
+          <div class="cat-sw" role="radiogroup" aria-label="Active semester" data-sem>
+            <button type="button" data-v="Semester 1">Semester 1</button>
+            <button type="button" data-v="Semester 2">Semester 2</button>
+          </div>
+          <p class="cat-fine">Students see this semester's modules first.</p>
+          <div class="cat-two">
+            <label><span>Specializations start in</span><select class="input" data-spec-year></select></label>
+            <label><span>from</span><select class="input" data-spec-sem><option>Semester 1</option><option>Semester 2</option></select></label>
+          </div>
+          <p class="cat-fine">Before this point students are “General”.</p>
+        </section>
+
+        <section class="cat-card">
+          <div class="cat-h"><h2>Years</h2><span class="mono cat-n" data-n="years"></span></div>
+          <div class="cat-list" data-list="years"></div>
+          <form class="cat-add" data-add="years"><input class="input" placeholder="Add a year (e.g. Foundation, Year 5)" maxlength="60" /><button class="btn btn-ghost btn-sm" type="submit">Add</button></form>
+        </section>
+
+        <section class="cat-card">
+          <div class="cat-h"><h2>Specializations</h2><span class="mono cat-n" data-n="specializations"></span></div>
+          <div class="cat-list" data-list="specializations"></div>
+          <form class="cat-add" data-add="specializations"><input class="input" placeholder="Add a specialization" maxlength="60" /><button class="btn btn-ghost btn-sm" type="submit">Add</button></form>
+        </section>
+
+        <section class="cat-card">
+          <div class="cat-h"><h2>Categories</h2><span class="mono cat-n" data-n="categories"></span></div>
+          <p class="cat-fine"><b>Core</b>: shown to every matching student. <b>Elective</b>: only to students who pick it (when it is open) or are enrolled.</p>
+          <div class="cat-list" data-list="categories"></div>
+          <form class="cat-add" data-add="categories"><input class="input" placeholder="Add a category (e.g. Elective, University requirement)" maxlength="40" /><button class="btn btn-ghost btn-sm" type="submit">Add</button></form>
+        </section>
+      </div>
+
+      <div class="cat-bar">
+        <p class="cat-msg" data-msg role="status"></p>
+        <button class="btn btn-primary" type="button" data-save>Save catalogue</button>
+      </div>
+
+      <section class="cat-card cat-mods">
+        <div class="cat-h"><h2>Modules</h2><input class="input cat-q" type="search" placeholder="Filter modules" data-q /></div>
+        <p class="cat-fine">Changes to a module save automatically.</p>
+        <div data-mods><p class="muted">Loading…</p></div>
+      </section>
+    </section>
+  </AdminShell>
+</Base>
+
+<style is:global>
+  .cat { padding-top: calc(var(--nav-h) + 40px); padding-bottom: 100px; display: grid; gap: 20px; }
+  .cat-k { color: var(--accent-text); text-transform: uppercase; letter-spacing: .12em; font-size: 11px; }
+  .cat-top h1 { font-size: var(--fs-2xl); letter-spacing: -.05em; margin-top: 4px; }
+  .cat-top .muted { margin-top: 6px; max-width: 70ch; }
+  .cat-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); align-items: start; }
+  .cat-card { border: 1px solid var(--line-2); border-radius: 20px; padding: 20px; display: grid; gap: 12px; align-content: start; background: var(--surface); }
+  .cat-card h2 { font-size: var(--fs-lg); letter-spacing: -.02em; }
+  .cat-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .cat-n { font-size: 12px; color: var(--text-3); }
+  .cat-fine { font-size: 12.5px; color: var(--text-3); }
+  .cat-sem { border-color: color-mix(in oklab, var(--accent-text) 40%, var(--line-2)); background: linear-gradient(160deg, var(--accent-soft), var(--surface) 70%); }
+  .cat-sw { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cat-sw button { padding: 16px; border-radius: 14px; border: 1px solid var(--line-2); background: var(--surface); color: var(--text); font: 650 15px var(--font-body); cursor: pointer; transition: all var(--t-fast); }
+  .cat-sw button[aria-pressed='true'] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); box-shadow: 0 12px 28px -14px var(--accent); }
+  .cat-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .cat-two label { display: grid; gap: 6px; font-size: 12.5px; font-weight: 600; }
+  .cat-two .input { height: 40px; padding: 0 10px; }
+  .cat-list { display: grid; gap: 6px; }
+  .cat-item { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 6px 6px 6px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); }
+  .cat-item input.name { border: 0; background: none; color: var(--text); font: 600 14px var(--font-body); padding: 6px 0; min-width: 0; }
+  .cat-item input.name:focus { outline: none; box-shadow: 0 2px 0 var(--accent-text); }
+  .cat-acts { display: flex; gap: 4px; align-items: center; }
+  .cat-acts button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line-2); background: none; color: var(--text-2); cursor: pointer; }
+  .cat-acts button:hover { color: var(--text); border-color: var(--text-3); }
+  .cat-acts .x:hover { color: var(--danger); border-color: var(--danger); }
+  .cat-kind { display: flex; padding: 2px; border-radius: 9px; background: var(--surface-2); }
+  .cat-kind button { width: auto; height: 26px; padding: 0 9px; border: 0; border-radius: 7px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .cat-kind button[aria-pressed='true'] { background: var(--accent); color: var(--accent-ink); }
+  .cat-renamed { grid-column: 1 / -1; font-size: 11px; color: var(--warn); padding-bottom: 4px; }
+  .cat-add { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+  .cat-add .input { height: 38px; padding: 0 12px; }
+  .cat-bar { position: sticky; bottom: 16px; z-index: 5; display: flex; justify-content: flex-end; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--line-2); background: var(--glass); backdrop-filter: blur(16px); }
+  .cat-msg { font-size: 13px; flex: 1; }
+  .cat-msg.err { color: var(--danger); }
+  .cat-msg.ok { color: var(--ok); }
+  .cat-q { max-width: 260px; height: 38px; padding: 0 12px; }
+  .cat-mod { display: grid; gap: 10px; padding: 16px 0; border-top: 1px solid var(--line); }
+  .cat-mod:first-child { border-top: 0; }
+  .cat-mh { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .cat-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--c); box-shadow: 0 0 12px var(--c); }
+  .cat-mh b { font-size: 15px; }
+  .cat-mh small { font-size: 11.5px; color: var(--text-3); }
+  .cat-saved { margin-left: auto; font-size: 11.5px; color: var(--ok); }
+  .cat-saved.err { color: var(--danger); }
+  .cat-fields { display: grid; gap: 10px; grid-template-columns: 170px 150px 1fr; align-items: start; }
+  @media (max-width: 900px) { .cat-fields { grid-template-columns: 1fr 1fr; } }
+  .cat-fields label { display: grid; gap: 5px; font-size: 11.5px; font-weight: 600; color: var(--text-2); }
+  .cat-fields .input { height: 36px; padding: 0 10px; font-size: 13px; }
+  .cat-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .cat-chip { padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line-2); background: none; color: var(--text-2); font-size: 12px; cursor: pointer; }
+  .cat-chip[aria-pressed='true'] { border-color: var(--c, var(--accent-text)); background: color-mix(in oklab, var(--c, var(--accent)) 18%, transparent); color: var(--text); }
+  .cat-chip.all[aria-pressed='true'] { border-style: dashed; }
+  .cat-open { display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; }
+  .cat-open input { width: 16px; height: 16px; accent-color: var(--accent); }
+</style>
+
+<script>
+  type Cat = { name: string; kind: 'core' | 'elective' };
+  type Aud = { category: string; years: string[]; semester: string; specializations: string[]; open: boolean };
+  type Mod = { slug: string; title: string; code: string; color: string; builtIn: boolean; published: boolean; audience: Aud };
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+  document.addEventListener('astro:page-load', async () => {
+    const root = document.querySelector<HTMLElement>('[data-cat]');
+    if (!root || root.dataset.wired) return;
+    root.dataset.wired = '1';
+    const msg = root.querySelector<HTMLElement>('[data-msg]')!;
+    const say = (t: string, ok = true) => { msg.textContent = t; msg.className = `cat-msg ${ok ? 'ok' : 'err'}`; };
+
+    const res = await fetch('/api/admin/catalogue', { cache: 'no-store' });
+    if (!res.ok) { say((await res.json().catch(() => ({}))).error ?? 'Could not load.', false); return; }
+    const data = await res.json();
+    // working copy: each item remembers its original name so renames can be carried into modules and profiles
+    const state = {
+      years: data.settings.years.map((n: string) => ({ name: n, was: n })),
+      specializations: data.settings.specializations.map((n: string) => ({ name: n, was: n })),
+      categories: data.settings.categories.map((c: Cat) => ({ ...c, was: c.name })),
+      activeSemester: data.settings.activeSemester as string,
+      specFrom: data.settings.specFrom as { year: string; semester: string },
+    };
+    let modules: Mod[] = data.modules;
+    let dirty = false;
+    const touch = () => { dirty = true; say('Unsaved catalogue changes.', true); msg.className = 'cat-msg'; };
+
+    // active semester + specialization start
+    const semBox = root.querySelector<HTMLElement>('[data-sem]')!;
+    const renderSem = () => semBox.querySelectorAll<HTMLButtonElement>('[data-v]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === state.activeSemester)));
+    semBox.addEventListener('click', (e) => { const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-v]'); if (!b) return; state.activeSemester = b.dataset.v!; renderSem(); touch(); });
+    const specYear = root.querySelector<HTMLSelectElement>('[data-spec-year]')!, specSem = root.querySelector<HTMLSelectElement>('[data-spec-sem]')!;
+    const renderSpecFrom = () => {
+      specYear.replaceChildren(...state.years.map((y: { name: string }) => new Option(y.name, y.name, false, y.name === state.specFrom.year)));
+      specSem.value = state.specFrom.semester;
+    };
+    specYear.addEventListener('change', () => { state.specFrom.year = specYear.value; touch(); });
+    specSem.addEventListener('change', () => { state.specFrom.semester = specSem.value; touch(); });
+
+    // lists
+    const renderList = (key: 'years' | 'specializations' | 'categories') => {
+      const box = root.querySelector<HTMLElement>(`[data-list="${key}"]`)!;
+      const items = state[key] as { name: string; was: string; kind?: string }[];
+      root.querySelector(`[data-n="${key}"]`)!.textContent = String(items.length);
+      box.innerHTML = items.map((it, i) => `<div class="cat-item" data-i="${i}">
+        <input class="name" value="${esc(it.name)}" maxlength="${key === 'categories' ? 40 : 60}" aria-label="Name" />
+        <span class="cat-acts">
+          ${key === 'categories' ? `<span class="cat-kind"><button type="button" data-kind="core" aria-pressed="${it.kind === 'core'}">Core</button><button type="button" data-kind="elective" aria-pressed="${it.kind === 'elective'}">Elective</button></span>` : ''}
+          <button type="button" data-move="-1" aria-label="Move up" ${i === 0 ? 'disabled' : ''}>↑</button>
+          <button type="button" data-move="1" aria-label="Move down" ${i === items.length - 1 ? 'disabled' : ''}>↓</button>
+          <button type="button" class="x" data-del aria-label="Delete">✕</button>
+        </span>
+        ${it.was && it.was !== it.name ? `<span class="cat-renamed">renamed from “${esc(it.was)}”: modules and students will be updated</span>` : ''}
+      </div>`).join('');
+      box.oninput = (e) => {
+        const t = e.target as HTMLInputElement;
+        const i = Number(t.closest<HTMLElement>('[data-i]')?.dataset.i);
+        if (Number.isNaN(i)) return;
+        items[i].name = t.value;
+        touch();
+      };
+      box.onchange = () => renderList(key);
+      box.onclick = (e) => {
+        const t = e.target as HTMLElement;
+        const row = t.closest<HTMLElement>('[data-i]');
+        if (!row) return;
+        const i = Number(row.dataset.i);
+        const mv = t.closest<HTMLButtonElement>('[data-move]');
+        const kind = t.closest<HTMLButtonElement>('[data-kind]');
+        if (mv) { const j = i + Number(mv.dataset.move); [items[i], items[j]] = [items[j], items[i]]; }
+        else if (kind) items[i].kind = kind.dataset.kind!;
+        else if (t.closest('[data-del]')) items.splice(i, 1);
+        else return;
+        touch();
+        renderList(key);
+        if (key === 'years') renderSpecFrom();
+      };
+    };
+    root.querySelectorAll<HTMLFormElement>('[data-add]').forEach((f) => f.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const key = f.dataset.add as 'years' | 'specializations' | 'categories';
+      const input = f.querySelector('input')!;
+      const name = input.value.trim();
+      if (!name) return;
+      if ((state[key] as { name: string }[]).some((x) => x.name.toLowerCase() === name.toLowerCase())) return say(`“${name}” is already there.`, false);
+      (state[key] as object[]).push(key === 'categories' ? { name, kind: 'elective', was: '' } : { name, was: '' });
+      input.value = '';
+      touch();
+      renderList(key);
+      if (key === 'years') renderSpecFrom();
+    }));
+
+    root.querySelector('[data-save]')!.addEventListener('click', async () => {
+      const renames = (key: 'years' | 'specializations') => Object.fromEntries((state[key] as { name: string; was: string }[]).filter((x) => x.was && x.was !== x.name.trim()).map((x) => [x.was, x.name.trim()]));
+      const r = await fetch('/api/admin/catalogue', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
+        years: state.years.map((y: { name: string }) => y.name), specializations: state.specializations.map((s: { name: string }) => s.name),
+        categories: state.categories.map((c: Cat) => ({ name: c.name, kind: c.kind })),
+        activeSemester: state.activeSemester, specFromYear: state.specFrom.year, specFromSemester: state.specFrom.semester,
+        renames: { years: renames('years'), specializations: renames('specializations') },
+      }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) return say(d.error ?? 'Could not save.', false);
+      dirty = false;
+      say(`Saved. ${d.settings.activeSemester} is active.`);
+      // reload so modules show the renamed values
+      const again = await (await fetch('/api/admin/catalogue', { cache: 'no-store' })).json();
+      state.years = again.settings.years.map((n: string) => ({ name: n, was: n }));
+      state.specializations = again.settings.specializations.map((n: string) => ({ name: n, was: n }));
+      state.categories = again.settings.categories.map((c: Cat) => ({ ...c, was: c.name }));
+      modules = again.modules;
+      renderAll();
+    });
+
+    // modules
+    const modsBox = root.querySelector<HTMLElement>('[data-mods]')!;
+    const q = root.querySelector<HTMLInputElement>('[data-q]')!;
+    const chips = (field: string, values: string[], on: string[]) =>
+      `<span class="cat-chips">${values.map((v) => `<button type="button" class="cat-chip" data-toggle="${field}" data-v="${esc(v)}" aria-pressed="${on.includes(v)}">${esc(v)}</button>`).join('')}<span class="cat-fine">${on.length ? '' : 'none selected = everyone'}</span></span>`;
+    const renderMods = () => {
+      const t = q.value.trim().toLowerCase();
+      const cats = state.categories.map((c: Cat) => c.name);
+      modsBox.innerHTML = modules.filter((m) => !t || `${m.title} ${m.code}`.toLowerCase().includes(t)).map((m) => `
+        <article class="cat-mod" data-slug="${esc(m.slug)}" style="--c:${esc(m.color)}">
+          <div class="cat-mh"><span class="cat-dot"></span><b>${esc(m.title)}</b><small class="mono">${esc(m.code || m.slug)}${m.builtIn ? ' · course site' : m.published ? ' · published' : ' · draft'}</small><span class="cat-saved mono" data-saved></span></div>
+          <div class="cat-fields">
+            <label>Category<select class="input" data-f="category">${[...new Set([...cats, m.audience.category])].map((c) => `<option ${c === m.audience.category ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
+            <label>Semester<select class="input" data-f="semester">${['Semester 1', 'Semester 2', 'Both'].map((s) => `<option ${s === m.audience.semester ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
+            <label class="cat-open"><input type="checkbox" data-f="open" ${m.audience.open ? 'checked' : ''} /> Students may add it themselves</label>
+          </div>
+          <label class="cat-fine">Years ${chips('years', state.years.map((y: { name: string }) => y.name), m.audience.years)}</label>
+          <label class="cat-fine">Specializations ${chips('specializations', state.specializations.map((s: { name: string }) => s.name), m.audience.specializations)}</label>
+        </article>`).join('') || '<p class="muted">No modules match.</p>';
+    };
+    const saveModule = async (slug: string) => {
+      const m = modules.find((x) => x.slug === slug)!;
+      const el = modsBox.querySelector<HTMLElement>(`[data-slug="${CSS.escape(slug)}"] [data-saved]`)!;
+      el.textContent = 'saving…'; el.className = 'cat-saved mono';
+      const r = await fetch(`/api/admin/catalogue?module=${encodeURIComponent(slug)}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(m.audience) });
+      const d = await r.json().catch(() => ({}));
+      el.textContent = r.ok ? 'saved ✓' : d.error ?? 'could not save';
+      el.classList.toggle('err', !r.ok);
+    };
+    modsBox.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-toggle]');
+      if (!b) return;
+      const slug = b.closest<HTMLElement>('[data-slug]')!.dataset.slug!;
+      const m = modules.find((x) => x.slug === slug)!;
+      const field = b.dataset.toggle as 'years' | 'specializations';
+      const v = b.dataset.v!;
+      m.audience[field] = m.audience[field].includes(v) ? m.audience[field].filter((x) => x !== v) : [...m.audience[field], v];
+      b.setAttribute('aria-pressed', String(m.audience[field].includes(v)));
+      void saveModule(slug);
+    });
+    modsBox.addEventListener('change', (e) => {
+      const t = e.target as HTMLInputElement | HTMLSelectElement;
+      const f = t.dataset.f;
+      if (!f) return;
+      const slug = t.closest<HTMLElement>('[data-slug]')!.dataset.slug!;
+      const m = modules.find((x) => x.slug === slug)!;
+      if (f === 'open') m.audience.open = (t as HTMLInputElement).checked;
+      else (m.audience as Record<string, unknown>)[f] = t.value;
+      void saveModule(slug);
+    });
+    q.addEventListener('input', renderMods);
+
+    const renderAll = () => { renderSem(); renderSpecFrom(); renderList('years'); renderList('specializations'); renderList('categories'); renderMods(); };
+    renderAll();
+    window.addEventListener('beforeunload', (e) => { if (dirty) e.preventDefault(); });
+  });
+</script>
