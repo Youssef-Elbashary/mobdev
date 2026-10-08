@@ -10,6 +10,7 @@ import '@/styles/global.css';
 interface Props { title?: string; description?: string; noindex?: boolean }
 const { title, description = course.tagline, noindex = false } = Astro.props;
 const fullTitle = title ? `${title} · ${course.name}` : `${course.name} — Course Workspace`;
+const coursePage = !Astro.url.pathname.startsWith('/admin');
 ---
 <!doctype html>
 <html lang="en" class="no-js">
@@ -54,7 +55,7 @@ const fullTitle = title ? `${title} · ${course.name}` : `${course.name} — Cou
     </main>
     <Footer />
     <SearchPalette />
-    <Announce />
+    {coursePage && <Announce />}
     <script>
       import '@/scripts/app';
     </script>
