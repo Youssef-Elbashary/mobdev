@@ -4,8 +4,29 @@ import PageHeader from '@/components/PageHeader.astro';
 import EmptyState from '@/components/EmptyState.astro';
 import Icon from '@/components/Icon.astro';
 import { getLabs, pad, slug } from '@/lib/content';
-const labs = await getLabs();
-const levels = ['Beginner', 'Intermediate', 'Advanced'].filter((d) => labs.some((l) => l.data.difficulty === d));
+import { BUILT_IN_MODULE, loadModule } from '@/lib/platform/server';
+
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'public, s-maxage=60, stale-while-revalidate=300');
+
+const sourceLabs = await getLabs();
+const canvasModule = await loadModule(BUILT_IN_MODULE.slug).catch(() => null);
+const labs = [
+  ...sourceLabs.map((lab) => ({
+    number: lab.data.number, title: lab.data.title, description: lab.data.description,
+    difficulty: lab.data.difficulty, estimatedTime: lab.data.estimatedTime,
+    objectives: lab.data.objectives, skills: lab.data.skills, href: `/labs/${lab.id}`, canvas: false,
+  })),
+  ...(canvasModule?.items.map(({ lab, compiled, n }) => ({
+    number: Number(lab.slug.match(/^lab-(\d+)$/)?.[1] ?? n),
+    title: compiled.meta.title.replace(/^Lab\s+\d+\s*[—–-]\s*/i, ''),
+    description: compiled.meta.description, difficulty: compiled.meta.difficulty,
+    estimatedTime: compiled.meta.estimatedTime, objectives: compiled.meta.objectives,
+    skills: ['UI', 'Architecture', 'Navigation', 'Environments'],
+    href: `/m/${BUILT_IN_MODULE.slug}/${lab.slug}`, canvas: true,
+  })) ?? []),
+].sort((a, b) => a.number - b.number);
+const levels = ['Beginner', 'Intermediate', 'Advanced'].filter((d) => labs.some((l) => l.difficulty === d));
 ---
 <Base title="Labs" description="Hands-on, step-by-step labs for the Mobile Development course.">
   <PageHeader eyebrow="Labs" title="Learn by <span class='accent'>building.</span>" lead="Hands-on sessions that take you from your first running screen to a complete app. Each lab follows the same structure, so you always know where to look." crumbs={[{ label: 'labs' }]}>
@@ -13,7 +34,7 @@ const levels = ['Beginner', 'Intermediate', 'Advanced'].filter((d) => labs.some(
       <div class="lf" role="toolbar" aria-label="Filter labs by difficulty">
         <button class="chip" aria-pressed="true" data-lf="all">All <span class="count">{labs.length}</span></button>
         {levels.map((d) => (
-          <button class="chip" aria-pressed="false" data-lf={d}>{d} <span class="count">{labs.filter((l) => l.data.difficulty === d).length}</span></button>
+          <button class="chip" aria-pressed="false" data-lf={d}>{d} <span class="count">{labs.filter((l) => l.difficulty === d).length}</span></button>
         ))}
       </div>
     )}
@@ -25,19 +46,19 @@ const levels = ['Beginner', 'Intermediate', 'Advanced'].filter((d) => labs.some(
     ) : (
       <ol class="lab-grid" data-lab-list>
         {labs.map((l, i) => (
-          <li data-level={l.data.difficulty} data-reveal style={`--d:${(i % 3) * 60}ms`}>
-            <a href={`/labs/${l.id}`} class="lab-card">
+          <li data-level={l.difficulty} data-reveal style={`--d:${(i % 3) * 60}ms`}>
+            <a href={l.href} class="lab-card">
               <div class="lc-top">
-                <span class="lc-no mono">LAB <b>{pad(l.data.number)}</b></span>
-                <span class={`badge badge-${l.data.difficulty.toLowerCase()}`}><span class="dot"></span>{l.data.difficulty}</span>
+                <span class="lc-no mono">LAB <b>{pad(l.number)}</b></span>
+                <span class={`badge badge-${l.difficulty.toLowerCase()}`}><span class="dot"></span>{l.difficulty}</span>
               </div>
-              <h2 class="lc-title">{l.data.title}</h2>
-              <p class="lc-desc">{l.data.description}</p>
-              <ul class="lc-skills">{l.data.skills.slice(0, 4).map((s) => <li class="tag">{slug(s)}</li>)}</ul>
+              <h2 class="lc-title">{l.title}</h2>
+              <p class="lc-desc">{l.description}</p>
+              <ul class="lc-skills">{l.skills.slice(0, 4).map((s) => <li class="tag">{slug(s)}</li>)}</ul>
               <div class="lc-foot">
-                <span class="mono"><Icon name="clock" size={14} /> {l.data.estimatedTime}</span>
-                <span class="mono">{l.data.objectives.length} objectives</span>
-                <span class="lc-open">Open lab <Icon name="arrow" size={16} /></span>
+                <span class="mono"><Icon name="clock" size={14} /> {l.estimatedTime}</span>
+                <span class="mono">{l.objectives.length} objectives</span>
+                <span class="lc-open">{l.canvas ? 'Open canvas lab' : 'Open lab'} <Icon name="arrow" size={16} /></span>
               </div>
             </a>
           </li>
