@@ -26,7 +26,7 @@ const groups = [
   ] },
   { title: 'Modules', items: [
     { key: 'builder', label: 'Modules & lab builder', href: '/admin/builder', icon: '⬡', show: a.can('modules.create') || any('module.build') },
-    { key: 'teams', label: 'Teams & invitations', href: '/admin#modules', icon: '✉', show: any('module.invite') },
+    { key: 'teams', label: 'Teams & invitations', href: '/admin/teams', icon: '✉', show: any('module.invite') },
   ] },
   { title: 'Platform', items: [
     { key: 'catalogue', label: 'Catalogue', href: '/admin/catalogue', icon: '▦', show: a.can('platform.settings') },

@@ -140,6 +140,12 @@ const json = JSON.stringify(config).replace(/</g, '\\u003c');
   .cv-field label { font-size: 12.5px; font-weight: 600; }
   .cv-field .input { height: auto; min-height: 38px; padding: 8px 10px; font-size: 13px; }
   .cv-field textarea.input { resize: vertical; line-height: 1.5; }
+  .cv-choices { display: grid; gap: 5px; }
+  .cv-choices label { position: relative; cursor: pointer; }
+  .cv-choices input { position: absolute; opacity: 0; pointer-events: none; }
+  .cv-choices span { display: flex; align-items: center; min-height: 34px; padding: 6px 10px; border: 1px solid var(--line-2); border-radius: 9px; color: var(--text-2); background: var(--bg); font-size: 12px; font-weight: 550; }
+  .cv-choices input:checked + span { border-color: var(--accent-text); color: var(--text); background: var(--accent-soft); box-shadow: inset 3px 0 var(--accent-text); }
+  .cv-choices input:focus-visible + span { outline: 2px solid var(--accent-text); outline-offset: 2px; }
   .cv-code { font-size: 12px !important; white-space: pre; tab-size: 2; }
   .cv-color { display: flex; align-items: center; gap: 10px; }
   .cv-color input { width: 44px; height: 32px; border: 0; background: none; padding: 0; cursor: pointer; }

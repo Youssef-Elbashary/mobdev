@@ -3,6 +3,7 @@
 import Base from '@/layouts/Base.astro';
 import Canvas from '@/components/builder/Canvas.astro';
 import { access } from '@/lib/accounts/access';
+import { hubData } from '@/lib/accounts/hub';
 import { BUILT_IN_MODULE, ensureBuiltInBuilder, getPlatformStore } from '@/lib/platform/server';
 
 export const prerender = false;
@@ -13,7 +14,7 @@ if (!(await access(Astro.cookies)).can('module.build', slug0)) return Astro.redi
 const store = getPlatformStore();
 const mod = slug0 === BUILT_IN_MODULE.slug ? await ensureBuiltInBuilder() : store ? await store.getModule(slug0) : null;
 if (!mod) return Astro.redirect('/admin/builder', 303);
-const labs = await store!.listLabs(mod.slug);
+const [labs, { settings }] = await Promise.all([store!.listLabs(mod.slug), hubData()]);
 ---
 <Base title={`Builder · ${mod.title}`} noindex>
   <Canvas
@@ -24,6 +25,7 @@ const labs = await store!.listLabs(mod.slug);
       kind: 'module', flow: mod.flow, saveUrl: `/api/admin/platform/modules?slug=${encodeURIComponent(mod.slug)}`,
       published: mod.published, previewHref: `/m/${mod.slug}?preview`, module: mod.slug,
       labs: labs.map((l) => ({ slug: l.slug, title: l.title, published: l.published })),
+      audienceOptions: { years: settings.years, specializations: settings.specializations },
     }}
   />
 </Base>

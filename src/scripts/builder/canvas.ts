@@ -21,6 +21,8 @@ export type CanvasConfig = {
   /** module canvas: the module's labs, for lab nodes */
   module?: string;
   labs?: { slug: string; title: string; published: boolean }[];
+  /** Valid catalogue choices for module audience fields. */
+  audienceOptions?: { years: string[]; specializations: string[] };
 };
 
 const GRID = 20;
@@ -161,6 +163,11 @@ export function mountCanvas(root: HTMLElement, cfg: CanvasConfig) {
     const id = `f-${f.key}`;
     const help = f.help ? `<small class="cv-help">${esc(f.help)}</small>` : '';
     const label = `<label for="${id}">${esc(f.label)}</label>`;
+    const audience = f.key === 'years' ? cfg.audienceOptions?.years : f.key === 'specializations' ? cfg.audienceOptions?.specializations : null;
+    if (audience) {
+      const selected = new Set(value.split(',').map((item) => item.trim()).filter(Boolean));
+      return `${label}<div class="cv-choices">${audience.map((option) => `<label><input type="checkbox" data-field="${f.key}" value="${esc(option)}" ${selected.has(option) ? 'checked' : ''} /><span>${esc(option)}</span></label>`).join('')}</div>${help}`;
+    }
     switch (f.kind) {
       case 'select': return `${label}<select class="input" id="${id}" data-field="${f.key}">${(f.options ?? []).map((o) => `<option ${o === value ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>${help}`;
       case 'number': return `${label}<input class="input" type="number" id="${id}" data-field="${f.key}" value="${esc(value)}" />${help}`;
@@ -206,7 +213,9 @@ export function mountCanvas(root: HTMLElement, cfg: CanvasConfig) {
     inspector.querySelector('[data-cv-form]')?.addEventListener('input', (e) => {
       const t = e.target as HTMLInputElement;
       if (!t.dataset.field) return;
-      n.data[t.dataset.field] = t.value;
+      n.data[t.dataset.field] = t.type === 'checkbox'
+        ? [...inspector.querySelectorAll<HTMLInputElement>(`input[data-field="${t.dataset.field}"]:checked`)].map((input) => input.value).join(', ')
+        : t.value;
       if (t.type === 'color') t.nextElementSibling!.textContent = t.value;
       inspector.querySelector('h3')!.textContent = title(n);
       validateChecks();

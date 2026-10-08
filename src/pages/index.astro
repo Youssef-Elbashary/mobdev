@@ -44,6 +44,7 @@ const json = JSON.stringify({ years: settings.years, specializations: settings.s
         <div class="ob-step" data-step="2" hidden>
           <h2>What's your specialization?</h2>
           <div class="ob-pills" data-pills="specialization"></div>
+          <p class="ob-empty" data-spec-general hidden></p>
         </div>
         <div class="ob-step" data-step="3" hidden>
           <h2>Which optional modules did you choose?</h2>
@@ -309,12 +310,13 @@ const json = JSON.stringify({ years: settings.years, specializations: settings.s
       box.onclick = (e) => {
         const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-v]');
         if (!b) return;
+        if (key === 'specialization' && !specialized(draft.year)) return;
         draft[key] = b.dataset.v!;
         box.querySelectorAll('[data-v]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
         render();
         // pick → next; before the specialization starts (Year 3 · Semester 2) there is nothing to pick
         if (key === 'year') draft.specialization = specialized(draft.year) ? (draft.specialization === GENERAL ? '' : draft.specialization) : GENERAL;
-        setTimeout(() => go(key === 'year' && !specialized(draft.year) ? 2 : 1), 180);
+        setTimeout(() => go(1), 180);
       };
     };
     const opts = () => {
@@ -341,12 +343,16 @@ const json = JSON.stringify({ years: settings.years, specializations: settings.s
       back.hidden = step === 1;
       next.textContent = step === 3 ? 'Finish ✓' : 'Next →';
       next.disabled = (step === 1 && !draft.year) || (step === 2 && !draft.specialization);
+      const hasSpecialization = specialized(draft.year);
+      $('[data-pills="specialization"]').hidden = !hasSpecialization;
+      const general = $('[data-spec-general]');
+      general.hidden = hasSpecialization;
+      general.textContent = draft.year ? `General — specialization starts in ${data.specFrom.year}, ${data.specFrom.semester}.` : 'Choose your year first.';
       if (step === 3) opts();
       msg.textContent = '';
     };
     const go = (d: number) => {
       step = Math.max(1, Math.min(3, step + d));
-      if (step === 2 && !specialized(draft.year)) { draft.specialization = GENERAL; step = d > 0 ? 3 : 1; }
       render();
     };
     next.addEventListener('click', async () => {

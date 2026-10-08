@@ -1,0 +1,59 @@
+---
+/** Module picker for the staff, student-enrolment and invitation workspaces. */
+import Base from '@/layouts/Base.astro';
+import AdminShell from '@/components/admin/AdminShell.astro';
+import { access } from '@/lib/accounts/access';
+import { hubData } from '@/lib/accounts/hub';
+import { ROLE_NAMES } from '@/lib/accounts/permissions';
+
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'no-store, max-age=0');
+
+const a = await access(Astro.cookies);
+if (!a.user && !a.master) return Astro.redirect('/login?next=/admin/teams', 303);
+const modules = (await hubData()).cards
+  .filter((module) => a.can('module.invite', module.slug))
+  .map((module) => ({
+    ...module,
+    role: a.who.modules[module.slug] ? ROLE_NAMES[a.who.modules[module.slug]] : a.who.platformRole ? ROLE_NAMES[a.who.platformRole] : 'Admin',
+  }));
+if (!modules.length) return Astro.redirect('/admin', 303);
+---
+<Base title="Teams & invitations" noindex>
+  <AdminShell active="teams">
+    <section class="ti container">
+      <header class="ti-head">
+        <p class="ti-k mono">Modules · people</p>
+        <h1>Teams & invitations</h1>
+        <p class="muted">Choose a module to manage its teaching team, enrol students and send invitations.</p>
+      </header>
+      <div class="ti-grid">
+        {modules.map((module, index) => (
+          <a class="ti-card" href={`/admin/team/${module.slug}`} style={`--mc:${module.color};--i:${index}`}>
+            <span class="ti-top mono"><span>{module.code || 'Module'}</span><span>{module.role}</span></span>
+            <h2>{module.title}</h2>
+            <p>{module.labs} lab{module.labs === 1 ? '' : 's'} · {module.builtIn ? 'Built-in course' : module.category}</p>
+            <span class="ti-open">Manage people <b aria-hidden="true">→</b></span>
+          </a>
+        ))}
+      </div>
+    </section>
+  </AdminShell>
+</Base>
+
+<style>
+  .ti { min-height: 85dvh; padding-top: calc(var(--nav-h) + 44px); padding-bottom: 100px; display: grid; gap: 24px; align-content: start; }
+  .ti-head { display: grid; gap: 7px; }
+  .ti-k { color: var(--accent-text); text-transform: uppercase; letter-spacing: .12em; font-size: 11px; }
+  .ti-head h1 { font-size: var(--fs-xl); letter-spacing: -.04em; }
+  .ti-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 14px; }
+  .ti-card { position: relative; overflow: hidden; display: grid; gap: 10px; min-height: 190px; padding: 22px; border: 1px solid color-mix(in oklab, var(--mc) 38%, var(--line-2)); border-radius: 20px; background: var(--surface); color: var(--text); animation: ti-in .4s var(--ease-out) both; animation-delay: calc(var(--i) * 55ms); transition: transform var(--t-fast), border-color var(--t-fast), box-shadow var(--t-fast); }
+  .ti-card::after { content: ''; position: absolute; right: -90px; bottom: -110px; width: 220px; height: 220px; border-radius: 50%; background: radial-gradient(circle, color-mix(in oklab, var(--mc) 35%, transparent), transparent 68%); pointer-events: none; }
+  .ti-card:hover { transform: translateY(-3px); border-color: var(--mc); box-shadow: 0 22px 46px -34px var(--mc); }
+  .ti-top { display: flex; justify-content: space-between; gap: 12px; color: var(--text-3); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; }
+  .ti-card h2 { font-size: 1.45rem; letter-spacing: -.035em; }
+  .ti-card p { color: var(--text-3); font-size: 13px; }
+  .ti-open { align-self: end; display: flex; justify-content: space-between; align-items: center; margin-top: auto; color: var(--accent-text); font-size: 13px; font-weight: 650; }
+  .ti-open b { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--mc); color: #0b0d10; }
+  @keyframes ti-in { from { opacity: 0; transform: translateY(9px); } }
+</style>
