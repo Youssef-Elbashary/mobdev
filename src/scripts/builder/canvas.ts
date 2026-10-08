@@ -89,6 +89,39 @@ export function mountCanvas(root: HTMLElement, cfg: CanvasConfig) {
     status.textContent = v ? 'Unsaved changes' : 'All changes saved';
     status.dataset.state = v ? 'dirty' : 'saved';
   };
+
+  /** Module flows remain a chain on disk, but the editor treats each Week + following labs as one group. */
+  const weekGroups = () => {
+    if (cfg.kind !== 'module') return [] as { week: FlowNode; labs: FlowNode[] }[];
+    const groups: { week: FlowNode; labs: FlowNode[] }[] = [];
+    let current: { week: FlowNode; labs: FlowNode[] } | null = null;
+    for (const n of orderFlow(flow, cfg.kind)) {
+      if (n.type === 'divider') { current = { week: n, labs: [] }; groups.push(current); }
+      else if (n.type === 'lab' && current) current.labs.push(n);
+    }
+    return groups;
+  };
+
+  const weekForNode = (id: string) => weekGroups().find((group) => group.week.id === id || group.labs.some((lab) => lab.id === id));
+
+  function renderWeekGroups() {
+    world.querySelectorAll('[data-week-group]').forEach((el) => el.remove());
+    for (const group of weekGroups()) {
+      const members = [group.week, ...group.labs];
+      const minX = Math.min(...members.map((n) => n.x)) - 22;
+      const minY = Math.min(...members.map((n) => n.y)) - 24;
+      const maxX = Math.max(...members.map((n) => n.x)) + NODE_W + 22;
+      const maxY = Math.max(...members.map((n) => n.y)) + 118;
+      const box = document.createElement('div');
+      box.className = 'cv-week-group';
+      box.dataset.weekGroup = group.week.id;
+      box.style.transform = `translate(${minX}px, ${minY}px)`;
+      box.style.width = `${maxX - minX}px`;
+      box.style.height = `${maxY - minY}px`;
+      box.innerHTML = `<span>${esc(group.week.data.title || 'Week')}</span>`;
+      world.insertBefore(box, svg.nextSibling);
+    }
+  }
   const applyView = () => {
     world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.k})`;
     stage.style.backgroundPosition = `${view.x}px ${view.y}px`;
@@ -129,7 +162,9 @@ export function mountCanvas(root: HTMLElement, cfg: CanvasConfig) {
         <div class="cv-node-sum">${esc(summary(n))}</div>
         ${def.terminal ? '' : `<span class="cv-port out" data-port="out" title="Drag to connect"></span>`}`;
     }
+    renderWeekGroups();
     renderEdges();
+    refreshWeekPicker();
   }
 
   const portPos = (n: FlowNode, side: 'in' | 'out') => {
@@ -235,6 +270,7 @@ export function mountCanvas(root: HTMLElement, cfg: CanvasConfig) {
     selected = id;
     world.querySelectorAll('.cv-node').forEach((el) => el.classList.toggle('is-selected', (el as HTMLElement).dataset.node === id));
     renderInspector();
+    refreshWeekPicker();
   }
 
   /* -------------------------------------------------------------- edits */
@@ -242,7 +278,16 @@ export function mountCanvas(root: HTMLElement, cfg: CanvasConfig) {
   function addNode(type: string, at?: { x: number; y: number }, data: Record<string, string> = {}) {
     const def = defs[type];
     if (!def || def.root) return null;
-    const after = !at && selected ? nodeById(selected) : null;
+    let after = !at && selected ? nodeById(selected) : null;
+    // A new week selected from the palette belongs after the selected week and all of its labs.
+    if (cfg.kind === 'module' && type === 'divider' && !at) {
+      if (after) {
+        const group = weekForNode(after.id);
+        if (group) after = group.labs.at(-1) ?? group.week;
+      } else {
+        after = orderFlow(flow, cfg.kind).at(-1) ?? null;
+      }
+    }
     const position = at ?? (after ? { x: after.x + NODE_W + 60, y: after.y } : (() => {
       const r = stage.getBoundingClientRect();
       return toWorld(r.left + r.width / 2 - NODE_W / 2, r.top + r.height / 2 - 40);
@@ -257,6 +302,7 @@ export function mountCanvas(root: HTMLElement, cfg: CanvasConfig) {
       if (old && !def.terminal) flow.edges.push({ from: n.id, to: old.to });
       if (old) shiftRight(old.to, n);
     }
+    if (cfg.kind === 'module' && type === 'divider') layoutModuleGroups();
     renderNodes();
     select(n.id);
     setDirty();
@@ -312,6 +358,13 @@ export function mountCanvas(root: HTMLElement, cfg: CanvasConfig) {
 
   /** chain in reading order on rows of four, drafts parked underneath */
   function autoLayout() {
+    if (cfg.kind === 'module') {
+      layoutModuleGroups();
+      renderNodes();
+      fit();
+      setDirty();
+      return;
+    }
     const order = orderFlow(flow, cfg.kind);
     const inChain = new Set(order.map((n) => n.id));
     const perRow = 4;
@@ -326,6 +379,31 @@ export function mountCanvas(root: HTMLElement, cfg: CanvasConfig) {
     renderNodes();
     fit();
     setDirty();
+  }
+
+  /** Three week columns per row, with every lab stacked beneath its week heading. */
+  function layoutModuleGroups() {
+    const groups = weekGroups();
+    const grouped = new Set(groups.flatMap((group) => [group.week.id, ...group.labs.map((lab) => lab.id)]));
+    const rootNode = flow.nodes.find(isRoot);
+    if (rootNode) { rootNode.x = 40; rootNode.y = 40; }
+    const columns = 3;
+    let y = 240;
+    for (let start = 0; start < groups.length; start += columns) {
+      const row = groups.slice(start, start + columns);
+      const depth = Math.max(1, ...row.map((group) => group.labs.length + 1));
+      row.forEach((group, column) => {
+        const x = 40 + column * (NODE_W + 90);
+        group.week.x = x;
+        group.week.y = y;
+        group.labs.forEach((lab, index) => { lab.x = x; lab.y = y + 140 * (index + 1); });
+      });
+      y += depth * 140 + 100;
+    }
+    flow.nodes.filter((n) => !isRoot(n) && !grouped.has(n.id)).forEach((n, index) => {
+      n.x = 40 + (index % columns) * (NODE_W + 90);
+      n.y = y + Math.floor(index / columns) * 160;
+    });
   }
 
   function fit() {
@@ -441,7 +519,7 @@ export function mountCanvas(root: HTMLElement, cfg: CanvasConfig) {
     const w = toWorld(e.clientX, e.clientY);
     const at = { x: w.x - NODE_W / 2, y: w.y - 30 };
     const lab = e.dataTransfer?.getData('text/x-lab');
-    if (lab) { addNode('lab', at, { slug: lab }); refreshUnplaced(); return; }
+    if (lab) { placeLabInWeek(lab, selected ? weekForNode(selected)?.week.id : undefined); refreshUnplaced(); return; }
     const type = e.dataTransfer?.getData('text/x-node');
     if (type) addNode(type, at);
   });
@@ -449,6 +527,61 @@ export function mountCanvas(root: HTMLElement, cfg: CanvasConfig) {
   /* ------------------------------------------------- module: lab nodes */
 
   const unplacedBox = root.querySelector<HTMLElement>('[data-cv-unplaced]');
+  const weekPicker = root.querySelector<HTMLSelectElement>('[data-cv-week]');
+
+  function refreshWeekPicker() {
+    if (!weekPicker) return;
+    const groups = weekGroups();
+    const selectedWeek = selected ? weekForNode(selected)?.week.id : undefined;
+    const preferred = selectedWeek ?? weekPicker.value;
+    weekPicker.innerHTML = groups.length
+      ? groups.map((group) => `<option value="${esc(group.week.id)}">${esc(group.week.data.title || 'Week')}</option>`).join('')
+      : '<option value="">Week 1 (created automatically)</option>';
+    if (preferred && groups.some((group) => group.week.id === preferred)) weekPicker.value = preferred;
+  }
+
+  function createFirstWeek(): FlowNode {
+    const rootNode = flow.nodes.find(isRoot)!;
+    const old = outOf(rootNode.id);
+    const week: FlowNode = { id: uid(), type: 'divider', x: rootNode.x, y: rootNode.y + 160, data: { ...defs.divider.defaults, title: 'Week 1' } };
+    flow.nodes.push(week);
+    flow.edges = flow.edges.filter((edge) => edge !== old);
+    flow.edges.push({ from: rootNode.id, to: week.id });
+    if (old) flow.edges.push({ from: week.id, to: old.to });
+    return week;
+  }
+
+  /** Put a lab at the end of one week while retaining the compatible linear flow saved by the API. */
+  function placeLabInWeek(slug: string, requestedWeek?: string) {
+    let groups = weekGroups();
+    if (!groups.length) { createFirstWeek(); groups = weekGroups(); }
+    const group = groups.find((item) => item.week.id === (requestedWeek || weekPicker?.value)) ?? groups[0];
+    const anchor = group.labs.at(-1) ?? group.week;
+    const old = outOf(anchor.id);
+    const def = defs.lab;
+    const lab: FlowNode = { id: uid(), type: 'lab', x: anchor.x, y: anchor.y + 140, data: { ...def.defaults, slug } };
+    flow.nodes.push(lab);
+    flow.edges = flow.edges.filter((edge) => edge !== old);
+    flow.edges.push({ from: anchor.id, to: lab.id });
+    if (old) flow.edges.push({ from: lab.id, to: old.to });
+    layoutModuleGroups();
+    renderNodes();
+    select(lab.id);
+    setDirty();
+    return lab;
+  }
+
+  /** Older module canvases could have labs immediately after the module root; wrap those in Week 1. */
+  function groupLeadingLabs(): boolean {
+    if (cfg.kind !== 'module') return false;
+    const order = orderFlow(flow, cfg.kind);
+    if (!order.some((node) => node.type === 'lab')) return false;
+    const firstContent = order.find((node) => !isRoot(node));
+    if (!firstContent || firstContent.type === 'divider') return false;
+    createFirstWeek();
+    return true;
+  }
+
   function refreshUnplaced() {
     if (!unplacedBox) return;
     const placed = new Set(flow.nodes.filter((n) => n.type === 'lab').map((n) => n.data.slug));
@@ -458,7 +591,7 @@ export function mountCanvas(root: HTMLElement, cfg: CanvasConfig) {
       : '<p class="cv-help">Every lab is on the canvas.</p>';
     unplacedBox.querySelectorAll<HTMLElement>('[data-unplaced]').forEach((b) => {
       b.addEventListener('dragstart', (e) => e.dataTransfer!.setData('text/x-lab', b.dataset.unplaced!));
-      b.addEventListener('click', () => { addNode('lab', undefined, { slug: b.dataset.unplaced! }); refreshUnplaced(); });
+      b.addEventListener('click', () => { placeLabInWeek(b.dataset.unplaced!, weekPicker?.value); refreshUnplaced(); });
     });
   }
   refreshUnplaced();
@@ -474,7 +607,7 @@ export function mountCanvas(root: HTMLElement, cfg: CanvasConfig) {
     msg.textContent = '';
     input.value = '';
     labs.set(data.lab.slug, { slug: data.lab.slug, title: data.lab.title, published: false });
-    addNode('lab', undefined, { slug: data.lab.slug });
+    placeLabInWeek(data.lab.slug, weekPicker?.value);
     refreshUnplaced();
     await save();
   });
@@ -539,9 +672,12 @@ export function mountCanvas(root: HTMLElement, cfg: CanvasConfig) {
   });
   window.addEventListener('beforeunload', (e) => { if (dirty) e.preventDefault(); });
 
+  const groupedLegacyLabs = groupLeadingLabs();
+  if (cfg.kind === 'module') layoutModuleGroups();
   renderNodes();
   renderInspector();
   applyView();
   requestAnimationFrame(() => { renderEdges(); fit(); });
-  setDirty(false);
+  setDirty(groupedLegacyLabs);
+  if (groupedLegacyLabs) status.textContent = 'Labs grouped into Week 1 — save changes';
 }

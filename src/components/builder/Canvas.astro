@@ -41,6 +41,7 @@ const json = JSON.stringify(config).replace(/</g, '\\u003c');
         <>
           <p class="cv-k mono cv-sp">Labs</p>
           <form class="cv-newlab" data-cv-newlab>
+            <select class="input" aria-label="Week" data-cv-week></select>
             <input class="input" placeholder="New lab title" maxlength="120" aria-label="New lab title" />
             <button class="btn btn-primary btn-sm" type="submit">Add lab</button>
             <p class="cv-help" data-newlab-msg></p>
@@ -96,13 +97,16 @@ const json = JSON.stringify(config).replace(/</g, '\\u003c');
   :root[data-theme='light'] .cv-glyph { color: color-mix(in oklab, var(--nc) 55%, #000); }
   .cv-newlab { display: grid; grid-template-columns: 1fr auto; gap: 6px; margin-top: 10px; }
   .cv-newlab .input { height: 34px; padding: 0 10px; font-size: 13px; }
+  .cv-newlab select { grid-column: 1 / -1; }
   .cv-newlab .cv-help { grid-column: 1 / -1; color: var(--danger); }
 
   .cv-stage { position: relative; overflow: hidden; background-color: var(--cv-bg); background-image: radial-gradient(var(--cv-dot) 1.2px, transparent 1.2px); cursor: grab; touch-action: none; user-select: none; }
   .cv-stage.is-panning { cursor: grabbing; }
   .cv-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .cv-week-group { position: absolute; z-index: 0; border: 1px dashed color-mix(in oklab, #8a93a1 55%, transparent); border-radius: 20px; background: color-mix(in oklab, var(--surface) 58%, transparent); pointer-events: none; }
+  .cv-week-group span { position: absolute; left: 14px; top: -10px; padding: 2px 8px; border-radius: 999px; background: var(--cv-bg); color: var(--text-3); font: 600 10px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
   /* a zero-sized <svg> is never painted, so give it real room (edges can still overflow it) */
-  .cv-edges { position: absolute; left: -10000px; top: -10000px; width: 30000px; height: 30000px; max-width: none; overflow: visible; pointer-events: none; } /* the global svg reset caps max-width at the 0px-wide world */
+  .cv-edges { position: absolute; z-index: 1; left: -10000px; top: -10000px; width: 30000px; height: 30000px; max-width: none; overflow: visible; pointer-events: none; } /* the global svg reset caps max-width at the 0px-wide world */
   .cv-edge { pointer-events: auto; }
   .cv-edge-hit { fill: none; stroke: transparent; stroke-width: 16; cursor: pointer; }
   .cv-edge-line { fill: none; stroke: var(--cv-edge); stroke-width: 2.5; pointer-events: none; }
@@ -113,7 +117,7 @@ const json = JSON.stringify(config).replace(/</g, '\\u003c');
   .cv-edge-cut circle { fill: var(--surface); stroke: var(--danger); stroke-width: 1.5; }
   .cv-edge-cut path { stroke: var(--danger); stroke-width: 1.8; stroke-linecap: round; }
 
-  .cv-node { position: absolute; left: 0; top: 0; width: 220px; border-radius: 14px; background: var(--cv-node); border: 1.5px solid var(--line-2); box-shadow: 0 10px 24px -14px rgb(0 0 0 / .5); cursor: pointer; transition: border-color var(--t-fast), box-shadow var(--t-fast); }
+  .cv-node { position: absolute; z-index: 2; left: 0; top: 0; width: 220px; border-radius: 14px; background: var(--cv-node); border: 1.5px solid var(--line-2); box-shadow: 0 10px 24px -14px rgb(0 0 0 / .5); cursor: pointer; transition: border-color var(--t-fast), box-shadow var(--t-fast); }
   .cv-node::before { content: ''; position: absolute; inset: 0 0 auto; height: 4px; border-radius: 14px 14px 0 0; background: var(--nc); }
   .cv-node:hover { border-color: color-mix(in oklab, var(--nc) 60%, var(--line-2)); }
   .cv-node.is-selected { border-color: var(--nc); box-shadow: 0 0 0 4px color-mix(in oklab, var(--nc) 25%, transparent), 0 14px 30px -14px rgb(0 0 0 / .55); }
