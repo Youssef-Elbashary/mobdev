@@ -63,7 +63,7 @@ let lastWeek = '';
                 {heading && <li class="mdl-week mono" aria-hidden="true">{heading}</li>}
                 <li>
                   <a class="lab" href={`/m/${data.module.slug}/${lab.slug}${preview ? '?preview' : ''}`} style={`--c:${color}`}>
-                    <span class="lab-n mono">LAB<b>{pad(n)}</b></span>
+                    <span class="lab-n mono">LAB<b>{lab.slug.match(/^lab-(\d+)$/)?.[1]?.padStart(2, '0') ?? pad(n)}</b></span>
                     <span class="lab-main">
                       <span class="lab-t">{compiled.meta.title}{!lab.published && <span class="lab-draft mono">draft</span>}</span>
                       {compiled.meta.description && <span class="lab-d">{compiled.meta.description}</span>}
