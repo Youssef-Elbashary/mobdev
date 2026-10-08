@@ -73,7 +73,7 @@ const json = JSON.stringify({ years: settings.years, specializations: settings.s
           </div>
           <div class="find-filters">
             <select class="find-sel" data-find-year aria-label="Year"><option value="">All years</option>{settings.years.map((y) => <option>{y}</option>)}</select>
-            <select class="find-sel" data-find-sem aria-label="Semester"><option value="">Both semesters</option><option selected={settings.activeSemester === 'Semester 1'}>Semester 1</option><option selected={settings.activeSemester === 'Semester 2'}>Semester 2</option></select>
+            <select class="find-sel" data-find-sem aria-label="Semester"><option value="">Both semesters</option><option>Semester 1</option><option>Semester 2</option></select>
             <select class="find-sel" data-find-spec aria-label="Specialization"><option value="">Any specialization</option>{settings.specializations.map((s) => <option>{s}</option>)}</select>
             <select class="find-sel" data-find-cat aria-label="Category"><option value="">Any category</option>{settings.categories.map((c) => <option>{c.name}</option>)}</select>
             <a class="find-all mono" href="/modules">Full directory →</a>
@@ -180,7 +180,8 @@ const json = JSON.stringify({ years: settings.years, specializations: settings.s
   .find-chips span { padding: 3px 8px; border-radius: 999px; border: 1px solid var(--hero-line); color: var(--hero-lead); }
   .mstate { font: 600 10.5px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--hero-line); color: var(--hero-lead); }
   .mstate.locked::before { content: '🔒 '; }
-  .mstate.add { border-color: var(--hero-accent); color: var(--hero-accent); cursor: pointer; background: none; }
+  .mstate.add, .mstate.mine { border-color: var(--hero-accent); color: var(--hero-accent); background: none; }
+  .mstate.add { cursor: pointer; }
   .later { display: grid; gap: 14px; }
   .later-h { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--hero-lead); }
   .later .mcard { opacity: .72; }
@@ -271,8 +272,7 @@ const json = JSON.stringify({ years: settings.years, specializations: settings.s
     const fSpec = $<HTMLSelectElement>('[data-find-spec]'), fCat = $<HTMLSelectElement>('[data-find-cat]');
     const renderFind = (p: Profile) => {
       const q = findQ.value.trim().toLowerCase();
-      const list = data.cards.filter((m) => !forMe(m, p)
-        && (!q || `${m.title} ${m.code} ${m.description} ${m.term} ${m.category}`.toLowerCase().includes(q))
+      const list = data.cards.filter((m) => (!q || `${m.title} ${m.code} ${m.description} ${m.term} ${m.category}`.toLowerCase().includes(q))
         && (!fYear.value || has(m.years, fYear.value))
         && (!fSem.value || inSemester(m, fSem.value as Semester))
         && (!fSpec.value || has(m.specializations, fSpec.value))
@@ -280,7 +280,8 @@ const json = JSON.stringify({ years: settings.years, specializations: settings.s
       // grouped by year (a module appears under each of its years; open to all years → "All years")
       const groups = [...data.years, 'All years'].map((y) => ({ y, items: list.filter((m) => (y === 'All years' ? !m.years.length : m.years.includes(y))) })).filter((g) => g.items.length && (!fYear.value || g.y === fYear.value || g.y === 'All years'));
       $('[data-others-grid]').innerHTML = groups.map((g) => `<section class="find-group"><h3 class="find-gh">${esc(g.y)}<small>${g.items.length} module${g.items.length === 1 ? '' : 's'}</small></h3>
-        <div class="mine-grid small">${g.items.map((m, i) => card(m, i).replace('</h3>', `</h3><span class="find-chips"><span>${esc(m.category)}</span><span>${m.semester === 'Both' ? 'Both semesters' : esc(m.semester)}</span>${m.specializations.length ? m.specializations.map((s) => `<span>${esc(s)}</span>`).join('') : '<span>All specializations</span>'}</span>${selfEnrol(m, p)
+        <div class="mine-grid small">${g.items.map((m, i) => card(m, i).replace('</h3>', `</h3><span class="find-chips"><span>${esc(m.category)}</span><span>${m.semester === 'Both' ? 'Both semesters' : esc(m.semester)}</span>${m.specializations.length ? m.specializations.map((s) => `<span>${esc(s)}</span>`).join('') : '<span>All specializations</span>'}</span>${forMe(m, p)
+            ? '<span class="mstate mine">✓ Already in your modules</span>' : selfEnrol(m, p)
             ? `<button type="button" class="mstate add" data-add="${esc(m.slug)}">+ Add as my module</button>`
             : '<span class="mstate locked">Invitation only · ask the module leader</span>'}`)).join('')}</div></section>`).join('');
       $('[data-find-none]').hidden = groups.length > 0;

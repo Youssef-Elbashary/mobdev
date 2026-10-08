@@ -4,6 +4,7 @@ import Nav from '@/components/Nav.astro';
 import Footer from '@/components/Footer.astro';
 import SearchPalette from '@/components/SearchPalette.astro';
 import Announce from '@/components/Announce.astro';
+import ModuleAnnounce from '@/components/ModuleAnnounce.astro';
 import { platform } from '@/site.config';
 import '@/styles/global.css';
 
@@ -11,6 +12,7 @@ import '@/styles/global.css';
 interface Props { title?: string; description?: string; noindex?: boolean; module?: { slug: string; title: string; color?: string } }
 const { title, description = platform.tagline, noindex = false, module } = Astro.props;
 const fullTitle = title ? `${title} · ${platform.name}` : `${platform.name} — ${platform.tagline}`;
+const builtInCourse = /^\/(course|labs|coursework|project|commands|tools|setup|resources|troubleshooting|extra|submit|attendance)(\/|$)/.test(Astro.url.pathname);
 ---
 <!doctype html>
 <html lang="en" class="no-js">
@@ -55,7 +57,9 @@ const fullTitle = title ? `${title} · ${platform.name}` : `${platform.name} —
     </main>
     <Footer />
     <SearchPalette />
-    <Announce />
+    {builtInCourse && <Announce />}
+    {builtInCourse && <ModuleAnnounce module="mobile-development" color="#c8ff4d" />}
+    {module && <ModuleAnnounce module={module.slug} color={module.color} />}
     <script>
       import '@/scripts/app';
     </script>

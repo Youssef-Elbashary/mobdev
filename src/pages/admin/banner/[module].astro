@@ -1,0 +1,133 @@
+---
+/** Module staff can prepare announcements and explicitly publish or unpublish one. */
+import Base from '@/layouts/Base.astro';
+import AdminShell from '@/components/admin/AdminShell.astro';
+import { access } from '@/lib/accounts/access';
+import { compileModule } from '@/lib/platform/core';
+import { BUILT_IN_MODULE, getPlatformStore } from '@/lib/platform/server';
+
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'no-store, max-age=0');
+const slug = Astro.params.module ?? '';
+const a = await access(Astro.cookies);
+if (!a.user && !a.master) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname), 303);
+if (!a.can('module.build', slug) && !a.can('module.submissions', slug)) return Astro.redirect('/admin', 303);
+const store = getPlatformStore();
+if (!store) return Astro.redirect('/admin?e=database', 303);
+const row = slug === BUILT_IN_MODULE.slug ? null : await store.getModule(slug);
+if (slug !== BUILT_IN_MODULE.slug && !row) return Astro.redirect('/admin', 303);
+const meta = row ? compileModule(row.flow).meta : BUILT_IN_MODULE;
+const banners = await store.listBanners(slug);
+const data = JSON.stringify({ banners }).replace(/</g, '\\u003c');
+const view = slug === BUILT_IN_MODULE.slug ? '/course' : `/m/${slug}`;
+---
+<Base title={`Banners · ${meta.title}`} noindex>
+  <AdminShell active="home">
+    <section class="bn container" data-bn data-module={slug} style={`--mc:${meta.color || BUILT_IN_MODULE.color}`}>
+      <script type="application/json" data-bn-data set:html={data} />
+      <header class="bn-head">
+        <div><p class="bn-k mono">{meta.code || 'Module'} · announcement banners</p><h1>{meta.title}</h1><p class="muted">Create announcements for this module. Only one banner can be published at a time.</p></div>
+        <a class="btn btn-ghost btn-sm" href={view} target="_blank" rel="noopener">View module ↗</a>
+      </header>
+
+      <form class="bn-form" data-bn-form>
+        <input type="hidden" name="id" />
+        <div class="bn-form-head"><h2 data-bn-form-title>New banner</h2><button class="btn btn-ghost btn-sm" type="button" data-bn-cancel hidden>Cancel edit</button></div>
+        <label><span>Title</span><input class="input" name="title" maxlength="100" required placeholder="Lab 03 is now available" /></label>
+        <label><span>Message</span><textarea class="input" name="message" maxlength="240" rows="3" required placeholder="Open the new lab and complete it before your next session."></textarea></label>
+        <div class="bn-cta">
+          <label><span>Button label <small>(optional)</small></span><input class="input" name="ctaLabel" maxlength="30" placeholder="Open Lab 03" /></label>
+          <label><span>Button link <small>(site path)</small></span><input class="input mono" name="ctaHref" maxlength="300" placeholder={`/m/${slug}`} /></label>
+        </div>
+        <p class="bn-msg" data-bn-msg role="status"></p>
+        <button class="btn btn-primary" type="submit" data-bn-submit>Save banner</button>
+      </form>
+
+      <section class="bn-list-wrap"><h2>Saved banners</h2><div class="bn-list" data-bn-list></div></section>
+    </section>
+  </AdminShell>
+</Base>
+
+<style is:global>
+  .bn { min-height: 85dvh; padding-top: calc(var(--nav-h) + 44px); padding-bottom: 100px; display: grid; gap: 24px; align-content: start; max-width: 980px; }
+  .bn-head { display: flex; justify-content: space-between; align-items: end; gap: 20px; flex-wrap: wrap; }
+  .bn-k { color: var(--accent-text); text-transform: uppercase; letter-spacing: .12em; font-size: 11px; }
+  .bn-head h1 { margin-top: 4px; font-size: var(--fs-xl); letter-spacing: -.04em; }
+  .bn-head .muted { margin-top: 7px; }
+  .bn-form { display: grid; gap: 13px; padding: 20px; border: 1px solid var(--line-2); border-radius: 20px; background: var(--surface); }
+  .bn-form-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .bn-form h2, .bn-list-wrap h2 { font-size: 1.25rem; }
+  .bn-form label { display: grid; gap: 5px; font-size: 12.5px; font-weight: 600; }
+  .bn-form label small { color: var(--text-3); font-weight: 400; }
+  .bn-form textarea { height: auto; padding: 10px 12px; resize: vertical; }
+  .bn-cta { display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; }
+  .bn-msg { min-height: 18px; font-size: 13px; }
+  .bn-msg.ok { color: var(--ok); } .bn-msg.err { color: var(--danger); }
+  [data-bn-submit] { justify-self: start; }
+  .bn-list-wrap { display: grid; gap: 12px; }
+  .bn-list { display: grid; gap: 10px; }
+  .bn-card { display: grid; grid-template-columns: 1fr auto; gap: 10px 18px; padding: 18px; border: 1px solid var(--line-2); border-radius: 16px; background: var(--surface); }
+  .bn-card.live { border-color: color-mix(in oklab, var(--mc) 60%, var(--line-2)); box-shadow: inset 4px 0 var(--mc); }
+  .bn-card h3 { font-size: 1.05rem; } .bn-card p { color: var(--text-2); font-size: 13.5px; }
+  .bn-state { align-self: start; padding: 3px 8px; border-radius: 999px; color: var(--text-3); background: var(--surface-2); font: 600 10px var(--font-mono); text-transform: uppercase; }
+  .bn-card.live .bn-state { color: #0b0d10; background: var(--mc); }
+  .bn-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+  .bn-delete { color: var(--danger); }
+  @media (max-width: 650px) { .bn-cta { grid-template-columns: 1fr; } }
+</style>
+
+<script>
+  import { onPageLoad } from '@/scripts/page-load';
+  type Banner = { id: string; title: string; message: string; ctaLabel: string; ctaHref: string; published: boolean; updated_at: string };
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  onPageLoad(() => {
+    const root = document.querySelector<HTMLElement>('[data-bn]');
+    if (!root || root.dataset.wired) return;
+    root.dataset.wired = '1';
+    const module = root.dataset.module!;
+    const form = root.querySelector<HTMLFormElement>('[data-bn-form]')!;
+    const list = root.querySelector<HTMLElement>('[data-bn-list]')!;
+    const msg = root.querySelector<HTMLElement>('[data-bn-msg]')!;
+    const cancel = root.querySelector<HTMLButtonElement>('[data-bn-cancel]')!;
+    let banners: Banner[] = JSON.parse(root.querySelector('[data-bn-data]')!.textContent!).banners;
+    const endpoint = (id = '') => `/api/admin/platform/banners?module=${encodeURIComponent(module)}${id ? `&id=${encodeURIComponent(id)}` : ''}`;
+    const reset = () => { form.reset(); (form.elements.namedItem('id') as HTMLInputElement).value = ''; root.querySelector('[data-bn-form-title]')!.textContent = 'New banner'; cancel.hidden = true; };
+    const say = (text: string, ok = false) => { msg.textContent = text; msg.className = `bn-msg ${ok ? 'ok' : 'err'}`; };
+    const render = () => {
+      list.innerHTML = banners.length ? banners.map((banner) => `<article class="bn-card ${banner.published ? 'live' : ''}" data-id="${esc(banner.id)}">
+        <div><h3>${esc(banner.title)}</h3><p>${esc(banner.message)}</p></div><span class="bn-state">${banner.published ? 'Published' : 'Draft'}</span>
+        <div class="bn-actions"><button class="btn btn-ghost btn-sm" type="button" data-publish>${banner.published ? 'Unpublish' : 'Publish'}</button><button class="btn btn-ghost btn-sm" type="button" data-edit>Edit</button><button class="btn btn-ghost btn-sm bn-delete" type="button" data-delete>Delete</button></div>
+      </article>`).join('') : '<p class="muted">No banners yet. Create the first one above.</p>';
+    };
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(form));
+      const id = String(data.id || '');
+      say('Saving…');
+      const response = await fetch(endpoint(id), { method: id ? 'PATCH' : 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data) });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) { say(result.error ?? 'Could not save.'); return; }
+      banners = id ? banners.map((item) => item.id === id ? result.banner : item) : [result.banner, ...banners];
+      reset(); render(); say('Saved as a draft. Publish it when students should see it.', true);
+    });
+    cancel.addEventListener('click', reset);
+    list.addEventListener('click', async (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button');
+      const card = button?.closest<HTMLElement>('[data-id]');
+      if (!button || !card) return;
+      const banner = banners.find((item) => item.id === card.dataset.id)!;
+      if (button.matches('[data-edit]')) {
+        for (const key of ['id', 'title', 'message', 'ctaLabel', 'ctaHref']) (form.elements.namedItem(key) as HTMLInputElement).value = String(banner[key as keyof Banner] ?? '');
+        root.querySelector('[data-bn-form-title]')!.textContent = 'Edit banner'; cancel.hidden = false; form.scrollIntoView({ behavior: 'smooth', block: 'center' }); return;
+      }
+      if (button.matches('[data-delete]') && !confirm(`Delete “${banner.title}”?`)) return;
+      const deleting = button.matches('[data-delete]');
+      const response = await fetch(endpoint(banner.id), { method: deleting ? 'DELETE' : 'PATCH', headers: { 'content-type': 'application/json' }, body: deleting ? undefined : JSON.stringify({ published: !banner.published }) });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) { say(result.error ?? 'Could not update the banner.'); return; }
+      banners = deleting ? banners.filter((item) => item.id !== banner.id) : banners.map((item) => ({ ...item, published: item.id === banner.id ? result.banner.published : result.banner.published ? false : item.published }));
+      render(); say(deleting ? 'Banner deleted.' : result.banner.published ? 'Published. Students in this module can now see it.' : 'Banner unpublished.', true);
+    });
+    render();
+  });
+</script>

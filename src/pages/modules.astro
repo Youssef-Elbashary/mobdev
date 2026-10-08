@@ -28,7 +28,7 @@ const specFromLabel = `${settings.specFrom.year} · ${settings.specFrom.semester
       <div class="md-search">
         <input class="md-q" type="search" placeholder="Search modules…" value={q} data-md-q aria-label="Search modules" />
         <select class="md-sel" data-md-year aria-label="Year"><option value="">All years</option>{settings.years.map((y) => <option>{y}</option>)}</select>
-        <select class="md-sel" data-md-sem aria-label="Semester"><option value="">Both semesters</option><option selected={settings.activeSemester === 'Semester 1'}>Semester 1</option><option selected={settings.activeSemester === 'Semester 2'}>Semester 2</option></select>
+        <select class="md-sel" data-md-sem aria-label="Semester"><option value="">Both semesters</option><option>Semester 1</option><option>Semester 2</option></select>
         <select class="md-sel" data-md-spec aria-label="Specialization"><option value="">Any specialization</option>{settings.specializations.map((s) => <option>{s}</option>)}</select>
         <div class="md-filters mono" role="group" aria-label="Filter">
           <button type="button" aria-pressed="true" data-f="all">All</button>

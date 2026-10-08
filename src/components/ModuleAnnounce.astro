@@ -1,0 +1,55 @@
+---
+/** A module-owned announcement. Only the active banner for this module is requested. */
+interface Props { module: string; color?: string }
+const { module, color = '#7cb1ff' } = Astro.props;
+---
+<div class="mann" data-mann data-module={module} hidden role="region" aria-label="Module announcement" style={`--mann:${color}`}>
+  <div class="mann-inner">
+    <span class="mann-new mono">NEW</span>
+    <p><b data-mann-title></b><span data-mann-message></span></p>
+    <a class="mann-cta" data-mann-cta hidden></a>
+    <button class="mann-close" type="button" data-mann-close aria-label="Dismiss announcement">✕</button>
+  </div>
+</div>
+
+<style is:global>
+  .mann { position: fixed; z-index: 89; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); width: min(calc(100% - 32px), 860px); translate: -50% 0; overflow: hidden; border: 1px solid color-mix(in oklab, var(--mann) 68%, transparent); border-radius: 18px; color: var(--text); background: color-mix(in oklab, var(--mann) 20%, var(--surface)); box-shadow: 0 18px 50px -15px rgb(0 0 0 / .5); animation: mann-in .45s var(--ease-out) both; }
+  body:has(.ann:not([hidden])) .mann { bottom: max(94px, calc(env(safe-area-inset-bottom) + 78px)); }
+  .mann-inner { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 14px; padding: 12px 12px 12px 14px; }
+  .mann-new { padding: 6px 9px; border-radius: 8px; color: #0b0d10; background: var(--mann); font-size: 10px; font-weight: 700; letter-spacing: .12em; }
+  .mann p { display: grid; min-width: 0; font-size: 14px; line-height: 1.3; }
+  .mann p span { color: var(--text-2); }
+  .mann-cta { padding: 9px 14px; border-radius: 11px; color: #0b0d10; background: var(--mann); font-size: 13px; font-weight: 650; white-space: nowrap; }
+  .mann-close { width: 32px; height: 32px; border: 1px solid var(--line-2); border-radius: 10px; color: var(--text); background: transparent; cursor: pointer; }
+  .mann.out { animation: mann-out .22s ease-in both; }
+  @keyframes mann-in { from { opacity: 0; translate: -50% 24px; } }
+  @keyframes mann-out { to { opacity: 0; translate: -50% 24px; } }
+  @media (max-width: 640px) { .mann-inner { grid-template-columns: auto 1fr auto; } .mann-cta { grid-column: 1 / -1; text-align: center; } }
+  @media (prefers-reduced-motion: reduce) { .mann { animation: none; } }
+</style>
+
+<script>
+  import { onPageLoad } from '@/scripts/page-load';
+  type Banner = { id: string; title: string; message: string; ctaLabel: string; ctaHref: string };
+  onPageLoad(async () => {
+    const bar = document.querySelector<HTMLElement>('[data-mann]');
+    if (!bar || bar.dataset.wired) return;
+    bar.dataset.wired = '1';
+    const module = bar.dataset.module!;
+    const data = await fetch(`/api/platform/banner?module=${encodeURIComponent(module)}`).then((response) => response.ok ? response.json() : null).catch(() => null);
+    const banner = data?.banner as Banner | null;
+    if (!banner) return;
+    try { if (localStorage.getItem(`module-banner:dismissed:${banner.id}`)) return; } catch { /* private mode */ }
+    bar.querySelector('[data-mann-title]')!.textContent = banner.title;
+    bar.querySelector('[data-mann-message]')!.textContent = banner.message;
+    const link = bar.querySelector<HTMLAnchorElement>('[data-mann-cta]')!;
+    if (banner.ctaHref) { link.href = banner.ctaHref; link.textContent = `${banner.ctaLabel} →`; link.hidden = false; }
+    bar.dataset.id = banner.id;
+    bar.hidden = false;
+    bar.querySelector('[data-mann-close]')!.addEventListener('click', () => {
+      try { localStorage.setItem(`module-banner:dismissed:${banner.id}`, '1'); } catch { /* private mode */ }
+      bar.classList.add('out');
+      setTimeout(() => (bar.hidden = true), 220);
+    });
+  });
+</script>

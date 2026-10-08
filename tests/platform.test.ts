@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { compileLab, compileModule, emptyFlow, labKey, orderFlow, parseAssessment, parseChecks, sanitizeFlow, slugify, splitLabKey, type Flow } from '../src/lib/platform/core.ts';
 import { labStructure } from '../src/lib/progress/core.ts';
+import { parseModuleBanner } from '../src/lib/platform/banner.ts';
 
 const lab: Flow = {
   nodes: [
@@ -117,4 +118,13 @@ test('parseAssessment needs named components with whole weights that add up to 1
   assert.equal(parseAssessment([{ label: '', weight: 100 }]).ok, false);
   assert.equal(parseAssessment([{ label: 'A', weight: 99.5 }, { label: 'B', weight: 0.5 }]).ok, false);
   assert.equal(parseAssessment(Array.from({ length: 11 }, (_, i) => ({ label: `C${i}`, weight: 1 }))).ok, false);
+});
+
+test('module banners require safe copy and an internal optional link', () => {
+  assert.deepEqual(parseModuleBanner({ title: ' Lab 03 ', message: ' Now available ', ctaLabel: 'Open lab', ctaHref: '/m/mobile-development/lab-03' }), {
+    ok: true, value: { title: 'Lab 03', message: 'Now available', ctaLabel: 'Open lab', ctaHref: '/m/mobile-development/lab-03' },
+  });
+  assert.equal(parseModuleBanner({ title: '', message: 'Hello' }).ok, false);
+  assert.equal(parseModuleBanner({ title: 'Hello', message: 'World', ctaLabel: 'Open', ctaHref: 'https://example.com' }).ok, false);
+  assert.equal(parseModuleBanner({ title: 'Hello', message: 'World', ctaLabel: 'Open', ctaHref: '' }).ok, false);
 });

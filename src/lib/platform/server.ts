@@ -10,6 +10,7 @@ import { Pool } from 'pg';
 import { course } from '@/site.config';
 import { compileLab, compileModule, emptyFlow, labKey, type AssessmentItem, type CompiledLab, type Flow } from './core';
 import { DEFAULT_SETTINGS, kindOf, listOf, type Audience, type Category } from '@/lib/accounts/core';
+import type { ModuleBannerInput } from './banner';
 
 const env = (key: string) => getSecret(key) || undefined;
 const onVercel = () => Boolean(env('VERCEL'));
@@ -30,11 +31,13 @@ export const BUILT_IN_MODULE = {
 
 export type ModuleRow = { slug: string; title: string; published: boolean; flow: Flow; created_at: string; updated_at: string };
 export type LabRow = { module: string; slug: string; title: string; published: boolean; flow: Flow; created_at: string; updated_at: string };
+export type ModuleBannerRow = ModuleBannerInput & { id: string; module: string; published: boolean; created_by: string; created_at: string; updated_at: string };
 
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : String(v));
 const json = (v: unknown): Flow => (typeof v === 'string' ? JSON.parse(v) : (v as Flow));
 const toModule = (r: any): ModuleRow => ({ slug: r.slug, title: r.title, published: Boolean(r.published), flow: json(r.flow), created_at: iso(r.created_at), updated_at: iso(r.updated_at) });
 const toLab = (r: any): LabRow => ({ module: r.module, slug: r.slug, title: r.title, published: Boolean(r.published), flow: json(r.flow), created_at: iso(r.created_at), updated_at: iso(r.updated_at) });
+const toBanner = (r: any): ModuleBannerRow => ({ id: r.id, module: r.module, title: r.title, message: r.message, ctaLabel: r.cta_label, ctaHref: r.cta_href, published: Boolean(r.published), created_by: r.created_by, created_at: iso(r.created_at), updated_at: iso(r.updated_at) });
 
 class PlatformStore {
   private run: (text: string, params?: unknown[]) => Promise<any[]>;
@@ -42,6 +45,7 @@ class PlatformStore {
   private modules: string;
   private labs: string;
   private assessment: string;
+  private banners: string;
 
   constructor(url: string, prefix: string, driver: 'neon' | 'postgres') {
     if (driver === 'postgres') {
@@ -54,6 +58,7 @@ class PlatformStore {
     this.modules = `${prefix}_modules`;
     this.labs = `${prefix}_labs`;
     this.assessment = `${prefix}_assessment`;
+    this.banners = `${prefix}_banners`;
   }
 
   private async migrate() {
@@ -69,6 +74,11 @@ class PlatformStore {
       // set by each module's leader; the built-in course is "mobile-development" (no row in modules)
       `create table if not exists ${this.assessment} (
         module text primary key, items jsonb not null, updated_by text not null default '', updated_at timestamptz not null default now())`,
+      `create table if not exists ${this.banners} (
+        id text primary key, module text not null, title text not null, message text not null,
+        cta_label text not null default '', cta_href text not null default '', published boolean not null default false,
+        created_by text not null default '', created_at timestamptz not null default now(), updated_at timestamptz not null default now())`,
+      `create index if not exists ${this.banners}_module_idx on ${this.banners} (module, updated_at desc)`,
     ]) await this.run(s);
   }
 
@@ -141,6 +151,32 @@ class PlatformStore {
   async setAssessment(module: string, items: AssessmentItem[], by: string) {
     await this.q(`insert into ${this.assessment} (module, items, updated_by) values ($1, $2, $3)
       on conflict (module) do update set items = excluded.items, updated_by = excluded.updated_by, updated_at = now()`, [module, JSON.stringify(items), by]);
+  }
+
+  async listBanners(module: string): Promise<ModuleBannerRow[]> {
+    return (await this.q(`select * from ${this.banners} where module = $1 order by updated_at desc`, [module])).map(toBanner);
+  }
+  async publishedBanner(module: string): Promise<ModuleBannerRow | null> {
+    const [row] = await this.q(`select * from ${this.banners} where module = $1 and published = true order by updated_at desc limit 1`, [module]);
+    return row ? toBanner(row) : null;
+  }
+  async createBanner(id: string, module: string, input: ModuleBannerInput, by: string): Promise<ModuleBannerRow> {
+    const [row] = await this.q(`insert into ${this.banners} (id, module, title, message, cta_label, cta_href, created_by)
+      values ($1, $2, $3, $4, $5, $6, $7) returning *`, [id, module, input.title, input.message, input.ctaLabel, input.ctaHref, by]);
+    return toBanner(row);
+  }
+  async updateBanner(module: string, id: string, input: ModuleBannerInput): Promise<ModuleBannerRow | null> {
+    const [row] = await this.q(`update ${this.banners} set title = $3, message = $4, cta_label = $5, cta_href = $6, updated_at = now()
+      where module = $1 and id = $2 returning *`, [module, id, input.title, input.message, input.ctaLabel, input.ctaHref]);
+    return row ? toBanner(row) : null;
+  }
+  async publishBanner(module: string, id: string, published: boolean): Promise<ModuleBannerRow | null> {
+    if (published) await this.q(`update ${this.banners} set published = false where module = $1 and id <> $2 and published = true`, [module, id]);
+    const [row] = await this.q(`update ${this.banners} set published = $3, updated_at = now() where module = $1 and id = $2 returning *`, [module, id, published]);
+    return row ? toBanner(row) : null;
+  }
+  async deleteBanner(module: string, id: string): Promise<boolean> {
+    return (await this.q(`delete from ${this.banners} where module = $1 and id = $2 returning id`, [module, id])).length > 0;
   }
 
   async deleteLab(module: string, slug: string): Promise<boolean> {
