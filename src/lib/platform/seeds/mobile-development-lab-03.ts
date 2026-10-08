@@ -16,10 +16,12 @@ export function mobileDevelopmentLab03(): Flow {
 
   add('root', 'start', {
     title: 'Lab 03 — UI Systems, Project Architecture & Navigation',
-    description: 'Build a maintainable Expo app with reusable UI, feature folders, path aliases, typed stack/tab/drawer navigation, and safe development, staging and production configuration.',
-    difficulty: 'Intermediate', estimatedTime: '3 hours',
+    description: 'Start the app you will grow throughout the semester, then give it a polished NativeWind UI, feature architecture, typed navigation, and safe development, staging and production configuration.',
+    difficulty: 'Intermediate', estimatedTime: '3 hours 45 min',
     objectives: text(
+      'Choose one approved app idea and define the semester product brief, users, features and screen map',
       'Turn a screen design into reusable, accessible React Native UI components',
+      'Style responsive, consistent interfaces with NativeWind utility classes',
       'Organize an Expo app by feature and use TypeScript path aliases',
       'Build typed stack, tab and drawer navigation with route parameters',
       'Separate development, staging and production configuration without exposing secrets',
@@ -27,7 +29,52 @@ export function mobileDevelopmentLab03(): Flow {
     ),
   });
 
-  add('part-ui', 'part', { title: 'Build UI as a system', time: '35 min' });
+  add('part-project', 'part', { title: 'Start the semester application', time: '35 min' });
+  add('task-project-idea', 'task', { title: 'Commit to one useful idea', time: '12 min', body: text(
+    'From this lab onward, your team will apply each new technique to **one mobile application** and improve the same repository every week.', '',
+    'Use **Campus Companion** as the worked example: students discover events, save activities, navigate campus and receive useful reminders. Your team may use its own instructor-approved idea, but it must keep one stable problem and user group.', '',
+    'Create `docs/product-brief.md` with:', '- Problem in one sentence', '- Primary user and when they need the app', '- Three core features', '- One device feature and one external API', '- One measurable sign that the app is useful',
+  ) });
+  add('call-project-scope', 'callout', { tone: 'IMPORTANT', body: 'Build one vertical slice at a time. Do not generate the entire semester app now. Every later lab will add a taught capability to this same product and Git history.' });
+  add('task-project-map', 'task', { title: 'Draw the first product and screen map', time: '13 min', body: text(
+    'Start with this visual flow and adapt the labels to your idea:', '',
+    '```text', '[Welcome] → [Home / discovery] → [Item details] → [Save / action]', '                   ↓                    ↓', '             [Search/filter]       [Profile/settings]', '```', '',
+    'For each screen, write its purpose, main action, required data, and loading/empty/error states. Your first implementation will build the shell, not every final feature.',
+  ) });
+  add('task-project-roadmap', 'task', { title: 'See how the app grows across the semester', time: '10 min', body: text(
+    '| Sprint | Add to the same application | Evidence |', '| --- | --- | --- |',
+    '| Lab 03 | Product brief, design language, folders, navigation, environments | Working shell + architecture commit |',
+    '| UI/state labs | Real screens, forms, lists and interaction states | Usable feature flow |',
+    '| Data/API labs | Persistent data and external service | Loading, success, empty and error paths |',
+    '| Device/testing labs | Hardware capability and automated tests | Demonstrated feature + test report |',
+    '| Final labs | Accessibility, performance and release quality | Staging build and defended decisions |',
+  ) });
+  add('exercise-project-card', 'exercise', {
+    title: 'Visualize the semester app idea', goal: 'Turn the plain brief into a clear product card using NativeWind utilities.',
+    hint: 'Add a dark screen background, a contrasting rounded card, hierarchy, spacing and a green action badge.',
+    starter: text("import { View, Text } from 'react-native';", 'export default function App() {', '  return <View>', '    <Text>Campus Companion</Text>', '    <Text>Find events, places and activities around campus.</Text>', '    <Text>Start exploring</Text>', '  </View>;', '}'),
+    solution: text("import { View, Text } from 'react-native';", 'export default function App() {', '  return <View className="flex-1 justify-center bg-slate-950 p-6">', '    <View className="gap-4 rounded-3xl border border-slate-700 bg-slate-900 p-6">', '      <Text className="text-xs font-bold uppercase tracking-widest text-emerald-300">Semester app</Text>', '      <Text className="text-3xl font-bold text-white">Campus Companion</Text>', '      <Text className="text-base leading-6 text-slate-300">Find events, places and activities around campus.</Text>', '      <Text className="self-start rounded-full bg-emerald-300 px-4 py-2 font-bold text-slate-950">Start exploring</Text>', '    </View>', '  </View>;', '}'),
+    checks: text('Keeps the product idea :: expect Campus Companion', 'Creates visual hierarchy :: code /text-3xl/ add a large title', 'Uses a card surface :: code /rounded-3xl/ add a rounded card', 'Uses spacing and colour :: code /bg-slate-950/ add the screen background'),
+  });
+  add('check-project', 'checkpoint', { body: 'Your repository now has one agreed semester idea, `docs/product-brief.md`, a screen map and a small backlog. Every later lab continues this same application.' });
+
+  add('part-ui', 'part', { title: 'Visual UI systems with NativeWind', time: '55 min' });
+  add('task-nativewind', 'task', { title: 'Understand the NativeWind styling loop', time: '12 min', body: text(
+    'NativeWind lets React Native components use Tailwind-style utilities through `className`. Utilities remain native styles; they are not browser CSS.', '',
+    '`flex-1 bg-slate-950 px-6 pt-12` reads as: fill available space → dark background → horizontal padding → top padding.', '',
+    'Use utilities for **layout, spacing, color, typography and states**. Extract a component when a visual pattern repeats; do not hide a long duplicated class string in every screen.',
+  ) });
+  add('terminal-nativewind', 'terminal', { lines: text('$ npx expo install nativewind react-native-reanimated react-native-safe-area-context', '# Follow the NativeWind Expo installation guide for your installed version', '$ npx expo start --clear') });
+  add('call-nativewind', 'callout', { tone: 'TIP', body: 'Use the official NativeWind installation guide for the exact configuration required by your installed version. After setup, verify `className="bg-emerald-300"` on a `View` before styling the whole app.' });
+  add('task-nativewind-visual', 'task', { title: 'Build hierarchy, rhythm and states', time: '13 min', body: text(
+    'A polished screen is a system, not decoration:', '',
+    '| Visual decision | NativeWind examples | Purpose |', '| --- | --- | --- |',
+    '| Hierarchy | `text-3xl font-bold`, `text-sm text-slate-400` | Show what matters first |',
+    '| Rhythm | `gap-4`, `p-6`, `space-y-3` | Make spacing consistent |',
+    '| Surface | `rounded-2xl border bg-slate-900` | Group related content |',
+    '| Feedback | `active:opacity-70`, disabled treatment | Show interaction state |',
+    '| Platform/theme | `ios:pt-2`, `android:pt-3`, `dark:bg-slate-950` | Adapt intentionally |',
+  ) });
   add('task-ui-plan', 'task', { title: 'Read the screen before writing JSX', time: '10 min', body: text(
     'Split one project wireframe into **layout**, reusable **UI primitives**, and data-aware **feature components**.',
     '', 'Write the component tree first. Keep colors, spacing and typography in tokens instead of scattering one-off values.',
@@ -58,9 +105,9 @@ export function mobileDevelopmentLab03(): Flow {
   add('exercise-ui', 'exercise', {
     title: 'Accessible save card', goal: 'Make **Save** change to **Saved**, and expose it as an accessible button.',
     hint: 'Update the boolean in `onPress` and add `accessibilityRole="button"`.',
-    starter: text("import { useState } from 'react';", "import { View, Text, Pressable } from 'react-native';", 'export default function App() {', '  const [saved, setSaved] = useState(false);', "  return <View style={{ flex: 1, justifyContent: 'center', padding: 24, gap: 12 }}>", '    <Text>Architecture notes</Text>', "    <Pressable onPress={() => {}}><Text>{saved ? 'Saved' : 'Save'}</Text></Pressable>", '  </View>;', '}'),
-    solution: text("import { useState } from 'react';", "import { View, Text, Pressable } from 'react-native';", 'export default function App() {', '  const [saved, setSaved] = useState(false);', "  return <View style={{ flex: 1, justifyContent: 'center', padding: 24, gap: 12 }}>", '    <Text>Architecture notes</Text>', '    <Pressable accessibilityRole="button" onPress={() => setSaved(true)}><Text>{saved ? \'Saved\' : \'Save\'}</Text></Pressable>', '  </View>;', '}'),
-    checks: text('Starts ready :: expect exact Save', 'Pressing saves :: press Save; expect exact Saved', 'Accessible :: code /accessibilityRole/ add accessibilityRole'),
+    starter: text("import { useState } from 'react';", "import { View, Text, Pressable } from 'react-native';", 'export default function App() {', '  const [saved, setSaved] = useState(false);', '  return <View className="flex-1 justify-center bg-slate-950 p-6">', '    <View className="gap-4 rounded-2xl bg-slate-900 p-5">', '      <Text className="text-xl font-bold text-white">Architecture notes</Text>', "      <Pressable onPress={() => {}}><Text className=\"text-emerald-300\">{saved ? 'Saved' : 'Save'}</Text></Pressable>", '    </View>', '  </View>;', '}'),
+    solution: text("import { useState } from 'react';", "import { View, Text, Pressable } from 'react-native';", 'export default function App() {', '  const [saved, setSaved] = useState(false);', '  return <View className="flex-1 justify-center bg-slate-950 p-6">', '    <View className="gap-4 rounded-2xl bg-slate-900 p-5">', '      <Text className="text-xl font-bold text-white">Architecture notes</Text>', '      <Pressable accessibilityRole="button" onPress={() => setSaved(true)} className="self-start rounded-xl bg-emerald-300 px-4 py-3 active:opacity-70"><Text className="font-bold text-slate-950">{saved ? \'Saved\' : \'Save\'}</Text></Pressable>', '    </View>', '  </View>;', '}'),
+    checks: text('Starts ready :: expect exact Save', 'Pressing saves :: press Save; expect exact Saved', 'Accessible :: code /accessibilityRole/ add accessibilityRole', 'Styled interaction :: code /active:opacity-70/ add pressed feedback'),
   });
   add('check-ui', 'checkpoint', { body: 'You have theme tokens and a shared primitive with typed props, interaction feedback and accessibility semantics.' });
 
@@ -133,10 +180,14 @@ export function mobileDevelopmentLab03(): Flow {
   });
   add('check-env', 'checkpoint', { body: 'Dev, staging and production have distinct identities and API URLs. No secret appears in source or an `EXPO_PUBLIC_` variable.' });
 
-  add('part-integrate', 'part', { title: 'Integrate the project starter', time: '20 min' });
-  add('task-integrate', 'task', { title: 'Create the architecture on your branch', time: '12 min', body: 'Add the folders, tokens, UI primitive, navigation types and environment example. Open development mode and navigate through one typed route with a real parameter.' });
+  add('part-integrate', 'part', { title: 'Semester Sprint 01 deliverable', time: '25 min' });
+  add('task-integrate', 'task', { title: 'Build the project foundation on your branch', time: '15 min', body: text(
+    'Apply the lab to your semester app—not a throwaway example. Submit:', '',
+    '- `docs/product-brief.md` and screen map', '- NativeWind design language and two polished screens', '- Feature-based `src/` folders and `@/` aliases',
+    '- Typed navigation shell with at least one real route parameter', '- Development, staging and production examples with no secrets', '- README section called **Sprint 01 — Architecture decisions**',
+  ) });
   add('terminal-commit', 'terminal', { lines: text('$ git switch -c feature/app-architecture', '$ git add src app.config.ts eas.json .env.example tsconfig.json', '$ git commit -m "build app architecture and environments"', '$ git push -u origin feature/app-architecture') });
-  add('task-review', 'task', { title: 'Architecture review', time: '8 min', body: text('- Can a teammate find one feature quickly?', '- Do aliases resolve in TypeScript and Metro?', '- Are all routes and params typed?', '- Can three environments coexist safely?', '- Are loading, empty, error and disabled UI states designed?') });
+  add('task-review', 'task', { title: 'Architecture and product review', time: '10 min', body: text('- Is the user problem specific and stable enough for the semester?', '- Can a teammate find one feature quickly?', '- Does NativeWind produce clear hierarchy and consistent spacing?', '- Do aliases resolve in TypeScript and Metro?', '- Are all routes and params typed?', '- Can three environments coexist safely?', '- Are loading, empty, error and disabled states designed?') });
   add('repo', 'repo', {});
   add('checkin', 'checkin', {});
 
