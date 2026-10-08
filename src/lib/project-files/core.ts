@@ -179,21 +179,19 @@ export const NAME_RE = /^[\p{L}\p{M}][\p{L}\p{M}'’. -]*[\p{L}\p{M}.]$/u;
 export const ID_RE = /^[A-Za-z0-9-]{3,20}$/;
 export const DEVICE_RE = /^[A-Za-z0-9_-]{16,64}$/;
 
-export type EntryInput = { name: string; studentId: string; group: string; note: string; deviceKey: string };
+export type EntryInput = { name: string; studentId: string; note: string; deviceKey: string };
 
 /** Validates a student's hand-in details. The student ID is the key: one hand-in per student per item. */
 export function parseEntry(input: Record<string, unknown>): Result<EntryInput> {
   const name = text(input.name).normalize('NFC').replace(/\s+/g, ' ');
   const studentId = text(input.studentId).toUpperCase();
-  const group = text(input.group).replace(/\s+/g, ' ');
   const note = text(input.note);
   const deviceKey = text(input.deviceKey);
   if (name.length < 2 || name.length > 60 || !NAME_RE.test(name)) return { ok: false, error: 'Please type your full name (letters only).' };
   if (!ID_RE.test(studentId)) return { ok: false, error: 'Your student ID should be 3–20 letters or numbers.' };
-  if (!group || group.length > 30) return { ok: false, error: 'Enter your group or team (for example, G1).' };
   if (note.length > 500) return { ok: false, error: 'Keep the note under 500 characters.' };
   if (!DEVICE_RE.test(deviceKey)) return { ok: false, error: 'Refresh the page and try again.' };
-  return { ok: true, value: { name, studentId, group, note, deviceKey } };
+  return { ok: true, value: { name, studentId, note, deviceKey } };
 }
 
 export const maxBytes = (file: Pick<ProjectFile, 'max_mb'>) => file.max_mb * 1024 * 1024;

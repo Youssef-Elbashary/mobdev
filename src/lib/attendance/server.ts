@@ -24,21 +24,24 @@ import {
   type RedisLike,
 } from './core';
 import { SupabaseStore } from './supabase';
+import { environmentPrefix, environmentSuffix, resolveRuntimeEnvironment } from '../runtime-environment';
 
 const env = (key: string) => getSecret(key) || undefined;
+const runtimeEnvironment = () => resolveRuntimeEnvironment({ APP_ENV: env('APP_ENV'), VERCEL_ENV: env('VERCEL_ENV') });
+const scopedEnv = (key: string) => env(`${key}_${environmentSuffix(runtimeEnvironment())}`) ?? env(key);
 
 function supabaseConfig() {
   return findSupabaseEnv({
-    SUPABASE_URL: env('SUPABASE_URL'),
-    NEXT_PUBLIC_SUPABASE_URL: env('NEXT_PUBLIC_SUPABASE_URL'),
-    SUPABASE_SECRET_KEY: env('SUPABASE_SECRET_KEY'),
-    SUPABASE_SERVICE_ROLE_KEY: env('SUPABASE_SERVICE_ROLE_KEY'),
+    SUPABASE_URL: scopedEnv('SUPABASE_URL'),
+    NEXT_PUBLIC_SUPABASE_URL: scopedEnv('NEXT_PUBLIC_SUPABASE_URL'),
+    SUPABASE_SECRET_KEY: scopedEnv('SUPABASE_SECRET_KEY'),
+    SUPABASE_SERVICE_ROLE_KEY: scopedEnv('SUPABASE_SERVICE_ROLE_KEY'),
   });
 }
 
 function redisConfig() {
-  const url = env('UPSTASH_REDIS_REST_URL') ?? env('KV_REST_API_URL');
-  const token = env('UPSTASH_REDIS_REST_TOKEN') ?? env('KV_REST_API_TOKEN');
+  const url = scopedEnv('UPSTASH_REDIS_REST_URL') ?? scopedEnv('KV_REST_API_URL');
+  const token = scopedEnv('UPSTASH_REDIS_REST_TOKEN') ?? scopedEnv('KV_REST_API_TOKEN');
   if (url && token) return { url, token };
   // names with a custom prefix (only visible through process.env on the server)
   return typeof process !== 'undefined' ? findRedisEnv(process.env) : null;
@@ -46,9 +49,6 @@ function redisConfig() {
 
 /** true on a Vercel deployment, false on a laptop */
 const onVercel = () => Boolean(env('VERCEL'));
-/** the live site uses the real list; previews and laptops use a separate test list */
-const isProduction = () => env('VERCEL_ENV') === 'production';
-
 let store: AttendanceBackend | null | undefined;
 let memory: MemoryRedis | undefined;
 
@@ -58,10 +58,10 @@ export function getStore(): AttendanceBackend | null {
   const sb = supabaseConfig();
   const rd = redisConfig();
   if (sb) {
-    store = new SupabaseStore(sb.url, sb.key, isProduction() ? 'attendance' : 'attendance_dev');
+    store = new SupabaseStore(sb.url, sb.key, environmentPrefix('attendance', runtimeEnvironment()));
   } else if (rd) {
     const redis = new Redis({ url: rd.url, token: rd.token, automaticDeserialization: false });
-    store = new AttendanceStore(redis as unknown as RedisLike, isProduction() ? 'attendance' : 'attendance-dev');
+    store = new AttendanceStore(redis as unknown as RedisLike, environmentPrefix('attendance', runtimeEnvironment()).replaceAll('_', '-'));
   } else if (!onVercel()) {
     store = new AttendanceStore((memory ??= new MemoryRedis()), 'attendance-dev');
   } else {

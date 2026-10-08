@@ -117,16 +117,15 @@ test('parseMeta: proposals collect hand-ins by default, other kinds do not, and 
 
 const device = 'abcdefghijklmnop1234';
 test('parseEntry cleans a valid hand-in and upper-cases the student ID', () => {
-  const r = parseEntry({ name: '  Sara   Ali ', studentId: ' 23cs0042 ', group: ' G1 ', note: ' hi ', deviceKey: device });
-  assert.deepEqual(r, { ok: true, value: { name: 'Sara Ali', studentId: '23CS0042', group: 'G1', note: 'hi', deviceKey: device } });
+  const r = parseEntry({ name: '  Sara   Ali ', studentId: ' 23cs0042 ', group: 'untrusted client value', note: ' hi ', deviceKey: device });
+  assert.deepEqual(r, { ok: true, value: { name: 'Sara Ali', studentId: '23CS0042', note: 'hi', deviceKey: device } });
 });
 
-test('parseEntry rejects bad names, IDs, groups, long notes and missing device keys', () => {
-  const ok = { name: 'Sara Ali', studentId: '23CS0042', group: 'G1', deviceKey: device };
+test('parseEntry rejects bad names, IDs, long notes and missing device keys', () => {
+  const ok = { name: 'Sara Ali', studentId: '23CS0042', deviceKey: device };
   assert.equal(parseEntry({ ...ok, name: '<script>' }).ok, false);
   assert.equal(parseEntry({ ...ok, studentId: '12' }).ok, false);
   assert.equal(parseEntry({ ...ok, studentId: '23 CS 42' }).ok, false);
-  assert.equal(parseEntry({ ...ok, group: '' }).ok, false);
   assert.equal(parseEntry({ ...ok, note: 'x'.repeat(501) }).ok, false);
   assert.equal(parseEntry({ ...ok, deviceKey: 'short' }).ok, false);
   assert.equal(parseEntry(ok).ok, true);

@@ -1,6 +1,9 @@
 ---
 import Base from '@/layouts/Base.astro';
+import Rubric from '@/components/Rubric.astro';
 import { isAdmin } from '@/lib/attendance/server';
+import { getLabs } from '@/lib/content';
+import { generateExpectedMarkingScheme } from '@/lib/marking-scheme';
 import { KINDS, KIND_LABEL } from '@/lib/project-files/core';
 import { blobFolder, projectFilesSetup } from '@/lib/project-files/server';
 
@@ -10,6 +13,10 @@ if (!isAdmin(Astro.cookies)) return Astro.redirect('/admin', 303);
 
 const setup = projectFilesSetup();
 const ready = setup.database && setup.storage;
+const labs = await getLabs();
+const expectedScheme = generateExpectedMarkingScheme(labs.map(({ data }) => ({
+  number: data.number, title: data.title, skills: data.skills, objectives: data.objectives,
+})));
 ---
 <Base title="Project submissions" noindex>
   <section class="pf-shell container">
@@ -24,6 +31,12 @@ const ready = setup.database && setup.storage;
         <a class="btn btn-ghost btn-sm" href="/admin/cms">CMS</a>
       </div>
     </header>
+
+    <section class="pf-card pf-pad">
+      <div class="pf-head"><h2>Expected project marking scheme</h2><span class="pf-usage mono">60% of module grade · generated from {labs.length} published labs</span></div>
+      <p class="muted small">This preview updates automatically when published lab skills or objectives change. Students see it on the Course Project page as expected guidance.</p>
+      <Rubric items={expectedScheme} />
+    </section>
 
     {!ready ? (
       <div class="pf-card pf-pad">

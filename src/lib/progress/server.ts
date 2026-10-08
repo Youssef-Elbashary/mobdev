@@ -12,12 +12,15 @@ import { EXERCISES as LAB02_EXERCISES } from '@/lab/exercises/lab-02/meta';
 import { noStore } from '@/lib/attendance/server';
 import { exerciseStats, labStructure, scoreStudent, sessionState, type Identity, type LabStructure, type Valid } from './core';
 import { NeonStore, type ProgressStore } from './store';
+import { environmentPrefix, environmentSuffix, resolveRuntimeEnvironment } from '../runtime-environment';
 
 const env = (key: string) => getSecret(key) || undefined;
 const onVercel = () => Boolean(env('VERCEL'));
+const runtimeEnvironment = () => resolveRuntimeEnvironment({ APP_ENV: env('APP_ENV'), VERCEL_ENV: env('VERCEL_ENV') });
+const scopedEnv = (key: string) => env(`${key}_${environmentSuffix(runtimeEnvironment())}`) ?? env(key);
 const databaseUrl = () => onVercel()
-  ? env('DATABASE_URL') ?? env('POSTGRES_URL')
-  : env('LOCAL_DATABASE_URL') ?? env('DATABASE_URL') ?? env('POSTGRES_URL');
+  ? scopedEnv('DATABASE_URL') ?? scopedEnv('POSTGRES_URL')
+  : env('LOCAL_DATABASE_URL') ?? scopedEnv('DATABASE_URL') ?? scopedEnv('POSTGRES_URL');
 
 let store: ProgressStore | null | undefined;
 
@@ -25,7 +28,7 @@ let store: ProgressStore | null | undefined;
 export function getProgressStore(): ProgressStore | null {
   if (store !== undefined) return store;
   const url = databaseUrl();
-  if (url) store = new NeonStore(url, env('VERCEL_ENV') === 'production' ? 'progress' : 'progress_dev', onVercel() ? 'neon' : 'postgres');
+  if (url) store = new NeonStore(url, environmentPrefix('progress', runtimeEnvironment()), onVercel() ? 'neon' : 'postgres');
   else store = null;
   return store;
 }

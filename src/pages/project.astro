@@ -5,8 +5,13 @@ import Icon from '@/components/Icon.astro';
 import Rubric from '@/components/Rubric.astro';
 import Faq from '@/components/Faq.astro';
 import EmptyState from '@/components/EmptyState.astro';
-import { getProject, inline, formatDeadline, pad } from '@/lib/content';
+import { getLabs, getProject, inline, formatDeadline, pad } from '@/lib/content';
+import { generateExpectedMarkingScheme } from '@/lib/marking-scheme';
 const project = await getProject();
+const labs = await getLabs();
+const expectedScheme = generateExpectedMarkingScheme(labs.map(({ data }) => ({
+  number: data.number, title: data.title, skills: data.skills, objectives: data.objectives,
+})));
 const d = project?.data;
 const rendered = project ? await render(project) : null;
 const Content = rendered?.Content;
@@ -20,6 +25,7 @@ const nav = d ? [
   ['features', 'Features'],
   ['technical', 'Technical & UI'],
   ['deliverables', 'Deliverables'],
+  ['expected-marking', 'Expected marking'],
   ['evaluation', 'Evaluation'],
   d.faq.length ? ['faq', 'FAQ'] : null,
 ].filter(Boolean) as [string, string][] : [];
@@ -130,8 +136,17 @@ const nav = d ? [
           <ol class="dlv">{d.deliverables.map((x, i) => <li><span class="mono">{pad(i + 1)}</span><span set:html={inline(x)} /></li>)}</ol>
         </section>
 
+        <section id="expected-marking" class="pj-sec pj-split">
+          <div>
+            <p class="eyebrow">Generated from published labs</p>
+            <h2 class="h-2 mt-4">Expected marking scheme</h2>
+            <p class="muted mt-4">This guidance is recalculated from the skills and learning objectives currently taught in the module labs. It represents the project's full <b>60% contribution</b> to the module grade.</p>
+          </div>
+          <Rubric items={expectedScheme} />
+        </section>
+
         <section id="evaluation" class="pj-sec pj-split">
-          <div><p class="eyebrow">Assessment</p><h2 class="h-2 mt-4">Evaluation</h2></div>
+          <div><p class="eyebrow">Assessment detail</p><h2 class="h-2 mt-4">Project-stage breakdown</h2><p class="muted mt-4">These weights divide the coursework itself and total 100% of the project mark.</p></div>
           <Rubric items={d.evaluation} />
         </section>
 

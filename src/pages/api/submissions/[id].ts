@@ -1,7 +1,7 @@
 /**
  * A student's hand-in for one published item (public; one per student ID, replaceable from the same browser).
  *   GET  ?studentId=…&deviceKey=…   { submitted, at, late, locked } so the page can warn before uploading
- *   POST JSON { name, studentId, group, note, deviceKey, url }   url = the file already uploaded to Blob
+ *   POST JSON { name, studentId, note, deviceKey, url }          url = the file already uploaded to Blob
  *   POST multipart (same fields + file)                          on a laptop without Blob
  */
 import type { APIRoute } from 'astro';
@@ -28,7 +28,7 @@ export const GET: APIRoute = async ({ params, url }) => {
     if (!entry) return json({ submitted: false });
     // Only the browser that handed in learns the details; anyone else just learns the ID is taken.
     if (entry.device_key !== url.searchParams.get('deviceKey')) return json({ submitted: true, locked: true });
-    return json({ submitted: true, locked: false, at: entry.updated_at, late: isLate(file, entry.updated_at), size: entry.size });
+    return json({ submitted: true, locked: false, at: entry.updated_at, late: isLate(file, entry.updated_at), size: entry.size, groupNumber: entry.group_name });
   } catch (error) {
     console.error('[submissions] status failed', error);
     return json({ error: 'Could not check your submission.' }, 500);
@@ -88,7 +88,7 @@ export const POST: APIRoute = async ({ params, request, clientAddress }) => {
 
     const { entry, replaced } = await store.saveEntry(file.id, who.value, stored);
     if (replaced) await deleteStored(replaced);
-    return json({ ok: true, at: entry.updated_at, late: isLate(file, entry.updated_at), replaced: Boolean(existing) }, existing ? 200 : 201);
+    return json({ ok: true, at: entry.updated_at, late: isLate(file, entry.updated_at), replaced: Boolean(existing), groupNumber: entry.group_name }, existing ? 200 : 201);
   } catch (error) {
     console.error('[submissions] hand-in failed', error);
     return json({ error: 'Could not save your submission. Try again.' }, 500);

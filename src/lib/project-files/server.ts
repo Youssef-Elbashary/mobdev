@@ -11,24 +11,27 @@
 import { getSecret } from 'astro:env/server';
 import { neon } from '@neondatabase/serverless';
 import { Pool } from 'pg';
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { del, head } from '@vercel/blob';
 import { TYPE_KEYS, matchesSignature, mimesFor, typeForName, type Entry, type EntryInput, type FileType, type ProjectFile, type Settings } from './core';
+import { environmentPrefix, environmentSuffix, resolveRuntimeEnvironment } from '../runtime-environment';
 
 const env = (key: string) => getSecret(key) || undefined;
 const onVercel = () => Boolean(env('VERCEL'));
+const runtimeEnvironment = () => resolveRuntimeEnvironment({ APP_ENV: env('APP_ENV'), VERCEL_ENV: env('VERCEL_ENV') });
+const scopedEnv = (key: string) => env(`${key}_${environmentSuffix(runtimeEnvironment())}`) ?? env(key);
 const databaseUrl = () => onVercel()
-  ? env('DATABASE_URL') ?? env('POSTGRES_URL')
-  : env('LOCAL_DATABASE_URL') ?? env('DATABASE_URL') ?? env('POSTGRES_URL');
+  ? scopedEnv('DATABASE_URL') ?? scopedEnv('POSTGRES_URL')
+  : env('LOCAL_DATABASE_URL') ?? scopedEnv('DATABASE_URL') ?? scopedEnv('POSTGRES_URL');
 
-export const blobToken = () => env('BLOB_READ_WRITE_TOKEN');
+export const blobToken = () => scopedEnv('BLOB_READ_WRITE_TOKEN');
 /** 'blob' when Vercel Blob is connected, 'local' on a laptop without it, null when a deployment can't store files. */
 export const storageMode = (): 'blob' | 'local' | null => (blobToken() ? 'blob' : onVercel() ? null : 'local');
 export const projectFilesSetup = () => ({ database: Boolean(databaseUrl()), storage: storageMode() });
 /** Blob folder; previews and production share one store, so keep them apart. */
-export const blobFolder = () => (env('VERCEL_ENV') === 'production' ? 'project-files' : 'project-files-dev');
+export const blobFolder = () => environmentPrefix('project-files', runtimeEnvironment());
 /** Where one item's student hand-ins live inside the Blob folder. */
 export const entryFolder = (fileId: string) => `${blobFolder()}/entries/${fileId}`;
 
@@ -84,9 +87,17 @@ class FilesStore {
       `create table if not exists ${this.entries} (
         id text primary key, file_id text not null references ${this.files}(id) on delete cascade,
         student_id text not null, name text not null, group_name text not null, note text not null default '',
+        group_number_generated boolean not null default true,
         device_key text not null, url text not null, pathname text not null, size bigint not null,
         created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
         unique (file_id, student_id))`,
+      // v4: group numbers are allocated by the app. Convert live legacy labels once while preserving
+      // membership: entries that shared a label for the same item receive the same generated number.
+      `alter table ${this.entries} add column if not exists group_number_generated boolean not null default false`,
+      `update ${this.entries}
+       set group_name = 'Group ' || (100000 + ((('x' || substr(md5(file_id || ':' || group_name), 1, 8))::bit(32)::bigint) % 900000))::text,
+           group_number_generated = true
+       where not group_number_generated`,
     ];
     for (const s of statements) await this.run(s);
   }
@@ -157,16 +168,28 @@ class FilesStore {
     return row ? { ...toEntry(row), device_key: row.device_key } : null;
   }
 
+  /** A server-generated, hard-to-guess group number that is unique within this submission item. */
+  private async newGroupName(fileId: string): Promise<string> {
+    for (let attempt = 0; attempt < 25; attempt++) {
+      const name = `Group ${randomInt(100000, 1000000)}`;
+      const [taken] = await this.q(`select 1 from ${this.entries} where file_id = $1 and group_name = $2 limit 1`, [fileId, name]);
+      if (!taken) return name;
+    }
+    throw new Error('Could not allocate a group number.');
+  }
+
   /** Creates or replaces a student's hand-in. Returns the replaced PDF (to delete) if there was one. */
   async saveEntry(fileId: string, who: EntryInput, file: Stored): Promise<{ entry: Entry; replaced: Stored | null }> {
     const old = await this.findEntry(fileId, who.studentId);
+    // Replacements keep their original number; a new hand-in gets a number generated only on the server.
+    const groupName = old?.group_name || await this.newGroupName(fileId);
     const [row] = await this.q(
-      `insert into ${this.entries} (id, file_id, student_id, name, group_name, note, device_key, url, pathname, size)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `insert into ${this.entries} (id, file_id, student_id, name, group_name, note, group_number_generated, device_key, url, pathname, size)
+       values ($1, $2, $3, $4, $5, $6, true, $7, $8, $9, $10)
        on conflict (file_id, student_id) do update set name = excluded.name, group_name = excluded.group_name,
          note = excluded.note, url = excluded.url, pathname = excluded.pathname, size = excluded.size, updated_at = now()
        returning *`,
-      [randomUUID(), fileId, who.studentId, who.name, who.group, who.note, who.deviceKey, file.url, file.pathname, file.size],
+      [randomUUID(), fileId, who.studentId, who.name, groupName, who.note, who.deviceKey, file.url, file.pathname, file.size],
     );
     return { entry: toEntry(row), replaced: old && old.pathname !== file.pathname ? old : null };
   }
@@ -195,7 +218,7 @@ let store: FilesStore | null | undefined;
 export function getFilesStore(): FilesStore | null {
   if (store !== undefined) return store;
   const url = databaseUrl();
-  store = url ? new FilesStore(url, env('VERCEL_ENV') === 'production' ? 'project' : 'project_dev', onVercel() ? 'neon' : 'postgres') : null;
+  store = url ? new FilesStore(url, environmentPrefix('project', runtimeEnvironment()), onVercel() ? 'neon' : 'postgres') : null;
   return store;
 }
 

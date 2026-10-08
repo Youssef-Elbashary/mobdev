@@ -85,10 +85,8 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
             <form class="sb-form" data-sb-form novalidate>
               <h2>Hand in your file</h2>
               <label><span>Full name</span><input class="input" name="name" autocomplete="name" required maxlength="60" /></label>
-              <div class="sb-row">
-                <label><span>Student ID</span><input class="input" name="studentId" required maxlength="20" autocapitalize="characters" spellcheck="false" /></label>
-                <label><span>Group / team</span><input class="input" name="group" required maxlength="30" placeholder="e.g. G1" /></label>
-              </div>
+              <label><span>Student ID</span><input class="input" name="studentId" required maxlength="20" autocapitalize="characters" spellcheck="false" /></label>
+              <p class="sb-auto-group"><b>Group number:</b> assigned automatically after your first submission and kept when you replace the file.</p>
               <label><span>Note for your TA <small>(optional)</small></span><textarea class="input" name="note" rows="2" maxlength="500"></textarea></label>
               <label class="sb-drop" data-sb-drop>
                 <input type="file" name="file" accept={acceptAttr(types)} required />
@@ -149,6 +147,8 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
   .sb-form small { color: var(--text-3); font-weight: 400; }
   .sb-form .input { padding: 0 14px; height: 44px; }
   .sb-form textarea.input { height: auto; padding: 10px 14px; resize: vertical; }
+  .sb-auto-group { padding: 11px 13px; border-radius: var(--r-md); background: var(--surface-2); color: var(--text-2); font-size: 13px; }
+  .sb-auto-group b { color: var(--text); }
   .sb-row { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
   .sb-drop { position: relative; display: flex !important; align-items: center; gap: 14px; padding: 14px; border: 1.5px dashed var(--line-2); border-radius: var(--r-md); cursor: pointer; font-weight: 400 !important; color: var(--text-2); transition: border-color var(--t-fast), background var(--t-fast); }
   .sb-drop:hover, .sb-drop.over { border-color: var(--accent-text); background: var(--accent-soft); }
@@ -169,7 +169,7 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
 <script>
   import { upload } from '@vercel/blob/client';
 
-  type Status = { submitted: boolean; locked?: boolean; at?: string; late?: boolean };
+  type Status = { submitted: boolean; locked?: boolean; at?: string; late?: boolean; groupNumber?: string };
 
   const store = {
     get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } },
@@ -228,14 +228,14 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
     // Same details the student typed in the labs.
     try {
       const me = JSON.parse(store.get('submit:me') ?? store.get('lab:student') ?? 'null');
-      if (me) { field('name').value ||= me.name ?? ''; field('studentId').value ||= me.id ?? ''; field('group').value ||= me.group ?? ''; }
+      if (me) { field('name').value ||= me.name ?? ''; field('studentId').value ||= me.id ?? ''; }
     } catch { /* ignore */ }
 
-    const showDone = (at: string, late: boolean, replaced: boolean) => {
+    const showDone = (at: string, late: boolean, replaced: boolean, groupNumber?: string) => {
       form.hidden = true;
       done.hidden = false;
       done.querySelector('[data-sb-done-text]')!.textContent =
-        `${replaced ? 'Your file was replaced' : 'Your file was received'} on ${when(at)}${late ? ' (late)' : ''}. Your TA can see it now.`;
+        `${replaced ? 'Your file was replaced' : 'Your file was received'} on ${when(at)}${late ? ' (late)' : ''}.${groupNumber ? ` Your assigned number is ${groupNumber}.` : ''} Your TA can see it now.`;
     };
     done.querySelector('[data-sb-again]')!.addEventListener('click', () => { done.hidden = true; form.hidden = false; say('Choose the new file. It will replace the one you handed in.', 'warn'); });
 
@@ -247,7 +247,7 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
       const s: Status = await fetch(`/api/submissions/${encodeURIComponent(id)}?studentId=${encodeURIComponent(sid)}&deviceKey=${encodeURIComponent(deviceKey())}`)
         .then((r) => r.json()).catch(() => ({ submitted: false }));
       if (s.locked) say('This student ID already handed in from another browser. Use that browser, or ask your TA.', 'err');
-      else if (s.submitted && s.at) showDone(s.at, Boolean(s.late), false);
+      else if (s.submitted && s.at) showDone(s.at, Boolean(s.late), false, s.groupNumber);
     };
     field('studentId').addEventListener('blur', check);
     if (field('studentId').value) void check();
@@ -267,19 +267,17 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
       e.preventDefault();
       const name = field('name').value.replace(/\s+/g, ' ').trim();
       const studentId = field('studentId').value.trim().toUpperCase();
-      const group = field('group').value.replace(/\s+/g, ' ').trim();
       const note = (form.elements.namedItem('note') as HTMLTextAreaElement).value.trim();
       const file = fileIn.files?.[0];
       if (name.length < 2) return say('Please type your full name.', 'err'), field('name').focus();
       if (!/^[A-Za-z0-9-]{3,20}$/.test(studentId)) return say('Your student ID should be 3–20 letters or numbers.', 'err'), field('studentId').focus();
-      if (!group) return say('Enter your group or team (for example, G1).', 'err'), field('group').focus();
       if (!file) return say('Choose your file.', 'err');
       const ext = (/\.([a-z0-9]+)$/i.exec(file.name)?.[1] ?? '').toLowerCase();
       const mime = exts[ext];
       if (!mime) return say(`Hand in a ${typeText} file.`, 'err');
       if (file.size > max) return say(`The file must be ${max / 1024 / 1024} MB or smaller. Compress it and try again.`, 'err');
 
-      const who = { name, studentId, group, note, deviceKey: deviceKey() };
+      const who = { name, studentId, note, deviceKey: deviceKey() };
       submit.disabled = true;
       bar.hidden = false; bar.value = 0;
       say('Uploading…');
@@ -303,10 +301,10 @@ const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 
         }
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error ?? 'Could not save your submission.');
-        store.set('submit:me', JSON.stringify({ name, id: studentId, group }));
+        store.set('submit:me', JSON.stringify({ name, id: studentId }));
         say('');
         fileIn.value = ''; pick(null);
-        showDone(data.at, data.late, data.replaced);
+        showDone(data.at, data.late, data.replaced, data.groupNumber);
       } catch (error) {
         say(error instanceof Error ? error.message : 'Upload failed. Check your connection and try again.', 'err');
       } finally {
