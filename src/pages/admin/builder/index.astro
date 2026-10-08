@@ -3,7 +3,7 @@
 import Base from '@/layouts/Base.astro';
 import { access } from '@/lib/accounts/access';
 import { compileModule } from '@/lib/platform/core';
-import { BUILT_IN_MODULE, getPlatformStore } from '@/lib/platform/server';
+import { BUILT_IN_MODULE, ensureBuiltInBuilder, getPlatformStore } from '@/lib/platform/server';
 
 export const prerender = false;
 Astro.response.headers.set('cache-control', 'no-store, max-age=0');
@@ -12,9 +12,11 @@ const canCreate = me.can('modules.create');
 if (!canCreate && !me.can('module.build')) return Astro.redirect('/login?next=/admin/builder', 303);
 
 const store = getPlatformStore();
+if (store && me.can('module.build', BUILT_IN_MODULE.slug)) await ensureBuiltInBuilder();
 const [allModules, labs] = store ? await Promise.all([store.listModules(), store.listLabs()]) : [[], []];
 // people who can't create modules see only the modules they may build
-const modules = allModules.filter((m) => me.can('module.build', m.slug));
+const modules = allModules.filter((m) => m.slug !== BUILT_IN_MODULE.slug && me.can('module.build', m.slug));
+const builtInLabs = labs.filter((lab) => lab.module === BUILT_IN_MODULE.slug);
 const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Cairo' });
 import AdminShell from '@/components/admin/AdminShell.astro';
 ---
@@ -49,8 +51,8 @@ import AdminShell from '@/components/admin/AdminShell.astro';
         <div class="bh-list">
           <article class="bh-mod" style="--c:#c8ff4d">
             <div><p class="mono bh-code">{BUILT_IN_MODULE.code} · built-in</p><h3>{BUILT_IN_MODULE.title}</h3>
-              <p class="muted small">The original course labs are source-managed. To build editable labs visually, create a builder module using the form on this page.</p></div>
-            <div class="bh-act"><a class="btn btn-ghost btn-sm" href="/admin/assessment/mobile-development">Assessment</a><a class="btn btn-ghost btn-sm" href="/course" target="_blank" rel="noopener">View course ↗</a></div>
+              <p class="muted small">{builtInLabs.length} visual-builder lab{builtInLabs.length === 1 ? '' : 's'} · the original source labs remain available.</p></div>
+            <div class="bh-act">{me.can('module.build', BUILT_IN_MODULE.slug) && <a class="btn btn-primary btn-sm" href="/admin/builder/mobile-development">Open canvas →</a>}<a class="btn btn-ghost btn-sm" href="/admin/assessment/mobile-development">Assessment</a><a class="btn btn-ghost btn-sm" href="/course" target="_blank" rel="noopener">View course ↗</a></div>
           </article>
           {modules.map((m) => {
             const c = compileModule(m.flow);

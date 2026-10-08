@@ -17,14 +17,11 @@ import { access } from '@/lib/accounts/access';
 export const prerender = false;
 
 export const GET: APIRoute = async ({ cookies }) => {
-  const claims = viewer(cookies);
   const store = getAccountStore();
-  const user = claims && store ? await store.byId(claims.u).catch(() => null) : null;
-  const active = user && user.active ? user : null;
-  const [enrolled, staffModules] = active && store
-    ? await Promise.all([store.enrollmentsFor(active.email).catch(() => []), store.staffFor(active.email).catch(() => ({}))])
-    : [[], {}];
   const rights = await access(cookies);
+  const active = rights.user;
+  const enrolled = active && store ? await store.enrollmentsFor(active.email).catch(() => []) : [];
+  const staffModules = rights.who.modules;
   const builderModules = (await hubData()).cards
     .filter((module) => !module.builtIn && rights.can('module.build', module.slug))
     .map((module) => module.slug);

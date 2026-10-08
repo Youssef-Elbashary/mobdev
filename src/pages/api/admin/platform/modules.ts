@@ -79,6 +79,7 @@ export const PATCH: APIRoute = async ({ cookies, request, url }) => {
 export const DELETE: APIRoute = async ({ cookies, url }) => {
   const g = await guard(cookies, 'modules.create');
   if (g.error) return g.error;
+  if (url.searchParams.get('slug') === BUILT_IN_MODULE.slug) return json({ error: 'The built-in course cannot be deleted.' }, 409);
   try {
     return (await g.store.deleteModule(url.searchParams.get('slug') ?? '')) ? json({ ok: true }) : json({ error: 'Not found.' }, 404);
   } catch (error) {

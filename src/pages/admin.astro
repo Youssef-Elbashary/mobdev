@@ -46,7 +46,7 @@ if (staff) {
       if (a.can('module.progress', c.slug)) tools.push({ label: 'Progress', href: '/admin/progress' });
       if (a.can('module.invite', c.slug)) tools.push({ label: 'Team & invites', href: `/admin/team/${c.slug}` });
       tools.push({ label: 'Assessment', href: `/admin/assessment/${c.slug}` });
-      if (!c.builtIn && a.can('module.build', c.slug)) tools.push({ label: 'Canvas', href: `/admin/builder/${c.slug}` });
+      if (a.can('module.build', c.slug)) tools.push({ label: 'Canvas', href: `/admin/builder/${c.slug}` });
       if (c.builtIn && a.can('module.submissions', c.slug)) tools.push({ label: 'Submissions', href: '/admin/project' });
       if (c.builtIn && a.can('cms.edit')) tools.push({ label: 'Content', href: '/admin/cms' });
       return { ...c, href: !c.builtIn && a.can('module.build', c.slug) ? `/admin/builder/${c.slug}` : c.href, myRole: mr ? ROLE_NAMES[mr] : a.who.platformRole ? ROLE_NAMES[a.who.platformRole] : 'Admin', tools };

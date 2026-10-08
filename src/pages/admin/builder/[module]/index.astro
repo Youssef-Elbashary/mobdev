@@ -3,7 +3,7 @@
 import Base from '@/layouts/Base.astro';
 import Canvas from '@/components/builder/Canvas.astro';
 import { access } from '@/lib/accounts/access';
-import { getPlatformStore } from '@/lib/platform/server';
+import { BUILT_IN_MODULE, ensureBuiltInBuilder, getPlatformStore } from '@/lib/platform/server';
 
 export const prerender = false;
 Astro.response.headers.set('cache-control', 'no-store, max-age=0');
@@ -11,7 +11,7 @@ const slug0 = Astro.params.module ?? '';
 if (!(await access(Astro.cookies)).can('module.build', slug0)) return Astro.redirect('/admin/builder', 303);
 
 const store = getPlatformStore();
-const mod = store ? await store.getModule(Astro.params.module ?? '') : null;
+const mod = slug0 === BUILT_IN_MODULE.slug ? await ensureBuiltInBuilder() : store ? await store.getModule(slug0) : null;
 if (!mod) return Astro.redirect('/admin/builder', 303);
 const labs = await store!.listLabs(mod.slug);
 ---

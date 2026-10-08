@@ -156,6 +156,31 @@ export function getPlatformStore(): PlatformStore | null {
   return store;
 }
 
+/**
+ * Creates the database-backed canvas for the original course on first use.
+ * Its existing MDX labs remain available while new visual-builder labs can be
+ * authored alongside them.
+ */
+export async function ensureBuiltInBuilder(): Promise<ModuleRow | null> {
+  const s = getPlatformStore();
+  if (!s) return null;
+  const existing = await s.getModule(BUILT_IN_MODULE.slug);
+  if (existing) return existing;
+  const created = await s.createModule(BUILT_IN_MODULE.slug, BUILT_IN_MODULE.title);
+  if (!created) return s.getModule(BUILT_IN_MODULE.slug);
+  return s.saveModule(BUILT_IN_MODULE.slug, {
+    flow: emptyFlow('module', {
+      code: BUILT_IN_MODULE.code,
+      title: BUILT_IN_MODULE.title,
+      term: BUILT_IN_MODULE.term,
+      description: BUILT_IN_MODULE.description,
+      color: BUILT_IN_MODULE.color,
+      open: 'Yes',
+      category: 'Elective',
+    }),
+  });
+}
+
 /** A published module with its published labs, in builder order. */
 export async function loadModule(slug: string, opts: { drafts?: boolean } = {}) {
   const s = getPlatformStore();
@@ -205,7 +230,7 @@ export async function moduleCards(builtInAudience: { category: string; years: st
   return [
     { ...BUILT_IN_MODULE, labs: builtInLabs, builtIn: true, category: cat(builtInAudience.category), kind: kindOf(categories, cat(builtInAudience.category)), open: builtInAudience.open !== false,
       years: listOf(builtInAudience.years), specializations: listOf(builtInAudience.specializations), semester: sem(builtInAudience.semester) },
-    ...rows.filter((m) => m.published).map((m) => {
+    ...rows.filter((m) => m.slug !== BUILT_IN_MODULE.slug && m.published).map((m) => {
       const c = compileModule(m.flow);
       const published = new Set(labs.filter((l) => l.module === m.slug && l.published).map((l) => l.slug));
       return {
