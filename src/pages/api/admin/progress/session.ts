@@ -5,6 +5,7 @@
 import type { APIRoute } from 'astro';
 import { isAdmin } from '@/lib/attendance/server';
 import { sessionState } from '@/lib/progress/core';
+import { markPresent } from '@/lib/progress/manual-attendance';
 import { sessionDetails } from '@/lib/progress/session-input';
 import { getProgressStore, getStructures, json } from '@/lib/progress/server';
 
@@ -21,6 +22,14 @@ export const POST: APIRoute = async ({ cookies, request }) => {
   try {
     const action = String(body?.action ?? '');
     const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
+    if (action === 'attendance') {
+      const studentKey = typeof body?.studentKey === 'string' ? body.studentKey : '';
+      if (!sessionId || !studentKey) return json({ error: 'bad-request', message: 'Select a session and student.' }, 400);
+      const at = await markPresent(store, lab, sessionId, studentKey);
+      return at
+        ? json({ ok: true, at })
+        : json({ error: 'not-found', message: 'Student not found in this session.' }, 404);
+    }
     const readDetails = () => sessionDetails(body?.taName, body?.timeSlot);
     const minutes = body?.minutes === undefined ? 90 : body.minutes == null || body.minutes === '' ? null : Number(body.minutes);
     if (['create', 'update', 'open', 'start'].includes(action) && minutes !== null && !LENGTHS.includes(minutes)) return json({ error: 'bad-request', message: 'Choose a valid session duration.' }, 400);
