@@ -30,7 +30,8 @@ export function mountStart(lab: string) {
     const guard = (event: Event) => {
       if (labRoot.dataset.sessionAccess === 'active') return;
       const target = event.target as HTMLElement | null;
-      if (!target || target.closest('[data-lab-start]') || target.closest('a')) return;
+      // The app walkthrough only shows code and a live preview (nothing is recorded), so it is always usable.
+      if (!target || target.closest('[data-lab-start]') || target.closest('a') || target.closest('[data-walkthrough]')) return;
       // Practice: exercises and demos work, but attendance and submissions still need a session.
       if (labRoot.dataset.sessionAccess === 'practice' && !target.closest('[data-repo-submit],[data-checkin]')) return;
       if (target.closest('button,input,textarea,select,[contenteditable="true"],.cm-editor,[data-exercise],[data-playground],[data-repo-submit],[data-checkin]')) {

@@ -127,3 +127,9 @@ def.tree.forEach((t) => {
 
   @media (prefers-reduced-motion: reduce) { .aw-pane:not([hidden]) { animation: none; } }
 </style>
+
+<script>
+  import { onPageLoad } from '@/scripts/page-load';
+  import { initPlaygrounds } from '@/scripts/playground/controller';
+  onPageLoad(initPlaygrounds);
+</script>
