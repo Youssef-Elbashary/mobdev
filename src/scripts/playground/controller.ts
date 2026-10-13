@@ -85,6 +85,8 @@ function createFrame(screen: HTMLElement, onMessage: (m: FromRunner) => void) {
 }
 
 function setupPlayground(root: HTMLElement) {
+  if (root.dataset.wired) return;
+  root.dataset.wired = '1';
   const def = JSON.parse(root.querySelector('script[data-pg-def]')!.textContent!) as Def;
   const exercise = root.dataset.mode === 'exercise';
   const $ = <T extends Element = HTMLElement>(s: string) => root.querySelector<T>(s);
@@ -216,6 +218,8 @@ function setupPlayground(root: HTMLElement) {
 }
 
 function setupWalkthrough(root: HTMLElement) {
+  if (root.dataset.wired) return;
+  root.dataset.wired = '1';
   const def = JSON.parse(root.querySelector('script[data-pg-def]')!.textContent!) as Def;
   const buttons = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-aw-file]'));
   // '/recipe/3' and '/recipe/1' are the same screen

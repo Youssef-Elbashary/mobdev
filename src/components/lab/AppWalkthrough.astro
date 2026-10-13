@@ -129,7 +129,9 @@ def.tree.forEach((t) => {
 </style>
 
 <script>
-  import { onPageLoad } from '@/scripts/page-load';
   import { initPlaygrounds } from '@/scripts/playground/controller';
-  onPageLoad(initPlaygrounds);
+  // astro:page-load can fire before this script subscribes, so also run once the DOM is ready
+  document.addEventListener('astro:page-load', initPlaygrounds);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initPlaygrounds, { once: true });
+  else initPlaygrounds();
 </script>
