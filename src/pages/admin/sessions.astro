@@ -144,6 +144,8 @@ import AdminShell from '@/components/admin/AdminShell.astro';
           </div>
         </header>
         <p class="muted small">This attendance list belongs only to the teaching session selected above. Students, check-ins and progress from parallel sessions remain separate.</p>
+        <p class="muted small">Use Mark present to manually record attendance for a student in this session, even after it has ended.</p>
+        <p class="session-message small" data-att-message role="status" aria-live="polite"></p>
         <div class="table-wrap board-table">
           <table class="table">
             <thead><tr><th scope="col">Name</th><th scope="col">Student ID</th><th scope="col">Group</th><th scope="col">Started</th><th scope="col">Last seen</th><th scope="col">Progress</th><th scope="col">Attendance</th></tr></thead>
@@ -289,6 +291,7 @@ import AdminShell from '@/components/admin/AdminShell.astro';
   };
 
   let timer: number | undefined;
+  const pendingAttendance = new Set<string>();
 
   const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
   const pct = (r: number | null) => (r === null ? '–' : `${Math.round(r * 100)}%`);
@@ -373,6 +376,7 @@ import AdminShell from '@/components/admin/AdminShell.astro';
   function renderAttendance(s: LabStats) {
     const board = document.querySelector<HTMLElement>('[data-lab-attendance]');
     if (!board) return;
+    const sessionId = 'id' in s.session ? s.session.id : '';
     const checked = s.students.filter((student) => student.checkedInAt).length;
     board.querySelector<HTMLElement>('[data-att-count]')!.textContent = String(s.students.length);
     board.querySelector<HTMLElement>('[data-att-summary]')!.textContent = `${checked} checked in · ${'id' in s.session ? `${s.session.time_slot} · ${s.session.ta_name}` : 'no session selected'}`;
@@ -388,10 +392,42 @@ import AdminShell from '@/components/admin/AdminShell.astro';
         <td class="mono faint">${clock(student.startedAt)}</td>
         <td class="mono faint">${ago(student.lastSeen)}</td>
         <td class="mono">${student.percent}% · ${student.solved} solved</td>
-        <td>${student.checkedInAt ? `<span class="att-state checked">✓ ${clock(student.checkedInAt)}</span>` : '<span class="faint">Not yet</span>'}</td>
+        <td>${student.checkedInAt ? `<span class="att-state checked">✓ ${clock(student.checkedInAt)}</span>` : `<button class="btn btn-ghost btn-sm" type="button" data-mark-present="${esc(student.key)}" aria-label="Mark ${esc(student.name)} present" ${pendingAttendance.has(sessionId + ':' + student.key) ? 'disabled' : ''}>${pendingAttendance.has(sessionId + ':' + student.key) ? 'Saving…' : 'Mark present'}</button>`}</td>
       </tr>`)
       .join('');
     board.querySelector<HTMLElement>('[data-att-empty]')!.hidden = s.students.length > 0;
+    board.querySelectorAll<HTMLButtonElement>('[data-mark-present]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const studentKey = button.dataset.markPresent!;
+        const pendingKey = sessionId + ':' + studentKey;
+        if (!sessionId || pendingAttendance.has(pendingKey)) return;
+        pendingAttendance.add(pendingKey);
+        button.disabled = true;
+        button.textContent = 'Saving…';
+        const message = board.querySelector<HTMLElement>('[data-att-message]')!;
+        message.textContent = '';
+        message.classList.remove('err');
+        try {
+          const response = await fetch('/api/admin/progress/session', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ action: 'attendance', lab: s.structure.lab, sessionId, studentKey }),
+          });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(result.message ?? (response.status === 401 ? 'Please sign in again.' : 'Could not record attendance. Please try again.'));
+          message.textContent = `Attendance recorded for ${s.students.find((student) => student.key === studentKey)?.name ?? 'student'} in ${s.sessions.find((session) => session.id === sessionId)?.time_slot ?? 'the selected session'}.`;
+        } catch (error) {
+          message.textContent = error instanceof Error ? error.message : 'Could not record attendance.';
+          message.classList.add('err');
+        } finally {
+          pendingAttendance.delete(pendingKey);
+          button.disabled = false;
+          button.textContent = 'Mark present';
+          const root = document.querySelector<HTMLElement>('[data-labp]');
+          if (root) await load(root);
+        }
+      });
+    });
   }
 
   function render(root: HTMLElement, s: LabStats) {
