@@ -37,6 +37,8 @@ export type StudentData = {
 };
 
 export interface ProgressStore {
+  addManualAttendance(lab: string, sessionId: string, student: { studentKey: string; studentId: string; name: string }): Promise<string | null>;
+
   /** Creates the student, or checks the name (and the device lock when it applies); refreshes last_seen. */
   touchStudent(i: Identity & { studentKey: string }): Promise<'ok' | 'conflict'>;
   joinSession(sessionId: string, studentKey: string, group: string): Promise<void>;
@@ -80,6 +82,18 @@ const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : v == null ? n
 /* ------------------------------------------------------------------ memory */
 
 export class MemoryStore implements ProgressStore {
+  async addManualAttendance(lab: string, sessionId: string, student: { studentKey: string; studentId: string; name: string }) {
+    if (this.sessions.get(sessionId)?.lab !== lab) return null;
+    const existing = this.students.get(student.studentKey);
+    if (existing && existing.name.trim().toLowerCase() !== student.name.trim().toLowerCase()) return null;
+    if (!existing) this.students.set(student.studentKey, {
+      student_key: student.studentKey, student_id: student.studentId, name: student.name,
+      device_key: null, created_at: this.stamp(), last_seen: this.stamp(),
+    });
+    if (!(await this.isSessionStudent(sessionId, student.studentKey))) await this.joinSession(sessionId, student.studentKey, '');
+    return this.checkIn(student.studentKey, lab, sessionId);
+  }
+
   private students = new Map<string, StudentRow>();
   private attempts: (AttemptRow & { student_key: string; lab: string; session_id?: string })[] = [];
   private tasks = new Map<string, { student_key: string; lab: string; task: string; done: boolean; session_id?: string }>();
@@ -572,6 +586,26 @@ export class NeonStore implements ProgressStore {
     };
   }
 
+  async addManualAttendance(lab: string, sessionId: string, student: { studentKey: string; studentId: string; name: string }) {
+    // One statement makes identity, membership and attendance atomic. Existing
+    // names, device bindings, groups and attendance timestamps are preserved.
+    const [row] = await this.q(`with identity as (
+      insert into ${this.t.students} as s (student_key, student_id, name)
+      select $3, $4, $5 where exists (select 1 from ${this.v2.sessions} where id = $2 and lab = $1)
+      on conflict (student_key) do update set student_id = s.student_id
+        where lower(trim(s.name)) = lower(trim(excluded.name))
+      returning student_key
+    ), membership as (
+      insert into ${this.v2.members} (session_id, student_key, group_name)
+      select $2, student_key, '' from identity
+      on conflict (session_id, student_key) do nothing
+    )
+    insert into ${this.v2.checkins} as c (session_id, student_key, lab)
+    select $2, student_key, $1 from identity
+    on conflict (session_id, student_key) do update set at = c.at returning at`,
+    [lab, sessionId, student.studentKey, student.studentId, student.name]);
+    return row ? iso(row.at)! : null;
+  }
   private sessionRow(row: any): Session {
     return { id: row.id, lab: row.lab, ta_name: row.ta_name, time_slot: row.time_slot, opens_at: iso(row.opens_at)!, closes_at: iso(row.closes_at), duration_minutes: row.duration_minutes == null ? null : Number(row.duration_minutes) };
   }

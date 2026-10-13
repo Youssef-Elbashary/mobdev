@@ -34,16 +34,23 @@ export const MAX_CODE = 20_000;
 const obj = (input: unknown) => (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
 const isInt = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n);
 
-export function validateIdentity(input: unknown): Valid<Identity> {
+export function validateStudentIdentity(input: unknown): Valid<Pick<Identity, 'name' | 'studentId'>> {
   const o = obj(input);
   const name = String(o.name ?? '').normalize('NFC').trim().replace(/\s+/g, ' ');
   const studentId = String(o.studentId ?? '').trim();
-  const deviceKey = String(o.deviceKey ?? '').trim();
   const errors: Record<string, string> = {};
   if (name.length < 2 || name.length > 60 || !NAME_RE.test(name)) errors.name = 'Please type your full name (letters only).';
   if (!ID_RE.test(studentId)) errors.studentId = 'Your student ID should be 3–20 letters or numbers.';
+  return Object.keys(errors).length ? { ok: false, errors } : { ok: true, value: { name, studentId, studentKey: studentId.toLowerCase() } };
+}
+
+export function validateIdentity(input: unknown): Valid<Identity> {
+  const identity = validateStudentIdentity(input);
+  const deviceKey = String(obj(input).deviceKey ?? '').trim();
+  const errors: Record<string, string> = identity.ok ? {} : { ...identity.errors };
   if (!DEVICE_RE.test(deviceKey)) errors.deviceKey = 'This browser could not be identified. Refresh the page and try again.';
-  return Object.keys(errors).length ? { ok: false, errors } : { ok: true, value: { name, studentId, deviceKey, studentKey: studentId.toLowerCase() } };
+  if (!identity.ok || Object.keys(errors).length) return { ok: false, errors };
+  return { ok: true, value: { ...identity.value, deviceKey } };
 }
 
 /** Identity + lab checks shared by every student write. */
