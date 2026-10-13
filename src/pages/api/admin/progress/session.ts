@@ -6,7 +6,7 @@ import type { APIRoute } from 'astro';
 import { isAdmin } from '@/lib/attendance/server';
 import { access } from '@/lib/accounts/access';
 import { canOnLab, canSeeLab } from '@/lib/accounts/labscope';
-import { sessionState } from '@/lib/progress/core';
+import { sessionState, validateStudentIdentity } from '@/lib/progress/core';
 import { markPresent } from '@/lib/progress/manual-attendance';
 import { sessionDetails } from '@/lib/progress/session-input';
 import { getProgressStore, getStructures, json } from '@/lib/progress/server';
@@ -25,6 +25,14 @@ export const POST: APIRoute = async ({ cookies, request }) => {
   try {
     const action = String(body?.action ?? '');
     const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
+    if (action === 'add-attendance') {
+      const identity = validateStudentIdentity(body);
+      if (!identity.ok) return json({ error: 'invalid', message: Object.values(identity.errors).join(' '), errors: identity.errors }, 400);
+      const session = sessionId ? await store.getSessionById(sessionId) : null;
+      if (!session || session.lab !== lab) return json({ error: 'not-found', message: 'Select a valid session first.' }, 404);
+      const at = await store.addManualAttendance(lab, sessionId, identity.value);
+      return at ? json({ ok: true, at }) : json({ error: 'conflict', message: 'This student ID is already registered with a different name. Check the name and ID.' }, 409);
+    }
     if (action === 'attendance') {
       const studentKey = typeof body?.studentKey === 'string' ? body.studentKey : '';
       if (!sessionId || !studentKey) return json({ error: 'bad-request', message: 'Select a session and student.' }, 400);

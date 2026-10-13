@@ -145,6 +145,12 @@ import AdminShell from '@/components/admin/AdminShell.astro';
         </header>
         <p class="muted small">This attendance list belongs only to the teaching session selected above. Students, check-ins and progress from parallel sessions remain separate.</p>
         <p class="muted small">Use Mark present to manually record attendance for a student in this session, even after it has ended.</p>
+        <form class="session-create" data-add-attendance>
+          <label><span>Student name</span><input class="input" name="name" required minlength="2" maxlength="60" autocomplete="off" placeholder="Full name" /></label>
+          <label><span>Student ID</span><input class="input" name="studentId" required minlength="3" maxlength="20" pattern="[A-Za-z0-9-]{3,20}" autocomplete="off" placeholder="Student ID" /></label>
+          <button class="btn btn-primary" type="submit" disabled>Add student &amp; mark present</button>
+        </form>
+        <p class="muted small" data-add-attendance-context>Select a session to add attendance. Students do not need to have joined online.</p>
         <p class="session-message small" data-att-message role="status" aria-live="polite"></p>
         <div class="table-wrap board-table">
           <table class="table">
@@ -377,6 +383,13 @@ import AdminShell from '@/components/admin/AdminShell.astro';
     const board = document.querySelector<HTMLElement>('[data-lab-attendance]');
     if (!board) return;
     const sessionId = 'id' in s.session ? s.session.id : '';
+    const form = board.querySelector<HTMLFormElement>('[data-add-attendance]')!;
+    form.dataset.lab = s.structure.lab;
+    form.dataset.sessionId = sessionId;
+    form.querySelector<HTMLButtonElement>('button')!.disabled = !sessionId || form.dataset.saving === '1';
+    board.querySelector<HTMLElement>('[data-add-attendance-context]')!.textContent = 'id' in s.session
+      ? `Add attendance to ${s.session.time_slot} · ${s.session.ta_name}. Students do not need to have joined online.`
+      : 'Create and select a session before adding attendance.';
     const checked = s.students.filter((student) => student.checkedInAt).length;
     board.querySelector<HTMLElement>('[data-att-count]')!.textContent = String(s.students.length);
     board.querySelector<HTMLElement>('[data-att-summary]')!.textContent = `${checked} checked in · ${'id' in s.session ? `${s.session.time_slot} · ${s.session.ta_name}` : 'no session selected'}`;
@@ -516,6 +529,43 @@ import AdminShell from '@/components/admin/AdminShell.astro';
   }
 
   function initTabs() {
+    const attendanceForm = document.querySelector<HTMLFormElement>('[data-add-attendance]');
+    if (attendanceForm && !attendanceForm.dataset.wired) {
+      attendanceForm.dataset.wired = '1';
+      attendanceForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (attendanceForm.dataset.saving === '1' || !attendanceForm.dataset.sessionId) return;
+        const fields = new FormData(attendanceForm);
+        const button = attendanceForm.querySelector<HTMLButtonElement>('button')!;
+        const message = document.querySelector<HTMLElement>('[data-att-message]')!;
+        const context = document.querySelector<HTMLElement>('[data-add-attendance-context]')!.textContent;
+        attendanceForm.dataset.saving = '1';
+        button.disabled = true;
+        button.textContent = 'Saving…';
+        message.classList.remove('err');
+        message.textContent = '';
+        try {
+          const response = await fetch('/api/admin/progress/session', {
+            method: 'POST', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ action: 'add-attendance', lab: attendanceForm.dataset.lab, sessionId: attendanceForm.dataset.sessionId, name: fields.get('name'), studentId: fields.get('studentId') }),
+          });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(result.message ?? (response.status === 401 ? 'Please sign in again.' : 'Could not add attendance. Please try again.'));
+          attendanceForm.reset();
+          message.textContent = `Attendance saved for ${fields.get('name')} (${fields.get('studentId')}). ${context?.split('. Students')[0] ?? ''}`;
+        } catch (error) {
+          message.textContent = error instanceof Error ? error.message : 'Could not add attendance.';
+          message.classList.add('err');
+        } finally {
+          delete attendanceForm.dataset.saving;
+          button.textContent = 'Add student & mark present';
+          button.disabled = !attendanceForm.dataset.sessionId;
+          const root = document.querySelector<HTMLElement>('[data-labp]');
+          if (root) await load(root);
+        }
+      });
+    }
+
     const root = document.querySelector<HTMLElement>('[data-labp]');
     const tabs = document.querySelectorAll<HTMLButtonElement>('[data-tab]');
     if (!tabs.length) return;
