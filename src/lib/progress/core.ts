@@ -99,11 +99,13 @@ export function attendanceEligibility(input: {
   student: { name: string; device_key: string | null } | null;
   name: string;
   deviceKey: string;
+  /** whether the device lock applies to this student (see effectiveDeviceLock) */
+  deviceLocked: boolean;
   activeSec: number;
   seen: number;
 }): { ok: true } | { ok: false; reason: 'identity' | 'participation' } {
   const sameName = input.student?.name.trim().toLocaleLowerCase() === input.name.trim().toLocaleLowerCase();
-  if (!input.student || input.student.device_key !== input.deviceKey || !sameName) return { ok: false, reason: 'identity' };
+  if (!input.student || !sameName || (input.deviceLocked && input.student.device_key !== input.deviceKey)) return { ok: false, reason: 'identity' };
   if (input.activeSec < ATTENDANCE_MIN_ACTIVE_SEC || input.seen < ATTENDANCE_MIN_SEEN) return { ok: false, reason: 'participation' };
   return { ok: true };
 }
@@ -133,7 +135,15 @@ export function sessionState(s: { opens_at: string; closes_at: string | null } |
 
 /* ------------------------------------------------------------ device lock */
 
-/** One student ID belongs to one browser until the admin unlocks it. */
+/**
+ * Whether a student is locked to one device: their own override (true/false) wins,
+ * otherwise the admin's setting for all students applies (off by default).
+ */
+export function effectiveDeviceLock(studentLock: boolean | null | undefined, lockAll: boolean): boolean {
+  return studentLock ?? lockAll;
+}
+
+/** While the lock applies, one student ID belongs to one browser until the admin unlocks it. */
 export function decideLock(existing: { device_key: string | null } | null, deviceKey: string): 'create' | 'ok' | 'relock' | 'conflict' {
   if (!existing) return 'create';
   if (existing.device_key === deviceKey) return 'ok';

@@ -23,7 +23,7 @@ export const POST: APIRoute = async ({ request }) => {
       return json({ error: 'session-closed', message: 'Your TA has not started this lab session yet. You can still read the content.' }, 403);
     }
     if ((await store.touchStudent(identity.value)) === 'conflict') {
-      return json({ error: 'device', message: 'This browser is linked to another student, or this student ID is linked to another device. Ask your TA to allow a new device.' }, 409);
+      return json({ error: 'device', message: 'This student ID is registered under a different name, or it is locked to another device. Type your name exactly as before, or ask your TA.' }, 409);
     }
     await store.joinSession(sessionId, identity.value.studentKey, group);
     return json({ ok: true, session });

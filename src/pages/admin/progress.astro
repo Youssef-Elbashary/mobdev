@@ -235,7 +235,7 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
 
 <script>
   type Cell = { passed: number; total: number; attempts: number };
-  type Student = { key: string; id: string; name: string; group: string; lastSeen: string; locked: boolean; percent: number; solved: number; tasksDone: number; submission: { url: string; reviewed: boolean; note: string } | null; cells: Record<string, Cell>; attended: string | null; seen: number; activeSec: number };
+  type Student = { key: string; id: string; name: string; group: string; lastSeen: string; locked: boolean; deviceLock: boolean | null; percent: number; solved: number; tasksDone: number; submission: { url: string; reviewed: boolean; note: string } | null; cells: Record<string, Cell>; attended: string | null; seen: number; activeSec: number };
   type Session = { id: string; lab: string; ta_name: string; time_slot: string; opens_at: string; closes_at: string | null; open: boolean; closesAt: string | null };
   type Data = {
     labs: { id: string; title: string }[];
@@ -245,6 +245,7 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
     totals: { active: number; avgPercent: number; solved: number; submitted: number; checkedIn: number };
     session: (Session & { open: boolean; closesAt: string | null }) | { open: false; closesAt: null };
     sessions: Session[];
+    deviceLock: boolean;
   };
   type Attempt = { id: number; exercise: string; passed: number; total: number; code: string; created_at: string };
   type Detail = { attempts: Attempt[]; tasks: { task: string; done: boolean }[]; submission: { url: string; reviewed: boolean; note: string } | null; checkin: string | null; views: { seen: string[]; active_sec: number } | null };
@@ -424,7 +425,7 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
     function renderCheckinControl(d: Data) {
       const box = $('[data-pa-ci]');
       {
-        const insightsSig = d.structure.lab + JSON.stringify(d.session) + JSON.stringify(d.sessions);
+        const insightsSig = d.structure.lab + JSON.stringify(d.session) + JSON.stringify(d.sessions) + d.deviceLock;
         if (box.dataset.sig !== insightsSig) {
           box.dataset.sig = insightsSig;
           const children: HTMLElement[] = [];
@@ -439,6 +440,23 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
             ? h('span', { class: 'ci-state on mono', 'data-ci-left': '' })
             : h('span', { class: 'ci-state mono' }, 'No active session'));
           children.push(h('a', { class: 'btn btn-ghost btn-sm ci-action', href: '/admin#sessions' }, 'Manage sessions'));
+          children.push(h('button', {
+            type: 'button',
+            class: 'btn btn-sm ci-action ' + (d.deviceLock ? 'btn-primary' : 'btn-ghost'),
+            'aria-pressed': String(d.deviceLock),
+            title: d.deviceLock
+              ? 'Every student is locked to the first device they join from. Click to let everyone join from any device.'
+              : 'Students can join from any device. Click to lock every student to one device.',
+            onclick: async () => {
+              const on = !d.deviceLock;
+              const text = on
+                ? 'Lock every student to one device? Each student keeps the device they used most recently. Per-student exceptions are cleared.'
+                : 'Let every student join from any device? Per-student exceptions are cleared.';
+              if (!confirm(text)) return;
+              await fetch('/api/admin/progress/student', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'device-lock-all', on }) });
+              load();
+            },
+          }, d.deviceLock ? '🔒 One device per student' : '🔓 Any device'));
           box.replaceChildren(...children);
         }
         countdown();
@@ -492,14 +510,28 @@ const lab = Astro.url.searchParams.get('lab') ?? '';
           h('span', { class: 'd-id' }, `${s.id} · group ${s.group} · last seen ${ago(s.lastSeen)}`),
           h('div', { class: 'prog', style: 'display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center' }, bar(s.percent), h('b', { class: 'mono' }, `${s.percent}%`)),
           h('div', { class: 'd-row' },
-            s.locked
-              ? h('button', {
-                  type: 'button',
-                  class: 'btn btn-ghost btn-sm',
-                  title: 'Use only when this student changed device or was linked incorrectly.',
-                  onclick: () => confirm('Allow a new device for this student? Their progress and attendance stay unchanged, but the current browser binding is removed.') && action({ action: 'unlock' }),
-                }, 'Allow new device')
-              : h('span', { class: 'dim' }, 'New device allowed: the next verified browser becomes theirs'))),
+            h('select', {
+              class: 'input',
+              style: 'width:auto;height:34px;font-size:13px',
+              'aria-label': 'Device access for this student',
+              onchange: (event: Event) => {
+                const v = (event.target as HTMLSelectElement).value;
+                action({ action: 'device-lock', lock: v === 'one' ? true : v === 'any' ? false : null });
+              },
+            },
+              h('option', { value: 'all', selected: s.deviceLock === null }, `Same as all students (${d.deviceLock ? 'one device' : 'any device'})`),
+              h('option', { value: 'any', selected: s.deviceLock === false }, 'Any device'),
+              h('option', { value: 'one', selected: s.deviceLock === true }, 'One device only')),
+            (s.deviceLock ?? d.deviceLock)
+              ? s.locked
+                ? h('button', {
+                    type: 'button',
+                    class: 'btn btn-ghost btn-sm',
+                    title: 'Use only when this student changed device or was linked incorrectly.',
+                    onclick: () => confirm('Allow a new device for this student? Their progress and attendance stay unchanged, but the current browser binding is removed.') && action({ action: 'unlock' }),
+                  }, 'Allow new device')
+                : h('span', { class: 'dim' }, 'New device allowed: the next verified browser becomes theirs')
+              : null)),
 
         d.structure.hasSubmission
           ? h('section', { class: 'd-sec' },

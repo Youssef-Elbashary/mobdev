@@ -1,5 +1,5 @@
 /**
- * Interactive lab tracking uses the same device-locked progress store as
+ * Interactive lab tracking uses the same progress store (with its optional device lock) as
  * reading progress and per-lab attendance.
  */
 import { getProgressStore } from '../progress/server';

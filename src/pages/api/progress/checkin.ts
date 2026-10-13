@@ -1,7 +1,7 @@
 /** POST /api/progress/checkin — end-of-lab check-in: { name, studentId, deviceKey, lab }. Only while the admin has it open. */
 import type { APIRoute } from 'astro';
 import { clientIp } from '@/lib/attendance/server';
-import { ATTENDANCE_MIN_ACTIVE_SEC, ATTENDANCE_MIN_SEEN, attendanceEligibility, sessionState, validateCheckin } from '@/lib/progress/core';
+import { ATTENDANCE_MIN_ACTIVE_SEC, ATTENDANCE_MIN_SEEN, attendanceEligibility, effectiveDeviceLock, sessionState, validateCheckin } from '@/lib/progress/core';
 import { getProgressStore, getStructures, json } from '@/lib/progress/server';
 
 export const prerender = false;
@@ -27,7 +27,8 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     if (existing.checkin) return json({ ok: true, at: existing.checkin });
     const activeSec = existing.views?.active_sec ?? 0;
     const seen = existing.views?.seen.length ?? 0;
-    const eligible = attendanceEligibility({ student: existing.student, name: c.name, deviceKey: c.deviceKey, activeSec, seen });
+    const deviceLocked = effectiveDeviceLock(existing.student?.device_lock, await store.getDeviceLock());
+    const eligible = attendanceEligibility({ student: existing.student, name: c.name, deviceKey: c.deviceKey, deviceLocked, activeSec, seen });
     if (!eligible.ok && eligible.reason === 'identity') {
       return json(
         { error: 'identity', message: 'This check-in does not match the student identity and device that started the lab. Ask your TA to verify it.' },
@@ -54,7 +55,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
       return json(
         {
           error: 'participation',
-          message: `Attendance needs at least 5 active minutes and 3 viewed lab sections on this same device. Recorded: ${Math.floor(activeSec / 60)} min and ${seen} sections.`,
+          message: `Attendance needs at least 5 active minutes and 3 viewed lab sections. Recorded: ${Math.floor(activeSec / 60)} min and ${seen} sections.`,
           requirements: { activeSec: ATTENDANCE_MIN_ACTIVE_SEC, seen: ATTENDANCE_MIN_SEEN },
         },
         403,
