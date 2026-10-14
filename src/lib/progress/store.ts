@@ -5,7 +5,7 @@
  */
 import { neon } from '@neondatabase/serverless';
 import { Pool } from 'pg';
-import { decideLock, effectiveDeviceLock, type Best, type Identity } from './core.ts';
+import { type Best, type Identity } from './core.ts';
 
 export type StudentRow = { student_key: string; student_id: string; name: string; device_key: string | null; device_lock?: boolean | null; created_at: string; last_seen: string; group_name?: string; session_started_at?: string };
 export type AttemptRow = { id: number; exercise: string; passed: number; total: number; code: string; created_at: string };
@@ -39,7 +39,7 @@ export type StudentData = {
 export interface ProgressStore {
   addManualAttendance(lab: string, sessionId: string, student: { studentKey: string; studentId: string; name: string }): Promise<string | null>;
 
-  /** Creates the student, or checks the name (and the device lock when it applies); refreshes last_seen. */
+  /** Creates the student, or checks the name; any device may be used. Refreshes last_seen. */
   touchStudent(i: Identity & { studentKey: string }): Promise<'ok' | 'conflict'>;
   joinSession(sessionId: string, studentKey: string, group: string): Promise<void>;
   isSessionStudent(sessionId: string, studentKey: string): Promise<boolean>;
@@ -50,14 +50,6 @@ export interface ProgressStore {
   hit(key: string, windowSec: number): Promise<number>;
   labData(lab: string, sessionId?: string): Promise<LabData>;
   studentData(lab: string, studentKey: string, sessionId?: string): Promise<StudentData>;
-  unlock(studentKey: string): Promise<void>;
-  /** Device lock for all students. Setting it clears every per-student override. */
-  getDeviceLock(): Promise<boolean>;
-  setDeviceLock(on: boolean): Promise<void>;
-  /** Per-student override: true = one device, false = any device, null = follow the setting for all. */
-  setStudentDeviceLock(studentKey: string, lock: boolean | null): Promise<void>;
-  /** The student's own override, or null when they follow the setting for all (or are unknown). */
-  studentDeviceLock(studentKey: string): Promise<boolean | null>;
   review(studentKey: string, lab: string, reviewed: boolean, note: string, sessionId?: string): Promise<void>;
   /* per-lab attendance + reading */
   getSession(lab: string): Promise<Session | null>;
@@ -104,7 +96,6 @@ export class MemoryStore implements ProgressStore {
   private checkins = new Map<string, { student_key: string; lab: string; at: string; session_id?: string }>();
   private views = new Map<string, { student_key: string; lab: string; seen: Set<string>; active_sec: number; session_id?: string }>();
   private practice = new Set<string>();
-  private deviceLock = false;
   private seq = 0;
   private now: () => number;
   constructor(now: () => number = Date.now) {
@@ -115,12 +106,6 @@ export class MemoryStore implements ProgressStore {
   async touchStudent(i: Identity & { studentKey: string }) {
     const row = this.students.get(i.studentKey) ?? null;
     if (row && row.name.trim().toLocaleLowerCase() !== i.name.trim().toLocaleLowerCase()) return 'conflict' as const;
-    if (effectiveDeviceLock(row?.device_lock, this.deviceLock)) {
-      const deviceOwner = [...this.students.values()].find((student) =>
-        student.device_key === i.deviceKey && student.student_key !== i.studentKey && effectiveDeviceLock(student.device_lock, this.deviceLock));
-      if (deviceOwner) return 'conflict' as const;
-      if (decideLock(row, i.deviceKey) === 'conflict') return 'conflict' as const;
-    }
     const t = this.stamp();
     this.students.set(i.studentKey, {
       student_key: i.studentKey, student_id: i.studentId, name: i.name, device_key: i.deviceKey, device_lock: row?.device_lock ?? null,
@@ -200,20 +185,6 @@ export class MemoryStore implements ProgressStore {
       })(),
     };
   }
-  async unlock(studentKey: string) {
-    const row = this.students.get(studentKey);
-    if (row) row.device_key = null;
-  }
-  async getDeviceLock() { return this.deviceLock; }
-  async setDeviceLock(on: boolean) {
-    this.deviceLock = on;
-    for (const row of this.students.values()) row.device_lock = null;
-  }
-  async setStudentDeviceLock(studentKey: string, lock: boolean | null) {
-    const row = this.students.get(studentKey);
-    if (row) row.device_lock = lock;
-  }
-  async studentDeviceLock(studentKey: string) { return this.students.get(studentKey)?.device_lock ?? null; }
   async review(studentKey: string, lab: string, reviewed: boolean, note: string, sessionId?: string) {
     const sub = this.subs.get(`${sessionId ?? ''}|${studentKey}|${lab}`);
     if (sub) Object.assign(sub, { reviewed, note });
@@ -396,19 +367,10 @@ export class NeonStore implements ProgressStore {
 
   async touchStudent(i: Identity & { studentKey: string }) {
     const { students } = this.t;
-    const lockAll = await this.getDeviceLock();
+    // The ID + name is the identity; any device may be used and the latest one is recorded.
     for (let round = 0; round < 2; round++) {
-      const [row] = await this.q<{ device_key: string | null; device_lock: boolean | null; name: string }>(`select device_key, device_lock, name from ${students} where student_key = $1`, [i.studentKey]);
+      const [row] = await this.q<{ name: string }>(`select name from ${students} where student_key = $1`, [i.studentKey]);
       if (row && row.name.trim().toLocaleLowerCase() !== i.name.trim().toLocaleLowerCase()) return 'conflict' as const;
-      const locked = effectiveDeviceLock(row?.device_lock, lockAll);
-      if (locked) {
-        const [deviceOwner] = await this.q<{ student_key: string }>(
-          `select student_key from ${students} where device_key = $1 and student_key <> $2 and coalesce(device_lock, $3) limit 1`,
-          [i.deviceKey, i.studentKey, lockAll],
-        );
-        if (deviceOwner) return 'conflict' as const;
-        if (decideLock(row ?? null, i.deviceKey) === 'conflict') return 'conflict' as const;
-      }
       if (!row) {
         const made = await this.q(
           `insert into ${students} (student_key, student_id, name, device_key) values ($1, $2, $3, $4)
@@ -418,13 +380,11 @@ export class NeonStore implements ProgressStore {
         if (made.length) return 'ok' as const;
         continue; // someone created it at the same moment: decide again
       }
-      // Locked: only succeeds if nobody else took the ID meanwhile. Free: the latest device is recorded.
-      const updated = await this.q(
-        `update ${students} set name = $2, student_id = $3, device_key = $4, last_seen = now()
-         where student_key = $1 and (not $5 or device_key = $4 or device_key is null) returning student_key`,
-        [i.studentKey, i.name, i.studentId, i.deviceKey, locked],
+      await this.q(
+        `update ${students} set name = $2, student_id = $3, device_key = $4, last_seen = now() where student_key = $1`,
+        [i.studentKey, i.name, i.studentId, i.deviceKey],
       );
-      if (updated.length) return 'ok' as const;
+      return 'ok' as const;
     }
     return 'conflict' as const;
   }
@@ -693,30 +653,6 @@ export class NeonStore implements ProgressStore {
          updated_at = now()`,
       [studentKey, lab, seen, activeSec],
     );
-  }
-
-  async unlock(studentKey: string) {
-    await this.q(`update ${this.t.students} set device_key = null where student_key = $1`, [studentKey]);
-  }
-
-  async getDeviceLock() {
-    const [row] = await this.q<{ device_lock: boolean }>(`select device_lock from ${this.t.settings} where lab = '*'`);
-    return Boolean(row?.device_lock);
-  }
-
-  async setDeviceLock(on: boolean) {
-    await this.q(`insert into ${this.t.settings} (lab, device_lock) values ('*', $1)
-      on conflict (lab) do update set device_lock = excluded.device_lock, updated_at = now()`, [on]);
-    await this.q(`update ${this.t.students} set device_lock = null where device_lock is not null`);
-  }
-
-  async setStudentDeviceLock(studentKey: string, lock: boolean | null) {
-    await this.q(`update ${this.t.students} set device_lock = $2 where student_key = $1`, [studentKey, lock]);
-  }
-
-  async studentDeviceLock(studentKey: string) {
-    const [row] = await this.q<{ device_lock: boolean | null }>(`select device_lock from ${this.t.students} where student_key = $1`, [studentKey]);
-    return row?.device_lock ?? null;
   }
 
   async review(studentKey: string, lab: string, reviewed: boolean, note: string, sessionId?: string) {

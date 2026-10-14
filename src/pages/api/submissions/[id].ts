@@ -1,13 +1,12 @@
 /**
- * A student's hand-in for one published item (public; one per student ID, replaceable from any browser,
- * or only from the same browser while the admin's device lock applies to that student).
+ * A student's hand-in for one published item (public; one per student ID, replaceable from any browser).
  *   GET  ?studentId=…&deviceKey=…   { submitted, at, late, locked } so the page can warn before uploading
  *   POST JSON { name, studentId, note, deviceKey, url }          url = the file already uploaded to Blob
  *   POST multipart (same fields + file)                          on a laptop without Blob
  */
 import type { APIRoute } from 'astro';
 import { clientIp } from '@/lib/attendance/server';
-import { getProgressStore, isDeviceLocked, json } from '@/lib/progress/server';
+import { getProgressStore, json } from '@/lib/progress/server';
 import { ID_RE, canSubmit, describeTypes, extensionsFor, isBlobUrl, isLate, matchesSignature, maxBytes, parseEntry, pastCutoff, safeFileName, typeForName } from '@/lib/project-files/core';
 import { deleteStored, entryFolder, getFilesStore, saveLocal, storageMode, verifyUpload } from '@/lib/project-files/server';
 
@@ -15,7 +14,6 @@ export const prerender = false;
 
 const WRITES_PER_WINDOW = 30;
 const WINDOW_SEC = 10 * 60;
-const LOCKED = 'This student ID already handed in from another browser. Use the same browser, or ask your TA.';
 
 export const GET: APIRoute = async ({ params, url }) => {
   const store = getFilesStore();
@@ -27,8 +25,6 @@ export const GET: APIRoute = async ({ params, url }) => {
     if (!file) return json({ error: 'Not found.' }, 404);
     const entry = await store.findEntry(file.id, studentId);
     if (!entry) return json({ submitted: false });
-    // While locked, only the browser that handed in learns the details; anyone else just learns the ID is taken.
-    if (entry.device_key !== url.searchParams.get('deviceKey') && (await isDeviceLocked(studentId))) return json({ submitted: true, locked: true });
     return json({ submitted: true, locked: false, at: entry.updated_at, late: isLate(file, entry.updated_at), size: entry.size, groupNumber: entry.group_name });
   } catch (error) {
     console.error('[submissions] status failed', error);
@@ -75,7 +71,6 @@ export const POST: APIRoute = async ({ params, request, clientAddress }) => {
     const who = parseEntry(fields);
     if (!who.ok) return reject(who.error, 400);
     const existing = await store.findEntry(file.id, who.value.studentId);
-    if (existing && existing.device_key !== who.value.deviceKey && (await isDeviceLocked(who.value.studentId))) return reject(LOCKED, 409);
 
     let stored: { url: string; pathname: string; size: number };
     if (local) {

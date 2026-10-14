@@ -7,7 +7,6 @@ import {
   validateAttempt,
   validateTask,
   validateSubmission,
-  decideLock,
   labStructure,
   scoreStudent,
   exerciseStats,
@@ -80,13 +79,6 @@ test('submission: only GitHub repo links, only labs that ask for one', () => {
 });
 
 /* ---------------- device lock ---------------- */
-
-test('decideLock: create, same device, unlocked, other device', () => {
-  assert.equal(decideLock(null, DEVICE), 'create');
-  assert.equal(decideLock({ device_key: DEVICE }, DEVICE), 'ok');
-  assert.equal(decideLock({ device_key: null }, DEVICE), 'relock');
-  assert.equal(decideLock({ device_key: 'dev-bbbbbbbbbbbbbbbbbbbb' }, DEVICE), 'conflict');
-});
 
 /* ---------------- lab structure ---------------- */
 
@@ -164,43 +156,12 @@ test('session details accept normal timetable notation', () => {
 
 const ident = (key: string, device = DEVICE, name = 'Mariam Ahmed') => ({ name, studentId: key.toUpperCase(), studentKey: key, deviceKey: device });
 
-test('store: by default a student may join from any device, and one browser may serve several students', async () => {
+test('store: a student may join from any device, and one browser may serve several students', async () => {
   const s = new MemoryStore();
-  assert.equal(await s.getDeviceLock(), false);
   assert.equal(await s.touchStudent(ident('236541')), 'ok');
   assert.equal(await s.touchStudent(ident('236541', 'dev-bbbbbbbbbbbbbbbbbbbb')), 'ok', 'same student on a second device');
   assert.equal(await s.touchStudent(ident('999999')), 'ok', 'a shared lab PC may serve another student');
   assert.equal(await s.touchStudent(ident('236541', DEVICE, 'Mariam A. Ahmed')), 'conflict', 'name cannot be changed once the ID is used');
-});
-
-test('store: with the lock on for all, student IDs and devices are one-to-one until the admin unlocks them', async () => {
-  const s = new MemoryStore();
-  await s.setDeviceLock(true);
-  assert.equal(await s.touchStudent(ident('236541')), 'ok');
-  assert.equal(await s.touchStudent(ident('236541', DEVICE, 'Mariam A. Ahmed')), 'conflict', 'name cannot be changed after identity is locked');
-  assert.equal((await s.studentData('lab-02', '236541')).student?.name, 'Mariam Ahmed');
-  assert.equal(await s.touchStudent(ident('999999')), 'conflict', 'one browser cannot claim a second student ID');
-  assert.equal(await s.touchStudent(ident('236541', 'dev-bbbbbbbbbbbbbbbbbbbb')), 'conflict');
-  await s.unlock('236541');
-  assert.equal(await s.touchStudent(ident('236541', 'dev-bbbbbbbbbbbbbbbbbbbb')), 'ok');
-  assert.equal(await s.touchStudent(ident('236541')), 'conflict');
-  assert.equal(await s.touchStudent(ident('999999')), 'ok', 'the released original device may be assigned again');
-});
-
-test('store: per-student overrides beat the setting for all, and changing that setting clears them', async () => {
-  const s = new MemoryStore();
-  const other = 'dev-bbbbbbbbbbbbbbbbbbbb';
-  assert.equal(await s.touchStudent(ident('a1')), 'ok');
-  await s.setStudentDeviceLock('a1', true);
-  assert.equal(await s.touchStudent(ident('a1', other)), 'conflict', 'this one student is locked even though the lock is off for all');
-  assert.equal(await s.touchStudent(ident('b2', DEVICE)), 'ok', 'a student who is not locked may still use that shared browser');
-  await s.setDeviceLock(true);
-  await s.touchStudent(ident('c3', other));
-  await s.setStudentDeviceLock('c3', false);
-  assert.equal(await s.touchStudent(ident('c3', 'dev-cccccccccccccccccccc')), 'ok', 'this one student may use any device');
-  await s.setDeviceLock(false);
-  assert.equal((await s.studentData('lab-02', 'a1')).student?.device_lock, null, 'overrides are cleared');
-  assert.equal(await s.touchStudent(ident('a1', other)), 'ok');
 });
 
 test('store: attempts roll up into best score, attempts and solve time', async () => {
@@ -275,13 +236,11 @@ test('sessionState: none, open with and without a limit, expired', () => {
   assert.equal(sessionState({ opens_at: '2026-10-05T11:00:00Z', closes_at: '2026-10-05T11:30:00Z' }, now).open, false);
 });
 
-test('attendance eligibility requires the original identity, device (when locked) and meaningful participation', () => {
-  const student = { name: 'Mariam Ahmed', device_key: DEVICE };
-  const check = (change: object = {}) => attendanceEligibility({ student, name: 'Mariam Ahmed', deviceKey: DEVICE, deviceLocked: true, activeSec: 300, seen: 3, ...change });
+test('attendance eligibility requires the original identity and meaningful participation, from any device', () => {
+  const student = { name: 'Mariam Ahmed', device_key: 'dev-bbbbbbbbbbbbbbbbbbbb' };
+  const check = (change: object = {}) => attendanceEligibility({ student, name: 'Mariam Ahmed', activeSec: 300, seen: 3, ...change });
   assert.deepEqual(check(), { ok: true });
   assert.deepEqual(check({ student: null }), { ok: false, reason: 'identity' });
-  assert.deepEqual(check({ deviceKey: 'dev-bbbbbbbbbbbbbbbbbbbb' }), { ok: false, reason: 'identity' });
-  assert.deepEqual(check({ deviceKey: 'dev-bbbbbbbbbbbbbbbbbbbb', deviceLocked: false }), { ok: true }, 'any device when the lock is off');
   assert.deepEqual(check({ name: 'Another Student' }), { ok: false, reason: 'identity' });
   assert.deepEqual(check({ activeSec: 299 }), { ok: false, reason: 'participation' });
   assert.deepEqual(check({ seen: 2 }), { ok: false, reason: 'participation' });

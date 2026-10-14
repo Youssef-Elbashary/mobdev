@@ -103,9 +103,9 @@ async function flush() {
         return;
       }
       if (res.status === 409) {
-        // different name, or the ID is locked to another device: drop its queued items, ask for a TA
+        // the ID is registered under a different name: drop its queued items, ask for a TA
         const data = await res.json().catch(() => ({}));
-        conflictMessage = data.message ?? 'This student ID is registered under a different name, or locked to another device.';
+        conflictMessage = data.message ?? 'This student ID is registered under a different name.';
         write(QUEUE, read<Item[]>(QUEUE, []).filter((q) => q.body.studentId !== item!.body.studentId));
         setState('conflict');
         showSheetError(conflictMessage);
@@ -343,7 +343,7 @@ function wireCheckin() {
           write(`progress:checkin:${lab}`, { id: me.studentId, at: data.at });
           render('done', `✓ Checked in at ${clock(data.at)}. See you next lab!`);
           flushViews(true);
-        } else if (res.status === 409) render('conflict', data.message ?? 'This student ID is registered under a different name, or locked to another device. Ask your TA.');
+        } else if (res.status === 409) render('conflict', data.message ?? 'This student ID is registered under a different name. Ask your TA.');
         else if (res.status === 403 && data.error === 'closed') render('closed', data.message ?? 'Check-in is closed.');
         else render('error', data.message ?? 'Could not check in. Try again in a moment.');
       } catch {

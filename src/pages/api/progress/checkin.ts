@@ -1,7 +1,7 @@
 /** POST /api/progress/checkin — end-of-lab check-in: { name, studentId, deviceKey, lab }. Only while the admin has it open. */
 import type { APIRoute } from 'astro';
 import { clientIp } from '@/lib/attendance/server';
-import { ATTENDANCE_MIN_ACTIVE_SEC, ATTENDANCE_MIN_SEEN, attendanceEligibility, effectiveDeviceLock, sessionState, validateCheckin } from '@/lib/progress/core';
+import { ATTENDANCE_MIN_ACTIVE_SEC, ATTENDANCE_MIN_SEEN, attendanceEligibility, sessionState, validateCheckin } from '@/lib/progress/core';
 import { getProgressStore, getStructures, json } from '@/lib/progress/server';
 
 export const prerender = false;
@@ -21,22 +21,19 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     const session = sessionId ? await store.getSessionById(sessionId) : null;
     if (!session || session.lab !== c.lab) return json({ error: 'closed', message: 'This lab session is not active.' }, 403);
     const existing = await store.studentData(c.lab, c.studentKey, sessionId);
-    // An accepted check-in is immutable and idempotent. Return it before checking
-    // the current browser binding so a repaired/migrated device ID cannot turn an
-    // already-successful attendance record into a misleading device error.
+    // An accepted check-in is immutable and idempotent, from whichever device asks.
     if (existing.checkin) return json({ ok: true, at: existing.checkin });
     const activeSec = existing.views?.active_sec ?? 0;
     const seen = existing.views?.seen.length ?? 0;
-    const deviceLocked = effectiveDeviceLock(existing.student?.device_lock, await store.getDeviceLock());
-    const eligible = attendanceEligibility({ student: existing.student, name: c.name, deviceKey: c.deviceKey, deviceLocked, activeSec, seen });
+    const eligible = attendanceEligibility({ student: existing.student, name: c.name, activeSec, seen });
     if (!eligible.ok && eligible.reason === 'identity') {
       return json(
-        { error: 'identity', message: 'This check-in does not match the student identity and device that started the lab. Ask your TA to verify it.' },
+        { error: 'identity', message: 'This check-in does not match the name and student ID that started the lab. Ask your TA to verify it.' },
         409,
       );
     }
-    // Count a student-specific attempt only after its device and immutable name
-    // match. Otherwise an attacker who knows an ID could lock that student out.
+    // Count a student-specific attempt only after the immutable name
+    // matches. Otherwise an attacker who knows an ID could lock that student out.
     const [deviceTries, studentTries, networkTries] = await Promise.all([
       store.hit(`checkin:${sessionId}:device:${c.deviceKey}`, WINDOW_SEC),
       store.hit(`checkin:${sessionId}:student:${c.studentKey}`, WINDOW_SEC),
