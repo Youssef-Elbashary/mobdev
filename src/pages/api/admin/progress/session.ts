@@ -28,7 +28,9 @@ export const POST: APIRoute = async ({ cookies, request }) => {
       const session = sessionId ? await store.getSessionById(sessionId) : null;
       if (!session || session.lab !== lab) return json({ error: 'not-found', message: 'Select a valid session first.' }, 404);
       const at = await store.addManualAttendance(lab, sessionId, identity.value);
-      return at ? json({ ok: true, at }) : json({ error: 'conflict', message: 'This student ID is already registered with a different name. Check the name and ID.' }, 409);
+      if (!at) return json({ error: 'not-found', message: 'Select a valid session first.' }, 404);
+      const recorded = (await store.studentData(lab, identity.value.studentKey, sessionId)).student?.name ?? identity.value.name;
+      return json({ ok: true, at, name: recorded });
     }
     if (action === 'attendance') {
       const studentKey = typeof body?.studentKey === 'string' ? body.studentKey : '';

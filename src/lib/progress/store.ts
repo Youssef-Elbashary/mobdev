@@ -76,8 +76,8 @@ const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : v == null ? n
 export class MemoryStore implements ProgressStore {
   async addManualAttendance(lab: string, sessionId: string, student: { studentKey: string; studentId: string; name: string }) {
     if (this.sessions.get(sessionId)?.lab !== lab) return null;
+    // Staff are trusted: the ID decides, and a student already on record keeps their name.
     const existing = this.students.get(student.studentKey);
-    if (existing && existing.name.trim().toLowerCase() !== student.name.trim().toLowerCase()) return null;
     if (!existing) this.students.set(student.studentKey, {
       student_key: student.studentKey, student_id: student.studentId, name: student.name,
       device_key: null, created_at: this.stamp(), last_seen: this.stamp(),
@@ -547,13 +547,13 @@ export class NeonStore implements ProgressStore {
   }
 
   async addManualAttendance(lab: string, sessionId: string, student: { studentKey: string; studentId: string; name: string }) {
-    // One statement makes identity, membership and attendance atomic. Existing
-    // names, device bindings, groups and attendance timestamps are preserved.
+    // One statement makes identity, membership and attendance atomic. Staff are
+    // trusted, so the ID decides even when the typed name differs. Existing names,
+    // device bindings, groups and attendance timestamps are preserved.
     const [row] = await this.q(`with identity as (
       insert into ${this.t.students} as s (student_key, student_id, name)
       select $3, $4, $5 where exists (select 1 from ${this.v2.sessions} where id = $2 and lab = $1)
       on conflict (student_key) do update set student_id = s.student_id
-        where lower(trim(s.name)) = lower(trim(excluded.name))
       returning student_key
     ), membership as (
       insert into ${this.v2.members} (session_id, student_key, group_name)

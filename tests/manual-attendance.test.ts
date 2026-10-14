@@ -31,15 +31,15 @@ test('manual entry creates an unbound student in just the selected session and i
   assert.equal(await store.touchStudent({ ...student, deviceKey: 'student-device-123456' }), 'ok');
 });
 
-test('manual entry preserves existing identity, group and device; conflicts make no changes', async () => {
+test('manual entry trusts the ID and preserves existing identity, group and device', async () => {
   const store = new MemoryStore();
   const session = await store.createSession('lab-02', 'TA', 'Monday');
   const student = { studentKey: 'ab123', studentId: 'AB123', name: 'Mariam Ahmed' };
   await store.touchStudent({ ...student, deviceKey: 'student-device-123456' });
   await store.joinSession(session.id, student.studentKey, 'Group A');
   const before = await store.labData('lab-02', session.id);
-  assert.equal(await store.addManualAttendance('lab-02', session.id, { ...student, name: 'Someone Else' }), null);
-  assert.deepEqual(await store.labData('lab-02', session.id), before);
+  assert.ok(await store.addManualAttendance('lab-02', session.id, { ...student, name: 'Mariam A. Ahmed' }), 'a differently typed name is still accepted');
+  assert.deepEqual((await store.labData('lab-02', session.id)).students, before.students, 'the recorded name is kept');
   assert.ok(await store.addManualAttendance('lab-02', session.id, { ...student, name: 'mariam ahmed' }));
   assert.deepEqual((await store.labData('lab-02', session.id)).students, before.students);
   assert.equal(await store.addManualAttendance('lab-03', session.id, { ...student, studentKey: 'new123' }), null);

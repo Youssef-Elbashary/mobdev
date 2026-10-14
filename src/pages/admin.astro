@@ -537,7 +537,7 @@ const error = Astro.url.searchParams.get('e');
           const result = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(result.message ?? (response.status === 401 ? 'Please sign in again.' : 'Could not add attendance. Please try again.'));
           attendanceForm.reset();
-          message.textContent = `Attendance saved for ${fields.get('name')} (${fields.get('studentId')}). ${context?.split('. Students')[0] ?? ''}`;
+          message.textContent = `Attendance saved for ${result.name ?? fields.get('name')} (${fields.get('studentId')}). ${context?.split('. Students')[0] ?? ''}`;
         } catch (error) {
           message.textContent = error instanceof Error ? error.message : 'Could not add attendance.';
           message.classList.add('err');
